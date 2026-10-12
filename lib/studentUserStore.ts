@@ -35,7 +35,6 @@ const globalRef = global as unknown as {
 
 if (!globalRef.__msi_students_cache) {
   globalRef.__msi_students_cache = new Map<string, RegisteredStudentUser>();
-  initializeStore();
 }
 
 const studentsCache: Map<string, RegisteredStudentUser> = globalRef.__msi_students_cache;
@@ -45,27 +44,38 @@ const studentsCache: Map<string, RegisteredStudentUser> = globalRef.__msi_studen
  */
 function initializeStore(): void {
   try {
+    if (fs.existsSync(STUDENTS_FILE)) {
+      const raw = fs.readFileSync(STUDENTS_FILE, 'utf-8');
+      const parsed: RegisteredStudentUser[] = JSON.parse(raw);
+      parsed.forEach((s) => studentsCache.set(s.phone, s));
+      return;
+    }
+  } catch (err) {
+    console.warn('[StudentStore] Error reading students file, falling back to seed:', err);
+  }
+
+  // Populate seed students if cache empty
+  SEED_STUDENTS.forEach((s) => studentsCache.set(s.phone, s));
+
+  try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-
     if (!fs.existsSync(STUDENTS_FILE)) {
       fs.writeFileSync(STUDENTS_FILE, JSON.stringify(SEED_STUDENTS, null, 2), 'utf-8');
-      SEED_STUDENTS.forEach((s) => studentsCache.set(s.phone, s));
-      return;
     }
-
-    const raw = fs.readFileSync(STUDENTS_FILE, 'utf-8');
-    const parsed: RegisteredStudentUser[] = JSON.parse(raw);
-    parsed.forEach((s) => studentsCache.set(s.phone, s));
   } catch (err) {
-    console.warn('[StudentStore] File initialization fallback to memory:', err);
-    SEED_STUDENTS.forEach((s) => studentsCache.set(s.phone, s));
+    // Read-only serverless environment fallback (e.g. Vercel)
   }
 }
 
+// Initialize on first module load
+if (studentsCache.size === 0) {
+  initializeStore();
+}
+
 /**
- * Flushes memory cache to persistent JSON file
+ * Flushes memory cache to persistent JSON file (safely handles read-only environments)
  */
 function persistToFile(): void {
   try {
@@ -75,7 +85,7 @@ function persistToFile(): void {
     const allStudents = Array.from(studentsCache.values());
     fs.writeFileSync(STUDENTS_FILE, JSON.stringify(allStudents, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[StudentStore] Failed to persist students to file:', err);
+    console.warn('[StudentStore] File persistence skipped (read-only environment):', err);
   }
 }
 
