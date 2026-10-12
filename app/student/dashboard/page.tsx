@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import StudentHeader from '@/components/student/StudentHeader';
 import StudentSidebar, { StudentModuleTab } from '@/components/student/StudentSidebar';
@@ -44,6 +44,28 @@ export default function StudentDashboardPage() {
   const [student, setStudent] = useState<StudentProfile>(INITIAL_STUDENT_PROFILE);
   const [activeTab, setActiveTab] = useState<StudentModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Sync active user details from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedName = localStorage.getItem('msi_active_student_name');
+      const storedPhone = localStorage.getItem('msi_active_student_phone');
+      const storedEmail = localStorage.getItem('msi_active_student_email');
+      const storedStream = localStorage.getItem('msi_active_student_stream');
+
+      if (storedName || storedPhone || storedEmail) {
+        setStudent((prev) => ({
+          ...prev,
+          name: storedName || prev.name,
+          phone: storedPhone || prev.phone,
+          email: storedEmail || prev.email,
+          courseTitle: storedStream || prev.courseTitle,
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
 
   // Dynamic state for modules
   const [notifications, setNotifications] = useState(STUDENT_NOTIFICATIONS);
