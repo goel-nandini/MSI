@@ -89,9 +89,17 @@ export default function StudentDashboardPage() {
     router.push('/student/login');
   };
 
-  // Profile update
+  // Profile update with localStorage synchronization
   const handleUpdateProfile = (updated: StudentProfile) => {
     setStudent(updated);
+    try {
+      if (updated.name) localStorage.setItem('msi_active_student_name', updated.name);
+      if (updated.phone) localStorage.setItem('msi_active_student_phone', updated.phone);
+      if (updated.email) localStorage.setItem('msi_active_student_email', updated.email);
+      if (updated.courseTitle) localStorage.setItem('msi_active_student_stream', updated.courseTitle);
+    } catch (err) {
+      console.error('Failed to sync profile update to localStorage:', err);
+    }
   };
 
   // Test completion handler
@@ -137,6 +145,7 @@ export default function StudentDashboardPage() {
         notifications={notifications}
         onLogout={handleLogout}
         onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+        onOpenProfile={() => setActiveTab('profile')}
       />
 
       {/* 2. Main Portal Shell: Sidebar + Content Area */}

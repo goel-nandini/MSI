@@ -27,6 +27,7 @@ interface StudentHeaderProps {
   onLogout: () => void;
   onToggleSidebar?: () => void;
   onSwitchStudent?: (studentId: string) => void;
+  onOpenProfile?: () => void;
 }
 
 export default function StudentHeader({
@@ -34,6 +35,7 @@ export default function StudentHeader({
   notifications,
   onLogout,
   onToggleSidebar,
+  onOpenProfile,
 }: StudentHeaderProps) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -266,7 +268,21 @@ export default function StudentHeader({
                 <p className="text-[10px] text-[#89190E] font-medium mt-1">Roll No: {student.rollNo}</p>
               </div>
 
-              <div className="pt-1">
+              <div className="pt-1 space-y-1">
+                {onOpenProfile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onOpenProfile();
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-[#10233F] hover:bg-[#FFF9EF] rounded-xl transition-colors cursor-pointer"
+                  >
+                    <User className="w-4 h-4 text-[#89190E]" />
+                    <span>View & Edit Profile</span>
+                  </button>
+                )}
+
                 <Link
                   href="/"
                   className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-[#526174] hover:text-[#10233F] hover:bg-[#FFF9EF] rounded-xl transition-colors"

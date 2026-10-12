@@ -24,6 +24,7 @@ import {
   Radio,
   X,
   Play,
+  UserCheck,
 } from 'lucide-react';
 import {
   StudentProfile,
@@ -315,6 +316,15 @@ export default function StudentDashboardTab({
                 <PlusCircle className="w-4 h-4 text-[#EFC988]" />
                 <span>Explore More Courses</span>
               </Link>
+
+              <button
+                type="button"
+                onClick={() => onNavigateTab('profile')}
+                className="w-full sm:w-auto justify-center px-4 sm:px-5 py-2.5 rounded-xl bg-[#EFC988] hover:bg-[#ffe2aa] text-[#10233F] text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all shadow-md active:scale-98 cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4 text-[#89190E]" />
+                <span>Edit Profile</span>
+              </button>
             </div>
           </div>
 
