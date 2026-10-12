@@ -12,6 +12,7 @@ export interface StoredOtpData {
     name?: string;
     email?: string;
     stream?: string;
+    password?: string;
     purpose?: 'login' | 'signup' | 'verification';
   };
 }

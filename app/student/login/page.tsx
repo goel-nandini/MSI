@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Smartphone,
+  Lock,
   ArrowRight,
   ShieldCheck,
   Sparkles,
@@ -18,26 +19,38 @@ import {
   BookOpen,
   LogIn,
   UserPlus,
+  Eye,
+  EyeOff,
   KeyRound,
 } from 'lucide-react';
 import { enrollStudentAction } from '@/lib/lmsStore';
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'signin' | 'signup' | 'forgot_otp';
 type AuthStep = 'input' | 'otp';
 
 export default function StudentLoginPage() {
   const router = useRouter();
 
-  // Authentication Mode: Sign In (Returning) vs Sign Up (New Registration)
+  // Authentication Mode
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [authStep, setAuthStep] = useState<AuthStep>('input');
 
-  // Input fields (Mobile-only authentication)
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [studentFullName, setStudentFullName] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState('PCS-J Punjab Judicial Services');
+  // Sign In inputs (Mobile + Password direct login)
+  const [signinPhone, setSigninPhone] = useState('');
+  const [signinPassword, setSigninPassword] = useState('');
+  const [showSigninPassword, setShowSigninPassword] = useState(false);
 
-  // OTP State
+  // Sign Up inputs (New Registration with Password creation)
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupFullName, setSignupFullName] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState('PCS-J Punjab Judicial Services');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
+
+  // OTP State (Used only for first-time registration or forgot-password fallback)
+  const [activeOtpPhone, setActiveOtpPhone] = useState('');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [resendCountdown, setResendCountdown] = useState<number>(0);
   const [devOtpNotification, setDevOtpNotification] = useState<string | null>(null);
@@ -46,6 +59,7 @@ export default function StudentLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isAlreadyRegisteredError, setIsAlreadyRegisteredError] = useState(false);
 
   // 6-digit OTP input refs for keyboard navigation
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -69,24 +83,22 @@ export default function StudentLoginPage() {
     return () => clearInterval(timer);
   }, [resendCountdown]);
 
-  // Clean phone input to accept standard 10 digits
-  const handlePhoneChange = (val: string) => {
-    const cleaned = val.replace(/\D/g, '').slice(0, 10);
-    setPhoneNumber(cleaned);
-    setErrorMessage('');
-  };
+  // Clean phone input to standard 10 digits
+  const cleanPhoneInput = (val: string) => val.replace(/\D/g, '').slice(0, 10);
 
   // Helper: Persist session and redirect to student dashboard
   const completeAuthAndRedirect = (userData: {
     name?: string;
     phone?: string;
     stream?: string;
+    email?: string;
   }) => {
     try {
       localStorage.setItem('msi_student_logged_in', 'true');
       if (userData.name) localStorage.setItem('msi_active_student_name', userData.name);
       if (userData.phone) localStorage.setItem('msi_active_student_phone', userData.phone);
       if (userData.stream) localStorage.setItem('msi_active_student_stream', userData.stream);
+      if (userData.email) localStorage.setItem('msi_active_student_email', userData.email);
 
       // Handle course auto-enrollment if coming from a course CTA
       if (typeof window !== 'undefined') {
@@ -100,25 +112,84 @@ export default function StudentLoginPage() {
       console.error('Failed to save auth state:', err);
     }
 
-    setSuccessMessage('Verified successfully! Redirecting to student portal...');
+    setSuccessMessage('Authenticated successfully! Entering student portal...');
     setTimeout(() => {
       router.push('/student/dashboard');
-    }, 800);
+    }, 700);
   };
 
-  // Step 1: Request SMS OTP via ApiTxt Gateway
-  const handleSendOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // =========================================================================
+  // ACTION 1: DIRECT SIGN IN WITH MOBILE & PASSWORD (NO OTP = ZERO COST)
+  // =========================================================================
+  const handlePasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
+    setIsAlreadyRegisteredError(false);
 
-    if (!phoneNumber || phoneNumber.length !== 10) {
+    if (!signinPhone || signinPhone.length !== 10) {
+      setErrorMessage('Please enter your registered 10-digit mobile number.');
+      return;
+    }
+
+    if (!signinPassword.trim()) {
+      setErrorMessage('Please enter your account password.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: signinPhone,
+          password: signinPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.message || 'Invalid mobile number or password.');
+        setIsLoading(false);
+        return;
+      }
+
+      completeAuthAndRedirect(data.user);
+    } catch (err: any) {
+      setErrorMessage('Network connection error. Please verify your internet and try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // =========================================================================
+  // ACTION 2: NEW REGISTRATION (VALIDATE & REQUEST FIRST-TIME OTP)
+  // =========================================================================
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsAlreadyRegisteredError(false);
+
+    if (!signupFullName.trim()) {
+      setErrorMessage('Please enter your full legal name.');
+      return;
+    }
+
+    if (!signupPhone || signupPhone.length !== 10) {
       setErrorMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
 
-    if (authMode === 'signup' && !studentFullName.trim()) {
-      setErrorMessage('Please enter your full legal name to register.');
+    if (!signupPassword || signupPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (signupPassword !== signupConfirmPassword) {
+      setErrorMessage('Passwords do not match. Please re-type your password carefully.');
       return;
     }
 
@@ -129,18 +200,28 @@ export default function StudentLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: phoneNumber,
-          purpose: authMode,
-          name: studentFullName.trim() || undefined,
+          phone: signupPhone,
+          purpose: 'signup',
+          name: signupFullName.trim(),
           stream: selectedBatch,
+          password: signupPassword,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setErrorMessage(data.message || 'Failed to dispatch verification SMS.');
+        // If already registered, block registration cleanly and direct to Sign In
+        if (data.isAlreadyRegistered) {
+          setIsAlreadyRegisteredError(true);
+          setErrorMessage(data.message || 'This mobile number is already registered.');
+          setIsLoading(false);
+          return;
+        }
+
+        setErrorMessage(data.message || 'Failed to dispatch verification OTP.');
         if (data.devOtp) {
+          setActiveOtpPhone(signupPhone);
           setAuthStep('otp');
           setDevOtpNotification(data.devOtp);
           setResendCountdown(30);
@@ -149,25 +230,83 @@ export default function StudentLoginPage() {
         return;
       }
 
-      // Live SMS dispatched via ApiTxt
+      // Success: OTP dispatched
+      setActiveOtpPhone(signupPhone);
       setAuthStep('otp');
       setResendCountdown(data.cooldownSeconds || 30);
       setOtpDigits(['', '', '', '', '', '']);
       setDevOtpNotification(null);
-      setSuccessMessage(data.message || 'OTP dispatched to your mobile number via SMS!');
+      setSuccessMessage('OTP dispatched to your mobile number via SMS!');
 
-      // Auto-focus first digit box
       setTimeout(() => {
         otpInputRefs.current[0]?.focus();
       }, 100);
     } catch (err: any) {
-      setErrorMessage('Network error while dispatching SMS. Please verify your connection.');
+      setErrorMessage('Network error while dispatching SMS. Please verify connection.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Step 2: Verify Submitted 6-Digit OTP
+  // =========================================================================
+  // ACTION 3: FORGOT PASSWORD / LOGIN WITH OTP FALLBACK
+  // =========================================================================
+  const handleForgotOtpRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (!signinPhone || signinPhone.length !== 10) {
+      setErrorMessage('Please enter your 10-digit mobile number to receive OTP.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: signinPhone,
+          purpose: 'login',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.message || 'Failed to dispatch verification OTP.');
+        if (data.devOtp) {
+          setActiveOtpPhone(signinPhone);
+          setAuthStep('otp');
+          setDevOtpNotification(data.devOtp);
+          setResendCountdown(30);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      setActiveOtpPhone(signinPhone);
+      setAuthStep('otp');
+      setResendCountdown(data.cooldownSeconds || 30);
+      setOtpDigits(['', '', '', '', '', '']);
+      setDevOtpNotification(null);
+      setSuccessMessage('Verification OTP sent to your mobile!');
+
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 100);
+    } catch (err) {
+      setErrorMessage('Network error while requesting OTP.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // =========================================================================
+  // ACTION 4: VERIFY OTP (FOR REGISTRATION OR RECOVERY)
+  // =========================================================================
   const handleVerifyOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage('');
@@ -186,11 +325,12 @@ export default function StudentLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: phoneNumber,
+          phone: activeOtpPhone,
           otp: fullOtp,
-          name: studentFullName.trim() || undefined,
+          name: signupFullName.trim() || undefined,
           stream: selectedBatch,
-          purpose: authMode,
+          password: signupPassword || undefined,
+          purpose: authMode === 'signup' ? 'signup' : 'login',
         }),
       });
 
@@ -203,9 +343,10 @@ export default function StudentLoginPage() {
       }
 
       completeAuthAndRedirect({
-        name: data.user?.name || studentFullName || 'MSI Student',
-        phone: data.user?.phone || `+91 ${phoneNumber}`,
+        name: data.user?.name || signupFullName || 'MSI Student',
+        phone: data.user?.phone || `+91 ${activeOtpPhone}`,
         stream: data.user?.stream || selectedBatch,
+        email: data.user?.email,
       });
     } catch (err: any) {
       setErrorMessage('Network error during verification. Please try again.');
@@ -252,6 +393,15 @@ export default function StudentLoginPage() {
     const digits = devOtpNotification.split('');
     setOtpDigits(digits);
     otpInputRefs.current[5]?.focus();
+  };
+
+  // Quick switch from duplicate registration error to Sign In
+  const switchToSignInWithPhone = () => {
+    setSigninPhone(signupPhone);
+    setAuthMode('signin');
+    setAuthStep('input');
+    setErrorMessage('');
+    setIsAlreadyRegisteredError(false);
   };
 
   return (
@@ -301,7 +451,13 @@ export default function StudentLoginPage() {
           {/* Card Top Icon & Badge */}
           <div className="text-center">
             <div className="w-14 h-14 rounded-2xl bg-[#FFF3DD] border border-[#EFC988] text-[#89190E] flex items-center justify-center mx-auto mb-3 shadow-xs">
-              <Smartphone className="w-7 h-7 text-[#89190E]" />
+              {authMode === 'signup' ? (
+                <UserPlus className="w-7 h-7 text-[#89190E]" />
+              ) : authStep === 'otp' ? (
+                <Smartphone className="w-7 h-7 text-[#89190E]" />
+              ) : (
+                <Lock className="w-7 h-7 text-[#89190E]" />
+              )}
             </div>
 
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#FFF9EF] border border-[#E8DCCB] mb-1.5">
@@ -316,15 +472,19 @@ export default function StudentLoginPage() {
                 ? 'Verify Mobile OTP'
                 : authMode === 'signin'
                 ? 'Student Sign In'
-                : 'Student Registration'}
+                : authMode === 'forgot_otp'
+                ? 'Login via Mobile OTP'
+                : 'New Student Registration'}
             </h1>
 
             <p className="text-xs text-[#526174] mt-1.5">
               {authStep === 'otp'
-                ? 'Enter the 6-digit verification code delivered to your mobile.'
+                ? `Enter the 6-digit code dispatched to +91 ${activeOtpPhone}`
                 : authMode === 'signin'
-                ? 'Enter your mobile number to receive an instant verification OTP.'
-                : 'Create your student profile and verify via mobile OTP.'}
+                ? 'Sign in directly with your registered mobile number & password.'
+                : authMode === 'forgot_otp'
+                ? 'We will send a one-time OTP to your registered mobile number.'
+                : 'Create your student account with your legal name and password.'}
             </p>
           </div>
 
@@ -337,9 +497,10 @@ export default function StudentLoginPage() {
                   setAuthMode('signin');
                   setErrorMessage('');
                   setSuccessMessage('');
+                  setIsAlreadyRegisteredError(false);
                 }}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
-                  authMode === 'signin'
+                  authMode === 'signin' || authMode === 'forgot_otp'
                     ? 'bg-[#89190E] text-white shadow-sm'
                     : 'text-[#526174] hover:text-[#10233F]'
                 }`}
@@ -354,6 +515,7 @@ export default function StudentLoginPage() {
                   setAuthMode('signup');
                   setErrorMessage('');
                   setSuccessMessage('');
+                  setIsAlreadyRegisteredError(false);
                 }}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                   authMode === 'signup'
@@ -369,9 +531,22 @@ export default function StudentLoginPage() {
 
           {/* Feedback Messages */}
           {errorMessage && (
-            <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col space-y-2 animate-fadeIn">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+              {/* If user attempted to register an already-registered number */}
+              {isAlreadyRegisteredError && (
+                <button
+                  type="button"
+                  onClick={switchToSignInWithPhone}
+                  className="self-start px-3 py-1.5 rounded-lg bg-[#89190E] text-white text-[11px] font-bold hover:bg-[#65130D] transition-colors cursor-pointer shadow-xs flex items-center space-x-1"
+                >
+                  <LogIn className="w-3 h-3" />
+                  <span>Click here to Sign In with Password</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -383,52 +558,11 @@ export default function StudentLoginPage() {
           )}
 
           {/* ========================================================== */}
-          {/* STEP 1: MOBILE NUMBER & REGISTRATION DETAILS INPUT        */}
+          {/* TAB 1: DIRECT SIGN IN (MOBILE + PASSWORD = NO OTP)         */}
           {/* ========================================================== */}
-          {authStep === 'input' && (
-            <form onSubmit={handleSendOtp} className="mt-5 space-y-4">
-              {/* If New Registration: Ask for Legal Name & Course Stream */}
-              {authMode === 'signup' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
-                      Full Legal Name <span className="text-[#89190E]">*</span>
-                    </label>
-                    <div className="relative">
-                      <UserCheck className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required
-                        value={studentFullName}
-                        onChange={(e) => setStudentFullName(e.target.value)}
-                        placeholder="e.g. Priyanshu Sharma"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
-                      Primary Course Stream
-                    </label>
-                    <div className="relative">
-                      <BookOpen className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={selectedBatch}
-                        onChange={(e) => setSelectedBatch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs font-semibold text-[#10233F] focus:outline-none focus:border-[#89190E]"
-                      >
-                        <option value="PCS-J Punjab Judicial Services">PCS-J Punjab Judicial Services</option>
-                        <option value="CLAT & AILET Supreme Batch">CLAT & AILET Supreme Batch</option>
-                        <option value="Criminal Law BNSS Masterclass">Criminal Law BNSS Masterclass</option>
-                        <option value="Cyber Law & Digital Evidence">Cyber Law & Digital Evidence</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Mobile Number Input (+91 India) */}
+          {authStep === 'input' && authMode === 'signin' && (
+            <form onSubmit={handlePasswordSignIn} className="mt-5 space-y-4">
+              {/* Mobile Number */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1.5">
                   Mobile Number <span className="text-[#89190E]">*</span>
@@ -442,29 +576,70 @@ export default function StudentLoginPage() {
                     type="tel"
                     inputMode="numeric"
                     required
-                    value={phoneNumber}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    value={signinPhone}
+                    onChange={(e) => {
+                      setSigninPhone(cleanPhoneInput(e.target.value));
+                      setErrorMessage('');
+                    }}
                     placeholder="98765 43210"
                     maxLength={10}
                     className="w-full px-3 py-3 text-sm text-[#10233F] font-mono tracking-wider focus:outline-none bg-transparent"
                   />
                 </div>
-                <span className="text-[11px] text-[#526174] block mt-1">
-                  A 6-digit OTP will be dispatched to this number via SMS.
-                </span>
               </div>
 
-              {/* Submit CTA */}
+              {/* Password */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F]">
+                    Password <span className="text-[#89190E]">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('forgot_otp');
+                      setErrorMessage('');
+                      setSuccessMessage('');
+                    }}
+                    className="text-[11px] text-[#89190E] font-bold hover:underline cursor-pointer"
+                  >
+                    Forgot Password / Login with OTP?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showSigninPassword ? 'text' : 'password'}
+                    required
+                    value={signinPassword}
+                    onChange={(e) => {
+                      setSigninPassword(e.target.value);
+                      setErrorMessage('');
+                    }}
+                    placeholder="••••••••••••"
+                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSigninPassword(!showSigninPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F] cursor-pointer"
+                  >
+                    {showSigninPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Direct Sign In Button (Zero OTP cost) */}
               <button
                 type="submit"
-                disabled={isLoading || phoneNumber.length !== 10}
+                disabled={isLoading || signinPhone.length !== 10 || !signinPassword.trim()}
                 className="w-full py-3.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-[#89190E]/30 btn-chamfered active:scale-98 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
-                  <span>Sending SMS OTP...</span>
+                  <span>Authenticating Credentials...</span>
                 ) : (
                   <>
-                    <span>{authMode === 'signup' ? 'Register & Send OTP' : 'Send Verification OTP'}</span>
+                    <span>Sign In to Student Portal</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -472,35 +647,245 @@ export default function StudentLoginPage() {
 
               {/* Bottom Quick Switch */}
               <div className="text-center pt-2">
-                {authMode === 'signin' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setErrorMessage('');
+                    setIsAlreadyRegisteredError(false);
+                  }}
+                  className="text-xs text-[#526174] hover:text-[#89190E]"
+                >
+                  Don&apos;t have an account?{' '}
+                  <span className="text-[#89190E] font-bold underline">
+                    Register as New Student
+                  </span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB 2: NEW REGISTRATION (WITH PASSWORD CREATION & OTP)     */}
+          {/* ========================================================== */}
+          {authStep === 'input' && authMode === 'signup' && (
+            <form onSubmit={handleRegistrationSubmit} className="mt-5 space-y-3.5">
+              {/* Full Legal Name */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
+                  Full Legal Name <span className="text-[#89190E]">*</span>
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={signupFullName}
+                    onChange={(e) => setSignupFullName(e.target.value)}
+                    placeholder="e.g. Priyanshu Sharma"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              {/* Course Stream */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
+                  Primary Course Stream
+                </label>
+                <div className="relative">
+                  <BookOpen className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <select
+                    value={selectedBatch}
+                    onChange={(e) => setSelectedBatch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs font-semibold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="PCS-J Punjab Judicial Services">PCS-J Punjab Judicial Services</option>
+                    <option value="CLAT & AILET Supreme Batch">CLAT & AILET Supreme Batch</option>
+                    <option value="Criminal Law BNSS Masterclass">Criminal Law BNSS Masterclass</option>
+                    <option value="Cyber Law & Digital Evidence">Cyber Law & Digital Evidence</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
+                  Mobile Number <span className="text-[#89190E]">*</span>
+                </label>
+                <div className="flex rounded-xl border border-[#E8DCCB] focus-within:border-[#89190E] overflow-hidden bg-[#FFF9EF]/40 transition-all">
+                  <div className="flex items-center space-x-1 px-3 bg-[#FFF3DD] border-r border-[#E8DCCB] text-xs font-bold text-[#89190E] flex-shrink-0 select-none">
+                    <span className="text-sm">🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    required
+                    value={signupPhone}
+                    onChange={(e) => {
+                      setSignupPhone(cleanPhoneInput(e.target.value));
+                      setErrorMessage('');
+                      setIsAlreadyRegisteredError(false);
+                    }}
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    className="w-full px-3 py-2.5 text-sm text-[#10233F] font-mono tracking-wider focus:outline-none bg-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Create Password */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
+                  Create Password <span className="text-[#89190E]">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showSignupPassword ? 'text' : 'password'}
+                    required
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Minimum 6 characters"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono"
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setErrorMessage('');
-                    }}
-                    className="text-xs text-[#526174] hover:text-[#89190E]"
+                    onClick={() => setShowSignupPassword(!showSignupPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F] cursor-pointer"
                   >
-                    Don&apos;t have an account?{' '}
-                    <span className="text-[#89190E] font-bold underline">
-                      Register as New Student
-                    </span>
+                    {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1">
+                  Confirm Password <span className="text-[#89190E]">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showSignupConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSignupConfirmPassword(!showSignupConfirmPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F] cursor-pointer"
+                  >
+                    {showSignupConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Register & Verify via OTP CTA */}
+              <button
+                type="submit"
+                disabled={
+                  isLoading ||
+                  !signupFullName.trim() ||
+                  signupPhone.length !== 10 ||
+                  signupPassword.length < 6 ||
+                  !signupConfirmPassword
+                }
+                className="w-full py-3.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-[#89190E]/30 btn-chamfered active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                {isLoading ? (
+                  <span>Checking & Dispatching OTP...</span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signin');
-                      setErrorMessage('');
-                    }}
-                    className="text-xs text-[#526174] hover:text-[#89190E]"
-                  >
-                    Already registered?{' '}
-                    <span className="text-[#89190E] font-bold underline">
-                      Sign In with Mobile OTP
-                    </span>
-                  </button>
+                  <>
+                    <span>Verify Mobile & Complete Registration</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
+              </button>
+
+              {/* Bottom Quick Switch */}
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setErrorMessage('');
+                    setIsAlreadyRegisteredError(false);
+                  }}
+                  className="text-xs text-[#526174] hover:text-[#89190E]"
+                >
+                  Already registered?{' '}
+                  <span className="text-[#89190E] font-bold underline">
+                    Sign In with Password
+                  </span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================== */}
+          {/* FALLBACK: FORGOT PASSWORD REQUEST OTP FORM                 */}
+          {/* ========================================================== */}
+          {authStep === 'input' && authMode === 'forgot_otp' && (
+            <form onSubmit={handleForgotOtpRequest} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1.5">
+                  Registered Mobile Number
+                </label>
+                <div className="flex rounded-xl border border-[#E8DCCB] focus-within:border-[#89190E] overflow-hidden bg-[#FFF9EF]/40 transition-all">
+                  <div className="flex items-center space-x-1 px-3 bg-[#FFF3DD] border-r border-[#E8DCCB] text-xs font-bold text-[#89190E] flex-shrink-0 select-none">
+                    <span className="text-sm">🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    required
+                    value={signinPhone}
+                    onChange={(e) => setSigninPhone(cleanPhoneInput(e.target.value))}
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    className="w-full px-3 py-3 text-sm text-[#10233F] font-mono tracking-wider focus:outline-none bg-transparent"
+                  />
+                </div>
+                <span className="text-[11px] text-[#526174] block mt-1">
+                  A 6-digit OTP will be dispatched to verify your identity.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || signinPhone.length !== 10}
+                className="w-full py-3.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-[#89190E]/30 btn-chamfered active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                {isLoading ? (
+                  <span>Sending Recovery OTP...</span>
+                ) : (
+                  <>
+                    <span>Send Verification OTP</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setErrorMessage('');
+                  }}
+                  className="text-xs text-[#526174] hover:text-[#89190E]"
+                >
+                  Remember password?{' '}
+                  <span className="text-[#89190E] font-bold underline">
+                    Back to Direct Password Login
+                  </span>
+                </button>
               </div>
             </form>
           )}
@@ -514,10 +899,10 @@ export default function StudentLoginPage() {
               <div className="p-3 bg-[#FFF9EF] rounded-2xl border border-[#E8DCCB] flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-[#526174] block uppercase font-mono">
-                    Sending OTP to:
+                    Verifying Mobile:
                   </span>
                   <span className="text-sm font-bold font-mono text-[#10233F]">
-                    +91 {phoneNumber.slice(0, 5)} {phoneNumber.slice(5)}
+                    +91 {activeOtpPhone.slice(0, 5)} {activeOtpPhone.slice(5)}
                   </span>
                 </div>
                 <button
@@ -601,7 +986,10 @@ export default function StudentLoginPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleSendOtp()}
+                    onClick={(e) => {
+                      if (authMode === 'signup') handleRegistrationSubmit(e);
+                      else handleForgotOtpRequest(e);
+                    }}
                     disabled={isLoading}
                     className="flex items-center space-x-1 text-xs font-bold text-[#89190E] hover:underline cursor-pointer disabled:opacity-50"
                   >

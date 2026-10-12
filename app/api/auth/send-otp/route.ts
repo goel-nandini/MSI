@@ -6,13 +6,14 @@ import {
   sendOtpToMobile,
 } from '@/lib/smsService';
 import { checkOtpCooldown, saveOtp, cleanupExpiredOtps } from '@/lib/otpStore';
+import { isPhoneRegistered } from '@/lib/studentUserStore';
 
 export async function POST(req: NextRequest) {
   try {
     cleanupExpiredOtps();
 
     const body = await req.json().catch(() => ({}));
-    const { phone, purpose = 'login', name, email, stream } = body;
+    const { phone, purpose = 'login', name, email, stream, password } = body;
 
     if (!phone) {
       return NextResponse.json(
@@ -28,6 +29,19 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           message: 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Duplicate registration check: Do not send OTP if already registered
+    if (purpose === 'signup' && isPhoneRegistered(cleanPhone)) {
+      return NextResponse.json(
+        {
+          success: false,
+          isAlreadyRegistered: true,
+          message:
+            'This mobile number is already registered with MSI. Please sign in with your password instead.',
         },
         { status: 400 }
       );
@@ -49,11 +63,12 @@ export async function POST(req: NextRequest) {
     // Generate fresh 6-digit OTP
     const otp = generateNumericOTP();
 
-    // Save in store with metadata
+    // Save in store with metadata (including pending password for registration)
     saveOtp(cleanPhone, otp, {
       name: name?.trim(),
       email: email?.trim(),
       stream: stream?.trim(),
+      password: password?.trim(),
       purpose: purpose as 'login' | 'signup' | 'verification',
     });
 
@@ -68,7 +83,7 @@ export async function POST(req: NextRequest) {
       provider: result.provider,
       missingKey: result.missingKey,
       isDev: result.isDev,
-      devOtp: result.devOtp, // Provided in development or if API key is not configured
+      devOtp: result.devOtp,
       cooldownSeconds: 30,
     });
   } catch (error: any) {
