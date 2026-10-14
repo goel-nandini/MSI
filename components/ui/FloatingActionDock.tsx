@@ -29,11 +29,11 @@ export default function FloatingActionDock() {
         aria-label="Quick Contact & Enquiry"
         className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end gap-2.5 sm:gap-3 pointer-events-auto select-none"
       >
-        {/* 1. ENQUIRE NOW Vertical Tab (Matches Screenshot) */}
+        {/* 1. ENQUIRE NOW Vertical Tab — Matches Navbar Crimson #89190E & Gold #EFC988 */}
         <button
           type="button"
           onClick={() => setIsEnquiryOpen(true)}
-          className="group relative flex items-center justify-center bg-[#e03e2d] hover:bg-[#c93222] active:bg-[#b5281a] text-white px-2 sm:px-2.5 py-4 sm:py-5 rounded-l-xl shadow-[-4px_4px_16px_rgba(0,0,0,0.22)] transition-all duration-300 hover:pr-3.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#e03e2d]/60"
+          className="group relative flex items-center justify-center bg-[#89190E] hover:bg-[#65130D] active:bg-[#520f0a] text-[#FFF9EF] px-2 sm:px-2.5 py-4 sm:py-5 rounded-l-xl border-l-2 border-y border-[#EFC988]/70 shadow-[-4px_4px_16px_rgba(137,25,14,0.38)] transition-all duration-300 hover:pr-3.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#89190E]/60"
           style={{ writingMode: 'vertical-rl' }}
           aria-label="Enquire Now - Admissions"
           title="Click to Open Enquiry Form"
@@ -43,18 +43,18 @@ export default function FloatingActionDock() {
           </span>
         </button>
 
-        {/* 2. WhatsApp Circular Button (Matches Screenshot) */}
+        {/* 2. WhatsApp Circular Button — Matches Midnight Navy #10233F & Gold #EFC988 */}
         <div className="relative group mr-1 sm:mr-1.5">
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#2e7d32] hover:bg-[#256829] text-white flex items-center justify-center shadow-[-2px_4px_14px_rgba(46,125,50,0.45)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/60"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#10233F] hover:bg-[#89190E] text-white flex items-center justify-center border-2 border-[#EFC988]/70 hover:border-[#EFC988] shadow-[-2px_4px_14px_rgba(16,35,63,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#EFC988]/60"
             aria-label="Chat with MSI on WhatsApp"
           >
             {/* Official WhatsApp SVG Icon */}
             <svg
-              className="w-6 h-6 fill-white"
+              className="w-6 h-6 fill-white group-hover:fill-[#FFF9EF] transition-colors"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -62,23 +62,23 @@ export default function FloatingActionDock() {
             </svg>
           </a>
           {/* Tooltip on Desktop hover */}
-          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none animate-fadeIn">
+          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-[#EFC988]/30 animate-fadeIn">
             WhatsApp Admissions
             <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#10233F]" />
           </div>
         </div>
 
-        {/* 3. Call Circular Button (Matches Screenshot) */}
+        {/* 3. Call Circular Button — Matches Midnight Navy #10233F & Gold #EFC988 */}
         <div className="relative group mr-1 sm:mr-1.5">
           <a
             href={`tel:${institutePhone}`}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#2e7d32] hover:bg-[#256829] text-white flex items-center justify-center shadow-[-2px_4px_14px_rgba(46,125,50,0.45)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/60"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#10233F] hover:bg-[#89190E] text-white flex items-center justify-center border-2 border-[#EFC988]/70 hover:border-[#EFC988] shadow-[-2px_4px_14px_rgba(16,35,63,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#EFC988]/60"
             aria-label="Call MSI Admissions Helpline"
           >
             <Phone className="w-5 h-5 fill-white text-white rotate-[-15deg] transition-transform group-hover:rotate-0" />
           </a>
           {/* Tooltip on Desktop hover */}
-          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none animate-fadeIn">
+          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-[#EFC988]/30 animate-fadeIn">
             Call: {displayPhone}
             <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#10233F]" />
           </div>

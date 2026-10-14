@@ -92,13 +92,25 @@ export default function StudentLoginPage() {
     phone?: string;
     stream?: string;
     email?: string;
+    cleanPhone?: string;
+    profile?: any;
   }) => {
     try {
+      const cleanPhone = (userData.cleanPhone || userData.phone || '').replace(/\D/g, '').slice(-10);
       localStorage.setItem('msi_student_logged_in', 'true');
+      if (cleanPhone) {
+        localStorage.setItem('msi_active_student_phone', cleanPhone);
+      }
       if (userData.name) localStorage.setItem('msi_active_student_name', userData.name);
-      if (userData.phone) localStorage.setItem('msi_active_student_phone', userData.phone);
       if (userData.stream) localStorage.setItem('msi_active_student_stream', userData.stream);
       if (userData.email) localStorage.setItem('msi_active_student_email', userData.email);
+
+      if (userData.profile) {
+        localStorage.setItem('msi_active_student_profile', JSON.stringify(userData.profile));
+        if (cleanPhone) {
+          localStorage.setItem(`msi_student_profile_${cleanPhone}`, JSON.stringify(userData.profile));
+        }
+      }
 
       // Handle course auto-enrollment if coming from a course CTA
       if (typeof window !== 'undefined') {
@@ -342,12 +354,14 @@ export default function StudentLoginPage() {
         return;
       }
 
-      completeAuthAndRedirect({
-        name: data.user?.name || signupFullName || 'MSI Student',
-        phone: data.user?.phone || `+91 ${activeOtpPhone}`,
-        stream: data.user?.stream || selectedBatch,
-        email: data.user?.email,
-      });
+      completeAuthAndRedirect(
+        data.user || {
+          name: signupFullName || 'MSI Student',
+          phone: `+91 ${activeOtpPhone}`,
+          cleanPhone: activeOtpPhone,
+          stream: selectedBatch,
+        }
+      );
     } catch (err: any) {
       setErrorMessage('Network error during verification. Please try again.');
       setIsLoading(false);

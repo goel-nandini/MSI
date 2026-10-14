@@ -247,10 +247,6 @@ export default function Footer() {
                   <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
                   <span>WhatsApp: +91 96342 99858</span>
                 </a>
-                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Helpline Active (9am - 6pm)</span>
-                </div>
               </div>
             </div>
           </div>

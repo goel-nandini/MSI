@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
-import { authenticateWithPassword } from '@/lib/studentUserStore';
+import { authenticateWithPassword, getStudentProfile } from '@/lib/studentUserStore';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const student = authResult.student;
+    const profile = getStudentProfile(cleanPhone);
 
     return NextResponse.json({
       success: true,
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
         email: student.email || `student.${student.phone.slice(-4)}@msi-institutes.edu.in`,
         stream: student.stream,
         role: 'student',
+        profile,
       },
     });
   } catch (error: any) {

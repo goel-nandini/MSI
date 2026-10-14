@@ -6,10 +6,11 @@ export interface RegisteredStudentUser {
   phone: string; // 10-digit Indian phone number
   name: string;
   stream: string;
-  password: string; // Stored user password
+  password?: string; // Stored user password
   email?: string;
   registeredAt: string;
   lastLoginAt?: string;
+  profile?: Record<string, any>; // Permanently persisted profile details
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -138,10 +139,128 @@ export function registerStudentUser(data: {
     registeredAt: new Date().toISOString(),
   };
 
+  newStudent.profile = buildDefaultStudentProfile(
+    cleanPhone,
+    newStudent.name,
+    newStudent.stream,
+    newStudent.email
+  );
+
   studentsCache.set(cleanPhone, newStudent);
   persistToFile();
 
   return { success: true, student: newStudent };
+}
+
+/**
+ * Builds a clean, personalised default StudentProfile for a specific phone number
+ */
+export function buildDefaultStudentProfile(
+  phone: string,
+  name?: string,
+  stream?: string,
+  email?: string
+): Record<string, any> {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
+  const last4 = cleanPhone.slice(-4);
+
+  return {
+    id: `msi-stu-${last4}`,
+    name: name?.trim() || 'MSI Student',
+    email: email?.trim() || `student.${last4}@msi-institutes.edu.in`,
+    phone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+    dob: '2003-01-15',
+    age: 22,
+    gender: 'Male',
+    enrollmentNo: `MSI/${currentYear}/${last4}`,
+    rollNo: `${currentYear.toString().slice(-2)}-MSI-${last4}`,
+    batch: `${stream || 'PCS-J Punjab Judicial Services'}, ${currentYear}–${nextYear}`,
+    courseTitle: stream || 'PCS-J Punjab Judicial Services',
+    semester: `Academic Year ${currentYear}–${nextYear}`,
+    avatarUrl: '/images/avatars/avatar-1.webp',
+    bloodGroup: 'B+',
+    address: 'Kharar, Mohali, Punjab',
+    guardianName: 'Guardian',
+    guardianContact: `+91 ${cleanPhone.slice(0, 5)} 00000`,
+    admissionDate: `01 July ${currentYear}`,
+    validUntil: `30 June ${nextYear + 1}`,
+  };
+}
+
+/**
+ * Retrieves the permanently saved student profile for a given phone number
+ */
+export function getStudentProfile(rawPhone: string): Record<string, any> | null {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  let student = studentsCache.get(cleanPhone);
+
+  if (!student) {
+    return null;
+  }
+
+  if (student.profile && Object.keys(student.profile).length > 0) {
+    return {
+      ...buildDefaultStudentProfile(cleanPhone, student.name, student.stream, student.email),
+      ...student.profile,
+      phone: student.profile.phone || `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+    };
+  }
+
+  const defaultProfile = buildDefaultStudentProfile(
+    cleanPhone,
+    student.name,
+    student.stream,
+    student.email
+  );
+  student.profile = defaultProfile;
+  persistToFile();
+  return defaultProfile;
+}
+
+/**
+ * Permanently saves or updates a student's profile by phone number into storage
+ */
+export function saveStudentProfile(
+  rawPhone: string,
+  profileUpdates: Record<string, any>
+): Record<string, any> {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  let student = studentsCache.get(cleanPhone);
+
+  if (!student) {
+    // If student record does not exist yet, create one
+    student = {
+      id: `msi-stu-${cleanPhone.slice(-4)}`,
+      phone: cleanPhone,
+      name: profileUpdates.name?.trim() || 'MSI Student',
+      stream: profileUpdates.courseTitle || profileUpdates.batch || 'PCS-J Punjab Judicial Services',
+      password: 'Student@MSI2026',
+      email: profileUpdates.email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`,
+      registeredAt: new Date().toISOString(),
+    };
+    studentsCache.set(cleanPhone, student);
+  }
+
+  const existingProfile =
+    student.profile ||
+    buildDefaultStudentProfile(cleanPhone, student.name, student.stream, student.email);
+
+  const updatedProfile = {
+    ...existingProfile,
+    ...profileUpdates,
+    phone: profileUpdates.phone || existingProfile.phone || `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+  };
+
+  // Sync core fields back to student account
+  if (profileUpdates.name) student.name = profileUpdates.name.trim();
+  if (profileUpdates.email) student.email = profileUpdates.email.trim();
+  if (profileUpdates.courseTitle) student.stream = profileUpdates.courseTitle;
+  student.profile = updatedProfile;
+
+  persistToFile();
+  return updatedProfile;
 }
 
 /**

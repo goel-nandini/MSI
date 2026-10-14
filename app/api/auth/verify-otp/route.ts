@@ -5,6 +5,7 @@ import {
   registerStudentUser,
   getStudentByPhone,
   updateStudentAccount,
+  getStudentProfile,
 } from '@/lib/studentUserStore';
 
 export async function POST(req: NextRequest) {
@@ -48,8 +49,27 @@ export async function POST(req: NextRequest) {
     const resolvedStream =
       stream || verification.meta?.stream || 'PCS-J Punjab Judicial Services';
 
-    // If Sign Up: Persist student with password
+    // Retrieve or auto-register student user
+    let student = getStudentByPhone(cleanPhone);
+
     if (effectivePurpose === 'signup') {
+      if (!student) {
+        const regResult = registerStudentUser({
+          phone: cleanPhone,
+          name: resolvedName,
+          stream: resolvedStream,
+          password: effectivePassword,
+          email: resolvedEmail,
+        });
+        if (regResult.student) {
+          student = regResult.student;
+        }
+      }
+    } else if (effectivePurpose === 'reset' && password) {
+      updateStudentAccount(cleanPhone, { password: password.trim() });
+      student = getStudentByPhone(cleanPhone);
+    } else if (!student) {
+      // Auto-register on first OTP login so their account is permanently tracked
       const regResult = registerStudentUser({
         phone: cleanPhone,
         name: resolvedName,
@@ -57,41 +77,25 @@ export async function POST(req: NextRequest) {
         password: effectivePassword,
         email: resolvedEmail,
       });
-
-      if (!regResult.success && regResult.message?.includes('already registered')) {
-        // Already registered student
-        const existing = getStudentByPhone(cleanPhone);
-        return NextResponse.json({
-          success: true,
-          message: 'Account verified successfully!',
-          user: {
-            id: existing?.id || `msi-stu-${cleanPhone.slice(-4)}`,
-            phone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
-            cleanPhone,
-            name: existing?.name || resolvedName,
-            email: existing?.email || resolvedEmail,
-            stream: existing?.stream || resolvedStream,
-            role: 'student',
-            verifiedAt: new Date().toISOString(),
-          },
-        });
+      if (regResult.student) {
+        student = regResult.student;
       }
-    } else if (effectivePurpose === 'reset' && password) {
-      // Password reset via OTP
-      updateStudentAccount(cleanPhone, { password: password.trim() });
     }
+
+    const profile = getStudentProfile(cleanPhone);
 
     return NextResponse.json({
       success: true,
       message: 'Mobile number verified successfully!',
       user: {
-        id: `msi-stu-${cleanPhone.slice(-4)}`,
+        id: student?.id || `msi-stu-${cleanPhone.slice(-4)}`,
         phone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
         cleanPhone,
-        name: resolvedName,
-        email: resolvedEmail,
-        stream: resolvedStream,
+        name: student?.name || profile?.name || resolvedName,
+        email: student?.email || profile?.email || resolvedEmail,
+        stream: student?.stream || profile?.courseTitle || resolvedStream,
         role: 'student',
+        profile,
         verifiedAt: new Date().toISOString(),
       },
     });

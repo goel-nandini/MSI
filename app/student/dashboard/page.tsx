@@ -45,26 +45,70 @@ export default function StudentDashboardPage() {
   const [activeTab, setActiveTab] = useState<StudentModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Sync active user details from localStorage on mount
+  // Sync active user details and permanent profile from localStorage & API on mount
   useEffect(() => {
-    try {
-      const storedName = localStorage.getItem('msi_active_student_name');
-      const storedPhone = localStorage.getItem('msi_active_student_phone');
-      const storedEmail = localStorage.getItem('msi_active_student_email');
-      const storedStream = localStorage.getItem('msi_active_student_stream');
+    const loadStudentProfile = async () => {
+      try {
+        const storedPhone = localStorage.getItem('msi_active_student_phone') || '';
+        const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
 
-      if (storedName || storedPhone || storedEmail) {
-        setStudent((prev) => ({
-          ...prev,
-          name: storedName || prev.name,
-          phone: storedPhone || prev.phone,
-          email: storedEmail || prev.email,
-          courseTitle: storedStream || prev.courseTitle,
-        }));
+        // 1. Instant load from phone-keyed localStorage if available
+        if (cleanPhone) {
+          const cachedProfileStr = localStorage.getItem(`msi_student_profile_${cleanPhone}`);
+          if (cachedProfileStr) {
+            try {
+              const cached = JSON.parse(cachedProfileStr);
+              if (cached && (cached.name || cached.phone)) {
+                setStudent((prev) => ({ ...prev, ...cached }));
+              }
+            } catch (parseErr) {
+              console.warn('[Dashboard] Cache parse error:', parseErr);
+            }
+          }
+
+          // 2. Fetch fresh permanently saved profile from backend storage
+          try {
+            const res = await fetch(`/api/student/profile?phone=${cleanPhone}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.profile) {
+                setStudent(data.profile);
+                localStorage.setItem(`msi_student_profile_${cleanPhone}`, JSON.stringify(data.profile));
+                localStorage.setItem('msi_active_student_profile', JSON.stringify(data.profile));
+                if (data.profile.name) localStorage.setItem('msi_active_student_name', data.profile.name);
+                if (data.profile.email) localStorage.setItem('msi_active_student_email', data.profile.email);
+                if (data.profile.courseTitle) localStorage.setItem('msi_active_student_stream', data.profile.courseTitle);
+                return;
+              }
+            }
+          } catch (apiErr) {
+            console.warn('[Dashboard] API fetch skipped, using cached profile:', apiErr);
+          }
+        }
+
+        // 3. Fallback: personalise with active session keys if no full profile exists yet
+        const storedName = localStorage.getItem('msi_active_student_name');
+        const storedEmail = localStorage.getItem('msi_active_student_email');
+        const storedStream = localStorage.getItem('msi_active_student_stream');
+
+        if (storedName || storedPhone || storedEmail) {
+          setStudent((prev) => ({
+            ...prev,
+            name: storedName || (cleanPhone ? `Student ${cleanPhone.slice(-4)}` : prev.name),
+            phone: cleanPhone ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : (storedPhone || prev.phone),
+            email: storedEmail || (cleanPhone ? `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in` : prev.email),
+            courseTitle: storedStream || prev.courseTitle,
+            batch: storedStream ? `${storedStream}, ${new Date().getFullYear()}–${new Date().getFullYear() + 1}` : prev.batch,
+            enrollmentNo: cleanPhone ? `MSI/${new Date().getFullYear()}/${cleanPhone.slice(-4)}` : prev.enrollmentNo,
+            rollNo: cleanPhone ? `${new Date().getFullYear().toString().slice(-2)}-MSI-${cleanPhone.slice(-4)}` : prev.rollNo,
+          }));
+        }
+      } catch (err) {
+        console.error('[Dashboard] Error loading student profile:', err);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    };
+
+    loadStudentProfile();
   }, []);
 
   // Dynamic state for modules
@@ -89,16 +133,33 @@ export default function StudentDashboardPage() {
     router.push('/student/login');
   };
 
-  // Profile update with localStorage synchronization
-  const handleUpdateProfile = (updated: StudentProfile) => {
+  // Permanent profile update: updates React state, localStorage by phone, and server storage
+  const handleUpdateProfile = async (updated: StudentProfile) => {
     setStudent(updated);
     try {
+      const storedPhone = updated.phone || localStorage.getItem('msi_active_student_phone') || '';
+      const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+
+      // Save to localStorage
+      if (cleanPhone) {
+        localStorage.setItem(`msi_student_profile_${cleanPhone}`, JSON.stringify(updated));
+        localStorage.setItem('msi_active_student_phone', cleanPhone);
+      }
+      localStorage.setItem('msi_active_student_profile', JSON.stringify(updated));
       if (updated.name) localStorage.setItem('msi_active_student_name', updated.name);
-      if (updated.phone) localStorage.setItem('msi_active_student_phone', updated.phone);
       if (updated.email) localStorage.setItem('msi_active_student_email', updated.email);
       if (updated.courseTitle) localStorage.setItem('msi_active_student_stream', updated.courseTitle);
+
+      // Save permanently to server backend
+      if (cleanPhone) {
+        await fetch('/api/student/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: cleanPhone, profile: updated }),
+        });
+      }
     } catch (err) {
-      console.error('Failed to sync profile update to localStorage:', err);
+      console.error('Failed to sync profile update:', err);
     }
   };
 

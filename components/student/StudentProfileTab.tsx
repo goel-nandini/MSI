@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   User,
@@ -33,6 +33,10 @@ export default function StudentProfileTab({
   const [isEditing, setIsEditing] = useState(false);
   const [formState, setFormState] = useState<StudentProfile>(student);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    setFormState(student);
+  }, [student]);
 
   const handleChange = (field: keyof StudentProfile, value: string | number) => {
     setFormState((prev) => ({
