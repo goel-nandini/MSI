@@ -28,7 +28,7 @@ export default function GalleryPage() {
   const [lightboxImage, setLightboxImage] = useState<GalleryItem | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
 
-  const galleryItems: GalleryItem[] = [
+  const INITIAL_GALLERY_ITEMS: GalleryItem[] = [
     { id: 1, title: 'Main Reception & Golden Crest', category: 'institute', image: '/images/tour/tour-frame-1.webp', tagline: 'Official MSI Institute Seal', desc: 'Monga City Centre entrance with carved wooden wall and golden MSI Group of Institutes seal.', span: 'wide' },
     { id: 2, title: 'Judicial Chamber & Legal Research Sanctum', category: 'labs', image: '/images/tour/tour-frame-2.webp', tagline: 'Executive Judicial Chamber', desc: 'Study sanctum equipped with Lady Justice statue, Indian national flags, Bare Act concordances, and AIR digests.' },
     { id: 3, title: 'Central Academic Library', category: 'library', image: '/images/hero-3.webp', tagline: 'Scholarly Sanctuary', desc: 'Sprawling reading halls and digital legal databases accommodating over 500 scholars.' },
@@ -36,6 +36,31 @@ export default function GalleryPage() {
     { id: 5, title: 'Judicial Exam Hall & Speed-Test Center', category: 'labs', image: '/images/hero-2.webp', tagline: 'Real Exam Simulation', desc: 'Timed OMR test simulations, answer drafting drills, and performance evaluation.', span: 'wide' },
     { id: 6, title: 'National Moot Court Preparation', category: 'events', image: '/images/hero-3.webp', tagline: 'Advocacy & Jurisprudence', desc: 'Law students conducting mock appellate court arguments with faculty jurists.' },
   ];
+
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(INITIAL_GALLERY_ITEMS);
+
+  const fetchGallery = async () => {
+    try {
+      const res = await fetch('/api/admin/gallery');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+        setGalleryItems(data.items);
+      }
+    } catch (err) {
+      console.warn('Using default gallery fallback:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGallery();
+    const handleSync = () => fetchGallery();
+    window.addEventListener('msi_gallery_sync', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('msi_gallery_sync', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   const filteredItems =
     activeCategory === 'all' ? galleryItems : galleryItems.filter((item) => item.category === activeCategory);

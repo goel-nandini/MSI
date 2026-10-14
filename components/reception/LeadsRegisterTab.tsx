@@ -95,7 +95,23 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     }, 3800);
   };
 
-  // Load leads from localStorage on initial render
+  // Fetch leads from backend disk API + fallback to localStorage
+  const fetchBackendLeads = async () => {
+    try {
+      const res = await fetch('/api/admin/leads');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.leads) && data.leads.length > 0) {
+        setLeads(data.leads);
+        try {
+          localStorage.setItem('msi_reception_leads_data', JSON.stringify(data.leads));
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.warn('Backend leads fetch failed, using local:', err);
+    }
+  };
+
+  // Load leads on initial render
   useEffect(() => {
     try {
       const saved = localStorage.getItem('msi_reception_leads_data');
@@ -108,6 +124,15 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     } catch (err) {
       console.warn('Could not read leads from localStorage:', err);
     }
+    fetchBackendLeads();
+
+    const handleSync = () => fetchBackendLeads();
+    window.addEventListener('msi_leads_sync', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('msi_leads_sync', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, []);
 
   // Save leads helper
@@ -118,6 +143,9 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     } catch (err) {
       console.warn('Could not write leads to localStorage:', err);
     }
+    try {
+      window.dispatchEvent(new Event('msi_leads_sync'));
+    } catch (_) {}
   };
 
   // Metric Ribbon Calculations

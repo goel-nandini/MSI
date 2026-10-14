@@ -29,8 +29,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Dedicated Reception Desk Authentication for 9792303434
+    // Dedicated Authentication for 9792303434 (Super Admin or Reception Desk)
     if (cleanPhone === '9792303434') {
+      const isSuperAdminPassword =
+        password.trim() === 'MSI@superadmin' ||
+        password.trim().toLowerCase() === 'msi@superadmin';
+
+      if (isSuperAdminPassword) {
+        return NextResponse.json({
+          success: true,
+          message: 'Welcome Administrator! Access granted to Super Admin Master Dashboard.',
+          role: 'super-admin',
+          redirectTo: '/super-admin',
+          user: {
+            id: 'super-admin-01',
+            phone: '+91 97923 03434',
+            cleanPhone: '9792303434',
+            name: 'MSI Administrator',
+            email: 'admin@msi-institutes.edu.in',
+            stream: 'Institutional Governance & Master Administration',
+            role: 'super-admin',
+            redirectTo: '/super-admin',
+          },
+        });
+      }
+
       const isHarshitPassword =
         password.trim() === 'Harshit@reception' ||
         password.trim().toLowerCase() === 'harshit@reception';

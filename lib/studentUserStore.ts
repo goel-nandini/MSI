@@ -10,23 +10,15 @@ export interface RegisteredStudentUser {
   email?: string;
   registeredAt: string;
   lastLoginAt?: string;
+  role?: string;
   profile?: Record<string, any>; // Permanently persisted profile details
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 
-// Default seeded student accounts
+// Default seeded student accounts: Harshit & Ankit (Real registered students)
 const SEED_STUDENTS: RegisteredStudentUser[] = [
-  {
-    id: 'msi-stu-001',
-    phone: '9876543210',
-    name: 'Aarav Sharma',
-    stream: 'PCS-J Punjab Judicial Services',
-    password: 'Judiciary@2025',
-    email: 'aarav.sharma@msi-institutes.edu.in',
-    registeredAt: '2026-01-10T10:00:00.000Z',
-  },
   {
     id: 'staff-harshit',
     phone: '9792303434',
@@ -35,6 +27,15 @@ const SEED_STUDENTS: RegisteredStudentUser[] = [
     password: 'Harshit@reception',
     email: 'harshit.reception@msi-institutes.edu.in',
     registeredAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'msi-stu-ankit',
+    phone: '9876543210',
+    name: 'Ankit Sir',
+    stream: 'Judiciary Comprehensive Foundation & Procedural Law',
+    password: 'Ankit@MSI2026',
+    email: 'ankit.sir@msi-institutes.edu.in',
+    registeredAt: '2026-01-10T10:00:00.000Z',
   },
 ];
 
@@ -377,4 +378,21 @@ export function updateStudentAccount(
   Object.assign(student, updates);
   writeStudentsToDisk(students);
   return true;
+}
+
+/**
+ * Deletes a student account by phone number or ID directly from disk
+ */
+export function deleteStudentFromDisk(rawPhoneOrId: string): boolean {
+  const cleanPhone = rawPhoneOrId.replace(/\D/g, '').slice(-10);
+  const students = readStudentsFromDisk();
+  const initialLength = students.length;
+  const filtered = students.filter(
+    (s) => s.phone !== cleanPhone && s.id !== rawPhoneOrId
+  );
+  if (filtered.length !== initialLength) {
+    writeStudentsToDisk(filtered);
+    return true;
+  }
+  return false;
 }

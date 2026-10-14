@@ -172,6 +172,24 @@ export default function StudentLoginPage() {
       return;
     }
 
+    // Intercept Super Admin authorized login: Mobile 9792303434 & Password MSI@superadmin
+    if (
+      cleanDigits === '9792303434' &&
+      (signinPassword.trim() === 'MSI@superadmin' ||
+        signinPassword.trim().toLowerCase() === 'msi@superadmin')
+    ) {
+      localStorage.setItem('msi_superadmin_logged_in', 'true');
+      localStorage.setItem('msi_active_admin_id', 'super-admin-01');
+      localStorage.setItem('msi_active_admin_name', 'MSI Administrator');
+      localStorage.setItem('msi_active_admin_phone', '9792303434');
+      localStorage.setItem('msi_active_admin_email', 'admin@msi-institutes.edu.in');
+      setSuccessMessage('Super Admin credentials verified! Opening Master Admin Portal...');
+      setTimeout(() => {
+        router.push('/super-admin');
+      }, 500);
+      return;
+    }
+
     // Intercept Reception Desk authorized login: Mobile 9792303434 & Password Harshit@reception
     if (
       cleanDigits === '9792303434' &&
@@ -210,11 +228,23 @@ export default function StudentLoginPage() {
         return;
       }
 
+      if (data.role === 'super-admin' || data.redirectTo === '/super-admin') {
+        localStorage.setItem('msi_superadmin_logged_in', 'true');
+        localStorage.setItem('msi_active_admin_id', 'super-admin-01');
+        localStorage.setItem('msi_active_admin_name', 'MSI Administrator');
+        localStorage.setItem('msi_active_admin_phone', '9792303434');
+        localStorage.setItem('msi_active_admin_email', 'admin@msi-institutes.edu.in');
+        setSuccessMessage('Super Admin credentials verified! Opening Master Admin Portal...');
+        setTimeout(() => {
+          router.push('/super-admin');
+        }, 500);
+        return;
+      }
+
       if (
         data.role === 'reception' ||
         data.redirectTo === '/reception/dashboard' ||
-        data.user?.role === 'reception' ||
-        cleanDigits === '9792303434'
+        data.user?.role === 'reception'
       ) {
         localStorage.setItem('msi_reception_logged_in', 'true');
         localStorage.setItem('msi_active_staff_id', 'staff-harshit');
