@@ -44,6 +44,7 @@ export interface ReceptionStaff {
   role: 'Reception Desk' | 'Gate Security' | 'Super Admin';
   location: string;
   email: string;
+  phone?: string;
   badgeId: string;
   avatar: string;
 }
@@ -55,12 +56,23 @@ export interface DepartmentHost {
 
 export const RECEPTION_STAFF_PROFILES: ReceptionStaff[] = [
   {
+    id: 'staff-harshit',
+    name: 'Harshit',
+    role: 'Reception Desk',
+    location: 'Main Administrative Block (Reception Desk)',
+    email: 'harshit.reception@msi-institutes.edu.in',
+    phone: '9792303434',
+    badgeId: 'MSI-REC-01',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+  },
+  {
     id: 'staff-01',
     name: 'Priya Verma',
     role: 'Reception Desk',
     location: 'Main Administrative Block (Ground Floor)',
     email: 'priya.reception@msi-institutes.edu.in',
-    badgeId: 'MSI-REC-01',
+    phone: '9876501234',
+    badgeId: 'MSI-REC-02',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
   },
   {
@@ -69,6 +81,7 @@ export const RECEPTION_STAFF_PROFILES: ReceptionStaff[] = [
     role: 'Gate Security',
     location: 'Main Entrance - Gate No. 1',
     email: 'gurpreet.security@msi-institutes.edu.in',
+    phone: '9876505678',
     badgeId: 'MSI-SEC-04',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
   },
@@ -78,6 +91,7 @@ export const RECEPTION_STAFF_PROFILES: ReceptionStaff[] = [
     role: 'Super Admin',
     location: 'Directorate of Institute Security & Admin',
     email: 'cso.dhillon@msi-institutes.edu.in',
+    phone: '9876509999',
     badgeId: 'MSI-ADM-00',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
   },

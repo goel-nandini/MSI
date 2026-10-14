@@ -6,73 +6,144 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Lock,
-  Mail,
+  Smartphone,
   ArrowRight,
   ShieldCheck,
-  Sparkles,
   Eye,
   EyeOff,
   Building2,
   Globe,
   AlertCircle,
+  CheckCircle2,
   GraduationCap,
   UserCheck,
-  Radio,
+  KeyRound,
 } from 'lucide-react';
 import { RECEPTION_STAFF_PROFILES } from '@/components/reception/data/receptionMockData';
 
 export default function ReceptionLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('priya.reception@msi-institutes.edu.in');
-  const [password, setPassword] = useState('Reception@MSI2025');
-  const [stationId, setStationId] = useState('staff-01');
+
+  // Fixed credentials per requirement: Mobile 9792303434 & Password Harshit@reception
+  const [phoneOrId, setPhoneOrId] = useState('9792303434');
+  const [password, setPassword] = useState('Harshit@reception');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!email || !password) {
-      setErrorMessage('Please provide your official staff ID or terminal credentials.');
+    setSuccessMessage('');
+
+    if (!phoneOrId.trim() || !password.trim()) {
+      setErrorMessage('Please provide your official authorized reception mobile number and password.');
       return;
     }
 
+    const cleanInput = phoneOrId.replace(/\D/g, '').slice(-10);
+    const rawInput = phoneOrId.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     setIsLoading(true);
+
     setTimeout(() => {
-      try {
-        localStorage.setItem('msi_reception_logged_in', 'true');
-        localStorage.setItem('msi_active_staff_id', stationId);
-        localStorage.setItem('msi_active_staff_email', email);
-      } catch (err) {
-        console.error(err);
+      // 1. Primary Fixed Credentials: Mobile 9792303434 & Password Harshit@reception
+      const isHarshitNumber = cleanInput === '9792303434' || rawInput.includes('9792303434');
+      const isHarshitPassword =
+        cleanPassword === 'Harshit@reception' ||
+        cleanPassword.toLowerCase() === 'harshit@reception';
+
+      if (isHarshitNumber && isHarshitPassword) {
+        try {
+          localStorage.setItem('msi_reception_logged_in', 'true');
+          localStorage.setItem('msi_active_staff_id', 'staff-harshit');
+          localStorage.setItem('msi_active_staff_name', 'Harshit');
+          localStorage.setItem('msi_active_staff_phone', '9792303434');
+          localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
+        } catch (err) {
+          console.error(err);
+        }
+
+        setSuccessMessage('Welcome Harshit! Access granted to Reception & VMS Desk...');
+        setTimeout(() => {
+          setIsLoading(false);
+          router.push('/reception/dashboard');
+        }, 500);
+        return;
       }
+
+      // 2. Secondary check for other staff profiles in system
+      const foundStaff = RECEPTION_STAFF_PROFILES.find(
+        (s) =>
+          s.id.toLowerCase() === rawInput ||
+          s.email.toLowerCase() === rawInput ||
+          (s.phone && s.phone.replace(/\D/g, '').slice(-10) === cleanInput)
+      );
+
+      if (
+        foundStaff &&
+        (cleanPassword === 'Reception@MSI2025' ||
+          cleanPassword === 'Harshit@reception' ||
+          cleanPassword.toLowerCase() === 'harshit@reception')
+      ) {
+        try {
+          localStorage.setItem('msi_reception_logged_in', 'true');
+          localStorage.setItem('msi_active_staff_id', foundStaff.id);
+          localStorage.setItem('msi_active_staff_name', foundStaff.name);
+          localStorage.setItem('msi_active_staff_email', foundStaff.email);
+          if (foundStaff.phone) localStorage.setItem('msi_active_staff_phone', foundStaff.phone);
+        } catch (err) {
+          console.error(err);
+        }
+
+        setSuccessMessage(`Authenticated as ${foundStaff.name}. Entering Reception Desk...`);
+        setTimeout(() => {
+          setIsLoading(false);
+          router.push('/reception/dashboard');
+        }, 500);
+        return;
+      }
+
+      // 3. Invalid credentials
       setIsLoading(false);
-      router.push('/reception/dashboard');
-    }, 600);
+      setErrorMessage(
+        'Invalid credentials. Authorized fixed login: Mobile 9792303434 and Password Harshit@reception'
+      );
+    }, 450);
   };
 
   const handleQuickDemo = (staffId: string) => {
     const found = RECEPTION_STAFF_PROFILES.find((s) => s.id === staffId);
     if (!found) return;
 
-    setEmail(found.email);
-    setPassword('Reception@MSI2025');
-    setStationId(found.id);
+    if (found.id === 'staff-harshit') {
+      setPhoneOrId('9792303434');
+      setPassword('Harshit@reception');
+    } else {
+      setPhoneOrId(found.phone || found.email);
+      setPassword('Reception@MSI2025');
+    }
+
     setIsLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
 
     setTimeout(() => {
       try {
         localStorage.setItem('msi_reception_logged_in', 'true');
         localStorage.setItem('msi_active_staff_id', found.id);
+        localStorage.setItem('msi_active_staff_name', found.name);
         localStorage.setItem('msi_active_staff_email', found.email);
+        if (found.phone) localStorage.setItem('msi_active_staff_phone', found.phone);
       } catch (err) {
         console.error(err);
       }
       setIsLoading(false);
       router.push('/reception/dashboard');
-    }, 450);
+    }, 400);
   };
 
   return (
@@ -135,7 +206,6 @@ export default function ReceptionLoginPage() {
       {/* Main Login Card */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md bg-white border border-[#E8DCCB] rounded-3xl p-7 sm:p-9 shadow-2xl hud-bracket relative">
-          
           {/* Card Top Icon & Title */}
           <div className="text-center">
             <div className="w-14 h-14 rounded-2xl bg-[#FFF3DD] border border-[#EFC988] text-[#89190E] flex items-center justify-center mx-auto mb-3 shadow-xs">
@@ -155,9 +225,22 @@ export default function ReceptionLoginPage() {
           {/* Quick Demo Login Presets */}
           <div className="mt-5 p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E] block mb-2 text-center">
-              Quick 1-Click Terminal Profiles
+              Authorized Terminal Profiles
             </span>
             <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickDemo('staff-harshit')}
+                className="p-2 rounded-xl bg-[#89190E] text-white hover:bg-[#65130D] border border-[#89190E] text-center transition-all text-xs font-semibold group shadow-xs cursor-pointer"
+              >
+                <span className="block font-bold text-[11px] text-white">
+                  Harshit ✓
+                </span>
+                <span className="text-[9px] text-[#EFC988] block font-mono">
+                  9792303434
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleQuickDemo('staff-01')}
@@ -168,19 +251,6 @@ export default function ReceptionLoginPage() {
                 </span>
                 <span className="text-[9px] text-[#526174] group-hover:text-white/80 block">
                   Front Desk
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('staff-02')}
-                className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-center transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-              >
-                <span className="block font-bold text-[11px] group-hover:text-white">
-                  Gurpreet S.
-                </span>
-                <span className="text-[9px] text-[#526174] group-hover:text-white/80 block">
-                  Gate 1 Guard
                 </span>
               </button>
 
@@ -199,29 +269,46 @@ export default function ReceptionLoginPage() {
             </div>
           </div>
 
+          {/* Fixed Credentials Info Pill */}
+          <div className="mt-3.5 px-3 py-2 rounded-xl bg-[#EFC988]/20 border border-[#EFC988] text-[11px] flex items-center justify-between text-[#89190E]">
+            <span className="font-semibold flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Fixed Terminal Login:</span>
+            </span>
+            <span className="font-mono font-bold">9792303434</span>
+          </div>
+
           {/* Error message alert */}
           {errorMessage && (
-            <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2">
+            <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 animate-fadeIn">
               <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
+          {/* Success message alert */}
+          {successMessage && (
+            <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center space-x-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="font-semibold">{successMessage}</span>
+            </div>
+          )}
+
           {/* Login Form */}
-          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <form onSubmit={handleLogin} className="mt-5 space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1.5">
-                Staff ID / Terminal Email
+                Authorized Mobile Number / Staff ID
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Smartphone className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. staff.reception@msi-institutes.edu.in"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono"
+                  value={phoneOrId}
+                  onChange={(e) => setPhoneOrId(e.target.value)}
+                  placeholder="9792303434"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono font-bold"
                 />
               </div>
             </div>
@@ -231,8 +318,8 @@ export default function ReceptionLoginPage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F]">
                   Password
                 </label>
-                <span className="text-[11px] text-[#526174]">
-                  Default: Reception@MSI2025
+                <span className="text-[11px] font-mono text-[#89190E] font-semibold">
+                  Harshit@reception
                 </span>
               </div>
               <div className="relative">
@@ -242,13 +329,14 @@ export default function ReceptionLoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono"
+                  placeholder="Harshit@reception"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono font-bold"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F]"
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -290,7 +378,6 @@ export default function ReceptionLoginPage() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <span>Official MSI Institute Physical Security & Surveillance Division</span>
           </div>
-
         </div>
       </main>
 

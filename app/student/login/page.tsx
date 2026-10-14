@@ -149,6 +149,25 @@ export default function StudentLoginPage() {
       return;
     }
 
+    // Intercept Reception Desk authorized login: Mobile 9792303434 & Password Harshit@reception
+    const cleanDigits = signinPhone.replace(/\D/g, '').slice(-10);
+    if (
+      cleanDigits === '9792303434' &&
+      (signinPassword.trim() === 'Harshit@reception' ||
+        signinPassword.trim().toLowerCase() === 'harshit@reception')
+    ) {
+      localStorage.setItem('msi_reception_logged_in', 'true');
+      localStorage.setItem('msi_active_staff_id', 'staff-harshit');
+      localStorage.setItem('msi_active_staff_name', 'Harshit');
+      localStorage.setItem('msi_active_staff_phone', '9792303434');
+      localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
+      setSuccessMessage('Reception Desk credentials authorized! Opening Reception Portal...');
+      setTimeout(() => {
+        router.push('/reception/dashboard');
+      }, 500);
+      return;
+    }
+
     setIsLoading(true);
 
     try {

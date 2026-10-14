@@ -14,6 +14,7 @@ import {
   LogIn,
   User,
   LogOut,
+  Building2,
 } from 'lucide-react';
 import { NAV_ITEMS } from '@/lib/constants';
 
@@ -40,9 +41,18 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
   const checkUserAuth = () => {
     if (typeof window === 'undefined') return;
     try {
+      const isReception = localStorage.getItem('msi_reception_logged_in') === 'true';
       const isTeacher = localStorage.getItem('msi_teacher_logged_in') === 'true';
       const isStudent = localStorage.getItem('msi_student_logged_in') === 'true';
-      if (isTeacher) {
+
+      if (isReception) {
+        const rName = localStorage.getItem('msi_active_staff_name') || 'Harshit (Reception)';
+        setCurrentUser({
+          role: 'teacher',
+          name: rName,
+          dashboardUrl: '/reception/dashboard',
+        });
+      } else if (isTeacher) {
         const tName = localStorage.getItem('msi_active_teacher_name') || 'Dr. Ekta Gahlawat';
         setCurrentUser({
           role: 'teacher',
@@ -74,6 +84,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
     try {
       localStorage.removeItem('msi_teacher_logged_in');
       localStorage.removeItem('msi_student_logged_in');
+      localStorage.removeItem('msi_reception_logged_in');
     } catch {}
     setCurrentUser(null);
     setLoginDropdownOpen(false);
@@ -357,6 +368,25 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                       </div>
                       <ArrowRight className="w-3.5 h-3.5 text-[#89190E] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                     </Link>
+
+                    <Link
+                      href="/reception/login"
+                      onClick={() => setLoginDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-[#FFF9EF] text-xs font-semibold text-[#10233F] transition-all group border-t border-[#E8DCCB]/60"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#10233F]/10 flex items-center justify-center text-[#10233F] group-hover:bg-[#10233F] group-hover:text-white transition-colors flex-shrink-0">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="block font-bold text-xs sm:text-[13px] text-[#10233F] group-hover:text-[#89190E] transition-colors">
+                          Reception Desk
+                        </span>
+                        <span className="text-[10.5px] text-[#526174] truncate block">
+                          Visitor management login
+                        </span>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#526174] group-hover:text-[#89190E] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -427,6 +457,14 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                         <UserPlus className="w-4 h-4 text-[#89190E]" />
                         <span>Sign Up</span>
                       </Link>
+                      <Link
+                        href="/reception/login"
+                        onClick={() => setMobileLoginOpen(false)}
+                        className="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-[#FFF9EF] text-xs font-bold text-[#10233F] border-t border-[#E8DCCB]"
+                      >
+                        <Building2 className="w-4 h-4 text-[#10233F]" />
+                        <span>Reception Desk</span>
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -493,6 +531,15 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                   <span>Sign Up</span>
                 </Link>
               </div>
+
+              <Link
+                href="/reception/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-2.5 flex items-center justify-center space-x-1.5 font-semibold text-xs text-[#526174] hover:text-[#89190E] hover:bg-[#FFF9EF] rounded-xl transition-all"
+              >
+                <Building2 className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Reception Desk & Visitor Pass</span>
+              </Link>
             </div>
           </div>
         )}
