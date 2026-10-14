@@ -17,13 +17,15 @@ import { ReceptionStaff } from './data/receptionMockData';
 export type ReceptionModuleTab =
   | 'new-visitor'
   | 'active-visitors'
-  | 'history';
+  | 'history'
+  | 'leads';
 
 interface ReceptionSidebarProps {
   activeTab: ReceptionModuleTab;
   onSelectTab: (tab: ReceptionModuleTab) => void;
   staff: ReceptionStaff;
   activeCount: number;
+  dueLeadsCount?: number;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
 }
@@ -33,6 +35,7 @@ export default function ReceptionSidebar({
   onSelectTab,
   staff,
   activeCount,
+  dueLeadsCount,
   isOpenMobile,
   onCloseMobile,
 }: ReceptionSidebarProps) {
@@ -56,6 +59,13 @@ export default function ReceptionSidebar({
       label: 'Visitor History & Logs',
       subtitle: 'Search, repeats & export',
       icon: History,
+    },
+    {
+      id: 'leads' as ReceptionModuleTab,
+      label: 'Telecalling & Leads',
+      subtitle: 'Enquiries, Calls & Follow-ups',
+      icon: PhoneCall,
+      badge: dueLeadsCount !== undefined ? `${dueLeadsCount} Due` : '9 Due',
     },
   ];
 

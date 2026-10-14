@@ -7,6 +7,7 @@ import ReceptionSidebar, { ReceptionModuleTab } from '@/components/reception/Rec
 import NewVisitorTab from '@/components/reception/NewVisitorTab';
 import ActiveVisitorsTab from '@/components/reception/ActiveVisitorsTab';
 import VisitorHistoryTab from '@/components/reception/VisitorHistoryTab';
+import LeadsRegisterTab from '@/components/reception/LeadsRegisterTab';
 import {
   RECEPTION_STAFF_PROFILES,
   INITIAL_VISITORS,
@@ -162,6 +163,10 @@ export default function ReceptionDashboardPage() {
 
           {activeTab === 'history' && (
             <VisitorHistoryTab visitors={visitors} />
+          )}
+
+          {activeTab === 'leads' && (
+            <LeadsRegisterTab currentStaff={currentStaff} />
           )}
         </main>
       </div>
