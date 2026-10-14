@@ -132,34 +132,10 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
 
   return (
     <>
-      {/* Top Admissions Notification Ticker (visible when at the very top) */}
-      <div
-        className={`fixed top-0 left-0 right-0 z-50 bg-[#89190E] text-[#FFF9EF] text-[11px] sm:text-xs py-1.5 px-4 font-medium transition-all duration-300 flex items-center justify-center overflow-hidden select-none ${
-          scrolled ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
-        }`}
-      >
-        <div className="flex items-center space-x-2 animate-fadeIn max-w-full px-2 truncate">
-          <span className="w-2 h-2 rounded-full bg-[#EFC988] animate-pulse-beacon flex-shrink-0" />
-          <span className="font-semibold tracking-wide truncate text-[11px] sm:text-xs">
-            New Batch Starting Soon — 2025
-          </span>
-          <span className="hidden md:inline text-[#EFC988]">•</span>
-          <span className="hidden md:inline text-white/90">
-            PCS J, CLAT, AILET, UGC NET (Law) Coaching | Kharar, Mohali
-          </span>
-          <button
-            onClick={onOpenEnquiry}
-            className="ml-1 sm:ml-2 underline font-bold hover:text-[#EFC988] transition-colors whitespace-nowrap flex-shrink-0 cursor-pointer"
-          >
-            Enquire Now →
-          </button>
-        </div>
-      </div>
-
       {/* Main Floating Capsule Header */}
       <header
         className={`fixed left-0 right-0 z-40 flex justify-center pointer-events-none transition-all duration-400 ease-out ${
-          scrolled ? 'top-2 sm:top-3' : 'top-7 sm:top-9'
+          scrolled ? 'top-2 sm:top-3' : 'top-3 sm:top-4'
         }`}
       >
         <div
