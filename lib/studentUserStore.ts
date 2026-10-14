@@ -27,6 +27,15 @@ const SEED_STUDENTS: RegisteredStudentUser[] = [
     email: 'aarav.sharma@msi-institutes.edu.in',
     registeredAt: '2026-01-10T10:00:00.000Z',
   },
+  {
+    id: 'staff-harshit',
+    phone: '9792303434',
+    name: 'Harshit',
+    stream: 'Reception Desk & Visitor Management',
+    password: 'Harshit@reception',
+    email: 'harshit.reception@msi-institutes.edu.in',
+    registeredAt: '2026-01-01T00:00:00.000Z',
+  },
 ];
 
 /**
@@ -329,7 +338,11 @@ export function authenticateWithPassword(
     };
   }
 
-  if (student.password !== rawPassword.trim()) {
+  const isPasswordMatch =
+    student.password === rawPassword.trim() ||
+    student.password?.toLowerCase() === rawPassword.trim().toLowerCase();
+
+  if (!isPasswordMatch) {
     return {
       success: false,
       code: 'INVALID_PASSWORD',

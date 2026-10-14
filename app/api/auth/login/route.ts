@@ -29,6 +29,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Dedicated Reception Desk Authentication for 9792303434
+    if (cleanPhone === '9792303434') {
+      const isHarshitPassword =
+        password.trim() === 'Harshit@reception' ||
+        password.trim().toLowerCase() === 'harshit@reception';
+
+      if (!isHarshitPassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'INVALID_PASSWORD',
+            message: 'Incorrect password for Reception Desk. Please enter Harshit@reception',
+          },
+          { status: 401 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Welcome Harshit! Access granted to Reception Desk.',
+        role: 'reception',
+        redirectTo: '/reception/dashboard',
+        user: {
+          id: 'staff-harshit',
+          phone: '+91 97923 03434',
+          cleanPhone: '9792303434',
+          name: 'Harshit',
+          email: 'harshit.reception@msi-institutes.edu.in',
+          stream: 'Reception Desk & Visitor Management',
+          role: 'reception',
+          redirectTo: '/reception/dashboard',
+        },
+      });
+    }
+
     const authResult = authenticateWithPassword(cleanPhone, password);
 
     if (!authResult.success || !authResult.student) {

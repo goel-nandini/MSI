@@ -94,9 +94,30 @@ export default function StudentLoginPage() {
     email?: string;
     cleanPhone?: string;
     profile?: any;
+    role?: string;
+    redirectTo?: string;
   }) => {
     try {
       const cleanPhone = (userData.cleanPhone || userData.phone || '').replace(/\D/g, '').slice(-10);
+
+      // Check if user is Reception Staff
+      if (
+        cleanPhone === '9792303434' ||
+        userData.role === 'reception' ||
+        userData.redirectTo === '/reception/dashboard'
+      ) {
+        localStorage.setItem('msi_reception_logged_in', 'true');
+        localStorage.setItem('msi_active_staff_id', 'staff-harshit');
+        localStorage.setItem('msi_active_staff_name', 'Harshit');
+        localStorage.setItem('msi_active_staff_phone', '9792303434');
+        localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
+        setSuccessMessage('Reception Desk credentials verified! Opening Reception Portal...');
+        setTimeout(() => {
+          router.push('/reception/dashboard');
+        }, 500);
+        return;
+      }
+
       localStorage.setItem('msi_student_logged_in', 'true');
       if (cleanPhone) {
         localStorage.setItem('msi_active_student_phone', cleanPhone);
@@ -139,7 +160,9 @@ export default function StudentLoginPage() {
     setSuccessMessage('');
     setIsAlreadyRegisteredError(false);
 
-    if (!signinPhone || signinPhone.length !== 10) {
+    const cleanDigits = signinPhone.replace(/\D/g, '').slice(-10);
+
+    if (!cleanDigits || cleanDigits.length !== 10) {
       setErrorMessage('Please enter your registered 10-digit mobile number.');
       return;
     }
@@ -150,7 +173,6 @@ export default function StudentLoginPage() {
     }
 
     // Intercept Reception Desk authorized login: Mobile 9792303434 & Password Harshit@reception
-    const cleanDigits = signinPhone.replace(/\D/g, '').slice(-10);
     if (
       cleanDigits === '9792303434' &&
       (signinPassword.trim() === 'Harshit@reception' ||
@@ -175,7 +197,7 @@ export default function StudentLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: signinPhone,
+          phone: cleanDigits,
           password: signinPassword,
         }),
       });
@@ -185,6 +207,24 @@ export default function StudentLoginPage() {
       if (!res.ok || !data.success) {
         setErrorMessage(data.message || 'Invalid mobile number or password.');
         setIsLoading(false);
+        return;
+      }
+
+      if (
+        data.role === 'reception' ||
+        data.redirectTo === '/reception/dashboard' ||
+        data.user?.role === 'reception' ||
+        cleanDigits === '9792303434'
+      ) {
+        localStorage.setItem('msi_reception_logged_in', 'true');
+        localStorage.setItem('msi_active_staff_id', 'staff-harshit');
+        localStorage.setItem('msi_active_staff_name', 'Harshit');
+        localStorage.setItem('msi_active_staff_phone', '9792303434');
+        localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
+        setSuccessMessage('Reception Desk credentials verified! Opening Reception Portal...');
+        setTimeout(() => {
+          router.push('/reception/dashboard');
+        }, 500);
         return;
       }
 
