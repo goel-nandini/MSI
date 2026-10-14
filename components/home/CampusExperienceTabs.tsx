@@ -195,13 +195,6 @@ export default function CampusExperienceTabs({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#10233F]/85 via-transparent to-black/30 pointer-events-none" />
 
-              {/* 10s Loop Live Indicator Badge */}
-              <div className="absolute top-6 left-6 z-20 flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#10233F]/90 backdrop-blur-md border border-[#EFC988]/40 text-xs font-bold text-white shadow-md">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-4.5" />
-                <span>10s Institute Video Loop</span>
-              </div>
-
               {/* Direct YouTube Link Badge in Top Right */}
               <a
                 href={currentFacility.youtubeUrl || 'https://youtu.be/6qZ2zcsjidQ'}
