@@ -33,7 +33,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
 
   // Logged in user detection
   const [currentUser, setCurrentUser] = useState<{
-    role: 'teacher' | 'student';
+    role: 'teacher' | 'student' | 'reception';
     name: string;
     dashboardUrl: string;
   } | null>(null);
@@ -46,9 +46,9 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
       const isStudent = localStorage.getItem('msi_student_logged_in') === 'true';
 
       if (isReception) {
-        const rName = localStorage.getItem('msi_active_staff_name') || 'Harshit (Reception)';
+        const rName = localStorage.getItem('msi_active_staff_name') || 'Harshit';
         setCurrentUser({
-          role: 'teacher',
+          role: 'reception',
           name: rName,
           dashboardUrl: '/reception/dashboard',
         });
@@ -85,6 +85,10 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
       localStorage.removeItem('msi_teacher_logged_in');
       localStorage.removeItem('msi_student_logged_in');
       localStorage.removeItem('msi_reception_logged_in');
+      localStorage.removeItem('msi_active_staff_id');
+      localStorage.removeItem('msi_active_staff_name');
+      localStorage.removeItem('msi_active_staff_phone');
+      localStorage.removeItem('msi_active_staff_email');
     } catch {}
     setCurrentUser(null);
     setLoginDropdownOpen(false);
@@ -217,9 +221,9 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
             })}
           </nav>
 
-          {/* Desktop Action Buttons: Login (dropdown with Sign In & Sign Up) + Enquire CTA */}
+          {/* Desktop Action Buttons: Login + Enquire CTA */}
           <div className="hidden xl:flex items-center space-x-2.5 flex-shrink-0">
-            {/* If logged in: User Profile Capsule. If not: Login Dropdown */}
+            {/* If logged in: User Profile Capsule. If not: Direct Login button */}
             {currentUser ? (
               <div ref={dropdownRef} className="relative">
                 <button
@@ -232,7 +236,11 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                 >
                   <div
                     className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-xs ${
-                      currentUser.role === 'teacher' ? 'bg-[#89190E]' : 'bg-[#10233F]'
+                      currentUser.role === 'reception'
+                        ? 'bg-[#89190E]'
+                        : currentUser.role === 'teacher'
+                        ? 'bg-[#10233F]'
+                        : 'bg-emerald-700'
                     }`}
                   >
                     {currentUser.name.charAt(0)}
@@ -243,10 +251,18 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                     </span>
                     <span
                       className={`text-[9.5px] font-mono font-bold uppercase tracking-wider block leading-tight ${
-                        currentUser.role === 'teacher' ? 'text-[#89190E]' : 'text-emerald-700'
+                        currentUser.role === 'reception'
+                          ? 'text-[#89190E]'
+                          : currentUser.role === 'teacher'
+                          ? 'text-[#89190E]'
+                          : 'text-emerald-700'
                       }`}
                     >
-                      {currentUser.role === 'teacher' ? 'Faculty' : 'Student'}
+                      {currentUser.role === 'reception'
+                        ? 'Reception Desk'
+                        : currentUser.role === 'teacher'
+                        ? 'Faculty'
+                        : 'Student'}
                     </span>
                   </div>
                   <ChevronDown
@@ -288,108 +304,16 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                 )}
               </div>
             ) : (
-              /* Login Dropdown (when not logged in) */
-              <div
-                ref={dropdownRef}
-                className="relative"
-                onMouseEnter={() => setLoginDropdownOpen(true)}
-                onMouseLeave={() => setLoginDropdownOpen(false)}
+              /* Single direct Login Button */
+              <Link
+                href="/student/login"
+                className={`font-semibold text-[#10233F] hover:text-[#89190E] bg-white hover:bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] rounded-xl transition-all duration-200 shadow-xs flex items-center space-x-1.5 cursor-pointer ${
+                  scrolled ? 'h-[38px] px-3.5 text-xs' : 'h-[44px] px-4 text-xs'
+                }`}
               >
-                <button
-                  type="button"
-                  onClick={() => setLoginDropdownOpen(!loginDropdownOpen)}
-                  className={`font-semibold text-[#10233F] hover:text-[#89190E] bg-white hover:bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] rounded-xl transition-all duration-200 shadow-xs flex items-center space-x-1.5 cursor-pointer ${
-                    scrolled ? 'h-[38px] px-3.5 text-xs' : 'h-[44px] px-4 text-xs'
-                  }`}
-                  aria-expanded={loginDropdownOpen}
-                  aria-label="Login options"
-                >
-                  <LogIn className="w-3.5 h-3.5 text-[#89190E]" />
-                  <span>Login</span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-[#89190E] transition-transform duration-200 ${
-                      loginDropdownOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {/* Dropdown Container */}
-                <div
-                  className={`absolute right-0 top-full pt-2 w-64 z-50 transition-all duration-200 ${
-                    loginDropdownOpen
-                      ? 'opacity-100 translate-y-0 pointer-events-auto'
-                      : 'opacity-0 -translate-y-2 pointer-events-none'
-                  }`}
-                >
-                  <div className="bg-white border-2 border-[#E8DCCB] rounded-2xl shadow-2xl p-2.5 space-y-1.5">
-                    <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-[#89190E] font-bold border-b border-[#E8DCCB]">
-                      Choose Option
-                    </div>
-
-                    <Link
-                      href="/student/login"
-                      onClick={() => setLoginDropdownOpen(false)}
-                      className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-[#FFF9EF] text-xs font-semibold text-[#10233F] transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[#89190E]/10 flex items-center justify-center text-[#89190E] group-hover:bg-[#89190E] group-hover:text-white transition-colors flex-shrink-0">
-                        <LogIn className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="block font-bold text-xs sm:text-[13px] text-[#10233F] group-hover:text-[#89190E] transition-colors">
-                          Sign In
-                        </span>
-                        <span className="text-[10.5px] text-[#526174] truncate block">
-                          Access existing account
-                        </span>
-                      </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#526174] group-hover:text-[#89190E] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                    </Link>
-
-                    <Link
-                      href="/student/login?tab=signup"
-                      onClick={() => setLoginDropdownOpen(false)}
-                      className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-[#FFF9EF]/80 hover:bg-[#FFF3DD] text-xs font-semibold text-[#10233F] transition-all group border border-[#EFC988]/50 hover:border-[#EFC988]"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[#89190E] flex items-center justify-center text-[#EFC988] group-hover:scale-105 transition-transform flex-shrink-0">
-                        <UserPlus className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="block font-bold text-xs sm:text-[13px] text-[#89190E]">
-                            Sign Up
-                          </span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#89190E] text-[#FFF9EF] rounded-full uppercase tracking-wider">
-                            New
-                          </span>
-                        </div>
-                        <span className="text-[10.5px] text-[#526174] truncate block">
-                          Create student account
-                        </span>
-                      </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#89190E] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                    </Link>
-
-                    <Link
-                      href="/reception/login"
-                      onClick={() => setLoginDropdownOpen(false)}
-                      className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-[#FFF9EF] text-xs font-semibold text-[#10233F] transition-all group border-t border-[#E8DCCB]/60"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[#10233F]/10 flex items-center justify-center text-[#10233F] group-hover:bg-[#10233F] group-hover:text-white transition-colors flex-shrink-0">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="block font-bold text-xs sm:text-[13px] text-[#10233F] group-hover:text-[#89190E] transition-colors">
-                          Reception Desk
-                        </span>
-                        <span className="text-[10.5px] text-[#526174] truncate block">
-                          Visitor management login
-                        </span>
-                      </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#526174] group-hover:text-[#89190E] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
+                <LogIn className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Login</span>
+              </Link>
             )}
 
             {/* Enquire CTA Button */}
@@ -407,8 +331,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
 
           {/* Mobile / Tablet Menu Trigger */}
           <div className="flex xl:hidden items-center space-x-2">
-            {/* Mobile Login Dropdown */}
-            {/* Mobile: If logged in show user link, else login button */}
+            {/* Mobile: If logged in show user capsule, else direct login button */}
             {currentUser ? (
               <Link
                 href={currentUser.dashboardUrl}
@@ -416,59 +339,23 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    currentUser.role === 'teacher' ? 'bg-[#89190E]' : 'bg-emerald-600'
+                    currentUser.role === 'reception'
+                      ? 'bg-[#89190E]'
+                      : currentUser.role === 'teacher'
+                      ? 'bg-[#10233F]'
+                      : 'bg-emerald-600'
                   }`}
                 />
                 <span className="truncate max-w-[85px]">{currentUser.name.split(' ')[0]}</span>
               </Link>
             ) : (
-              <div ref={mobileLoginRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setMobileLoginOpen(!mobileLoginOpen)}
-                  className="inline-flex items-center space-x-1 text-xs font-bold text-[#10233F] bg-white border border-[#E8DCCB] px-2.5 py-1.5 rounded-xl shadow-xs cursor-pointer"
-                  aria-expanded={mobileLoginOpen}
-                >
-                  <LogIn className="w-3.5 h-3.5 text-[#89190E]" />
-                  <span>Login</span>
-                  <ChevronDown
-                    className={`w-3 h-3 text-[#89190E] transition-transform duration-200 ${
-                      mobileLoginOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {mobileLoginOpen && (
-                  <div className="absolute right-0 top-full pt-2 w-52 z-50">
-                    <div className="bg-white border-2 border-[#E8DCCB] rounded-2xl shadow-2xl p-2 space-y-1">
-                      <Link
-                        href="/student/login"
-                        onClick={() => setMobileLoginOpen(false)}
-                        className="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-[#FFF9EF] text-xs font-bold text-[#10233F]"
-                      >
-                        <LogIn className="w-4 h-4 text-[#89190E]" />
-                        <span>Sign In</span>
-                      </Link>
-                      <Link
-                        href="/student/login?tab=signup"
-                        onClick={() => setMobileLoginOpen(false)}
-                        className="flex items-center space-x-2.5 px-3 py-2 rounded-xl bg-[#FFF9EF] text-xs font-bold text-[#89190E]"
-                      >
-                        <UserPlus className="w-4 h-4 text-[#89190E]" />
-                        <span>Sign Up</span>
-                      </Link>
-                      <Link
-                        href="/reception/login"
-                        onClick={() => setMobileLoginOpen(false)}
-                        className="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-[#FFF9EF] text-xs font-bold text-[#10233F] border-t border-[#E8DCCB]"
-                      >
-                        <Building2 className="w-4 h-4 text-[#10233F]" />
-                        <span>Reception Desk</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Link
+                href="/student/login"
+                className="inline-flex items-center space-x-1 text-xs font-bold text-[#10233F] bg-white border border-[#E8DCCB] px-2.5 py-1.5 rounded-xl shadow-xs cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Login</span>
+              </Link>
             )}
 
             <button
@@ -512,34 +399,63 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                 })}
               </div>
 
-              {/* Login and Sign Up Actions */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <Link
-                  href="/student/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-[#10233F] bg-white border border-[#E8DCCB] rounded-xl hover:bg-[#FFF9EF] transition-all"
-                >
-                  <LogIn className="w-4 h-4 text-[#89190E]" />
-                  <span>Sign In</span>
-                </Link>
-                <Link
-                  href="/student/login?tab=signup"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-white bg-[#89190E] hover:bg-[#65130D] rounded-xl shadow-md transition-all"
-                >
-                  <UserPlus className="w-4 h-4 text-[#EFC988]" />
-                  <span>Sign Up</span>
-                </Link>
-              </div>
-
-              <Link
-                href="/reception/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 flex items-center justify-center space-x-1.5 font-semibold text-xs text-[#526174] hover:text-[#89190E] hover:bg-[#FFF9EF] rounded-xl transition-all"
-              >
-                <Building2 className="w-3.5 h-3.5 text-[#89190E]" />
-                <span>Reception Desk & Visitor Pass</span>
-              </Link>
+              {/* Login and Account Actions */}
+              {currentUser ? (
+                <div className="pt-2 space-y-2">
+                  <div className="p-3 bg-[#FFF9EF] rounded-2xl border border-[#E8DCCB] flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-[#526174] block">Logged In As</span>
+                      <span className="text-xs font-bold text-[#10233F]">{currentUser.name}</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-[#89190E] bg-white px-2 py-0.5 rounded-md border border-[#E8DCCB]">
+                      {currentUser.role === 'reception'
+                        ? 'Reception Desk'
+                        : currentUser.role === 'teacher'
+                        ? 'Faculty'
+                        : 'Student'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href={currentUser.dashboardUrl}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="h-10 flex items-center justify-center space-x-1.5 font-bold text-xs text-white bg-[#89190E] rounded-xl shadow-xs"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>Dashboard</span>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="h-10 flex items-center justify-center space-x-1.5 font-bold text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Link
+                    href="/student/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-[#10233F] bg-white border border-[#E8DCCB] rounded-xl hover:bg-[#FFF9EF] transition-all"
+                  >
+                    <LogIn className="w-4 h-4 text-[#89190E]" />
+                    <span>Login</span>
+                  </Link>
+                  <Link
+                    href="/student/login?tab=signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-white bg-[#89190E] hover:bg-[#65130D] rounded-xl shadow-md transition-all"
+                  >
+                    <UserPlus className="w-4 h-4 text-[#EFC988]" />
+                    <span>Sign Up</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

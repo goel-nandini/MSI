@@ -115,37 +115,6 @@ export default function ReceptionLoginPage() {
     }, 450);
   };
 
-  const handleQuickDemo = (staffId: string) => {
-    const found = RECEPTION_STAFF_PROFILES.find((s) => s.id === staffId);
-    if (!found) return;
-
-    if (found.id === 'staff-harshit') {
-      setPhoneOrId('9792303434');
-      setPassword('Harshit@reception');
-    } else {
-      setPhoneOrId(found.phone || found.email);
-      setPassword('Reception@MSI2025');
-    }
-
-    setIsLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    setTimeout(() => {
-      try {
-        localStorage.setItem('msi_reception_logged_in', 'true');
-        localStorage.setItem('msi_active_staff_id', found.id);
-        localStorage.setItem('msi_active_staff_name', found.name);
-        localStorage.setItem('msi_active_staff_email', found.email);
-        if (found.phone) localStorage.setItem('msi_active_staff_phone', found.phone);
-      } catch (err) {
-        console.error(err);
-      }
-      setIsLoading(false);
-      router.push('/reception/dashboard');
-    }, 400);
-  };
-
   return (
     <div className="min-h-screen bg-[#FFF9EF] flex flex-col justify-between selection:bg-[#EFC988] selection:text-[#89190E] relative overflow-hidden">
       {/* Blueprint Grid Background */}
@@ -222,52 +191,7 @@ export default function ReceptionLoginPage() {
             </p>
           </div>
 
-          {/* Quick Demo Login Presets */}
-          <div className="mt-5 p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E] block mb-2 text-center">
-              Authorized Terminal Profiles
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('staff-harshit')}
-                className="p-2 rounded-xl bg-[#89190E] text-white hover:bg-[#65130D] border border-[#89190E] text-center transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-              >
-                <span className="block font-bold text-[11px] text-white">
-                  Harshit ✓
-                </span>
-                <span className="text-[9px] text-[#EFC988] block font-mono">
-                  9792303434
-                </span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('staff-01')}
-                className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-center transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-              >
-                <span className="block font-bold text-[11px] group-hover:text-white">
-                  Priya V.
-                </span>
-                <span className="text-[9px] text-[#526174] group-hover:text-white/80 block">
-                  Front Desk
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('staff-03')}
-                className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-center transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-              >
-                <span className="block font-bold text-[11px] group-hover:text-white">
-                  Col. Dhillon
-                </span>
-                <span className="text-[9px] text-[#526174] group-hover:text-white/80 block">
-                  Super Admin
-                </span>
-              </button>
-            </div>
-          </div>
 
           {/* Fixed Credentials Info Pill */}
           <div className="mt-3.5 px-3 py-2 rounded-xl bg-[#EFC988]/20 border border-[#EFC988] text-[11px] flex items-center justify-between text-[#89190E]">

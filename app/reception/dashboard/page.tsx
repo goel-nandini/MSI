@@ -7,7 +7,6 @@ import ReceptionSidebar, { ReceptionModuleTab } from '@/components/reception/Rec
 import NewVisitorTab from '@/components/reception/NewVisitorTab';
 import ActiveVisitorsTab from '@/components/reception/ActiveVisitorsTab';
 import VisitorHistoryTab from '@/components/reception/VisitorHistoryTab';
-import SuperAdminTab from '@/components/reception/SuperAdminTab';
 import {
   RECEPTION_STAFF_PROFILES,
   INITIAL_VISITORS,
@@ -18,7 +17,7 @@ import {
 export default function ReceptionDashboardPage() {
   const router = useRouter();
 
-  // Active staff state (defaults to Priya Verma)
+  // Active staff state (defaults to Harshit)
   const [currentStaff, setCurrentStaff] = useState<ReceptionStaff>(RECEPTION_STAFF_PROFILES[0]);
   const [activeTab, setActiveTab] = useState<ReceptionModuleTab>('new-visitor');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -26,9 +25,15 @@ export default function ReceptionDashboardPage() {
   // Visitors dynamic repository
   const [visitors, setVisitors] = useState<Visitor[]>(INITIAL_VISITORS);
 
-  // Load persisted visitor logs and active staff on mount
+  // Check auth and load persisted visitor logs on mount
   useEffect(() => {
     try {
+      const isLoggedIn = localStorage.getItem('msi_reception_logged_in') === 'true';
+      if (!isLoggedIn) {
+        router.push('/student/login');
+        return;
+      }
+
       const savedStaffId = localStorage.getItem('msi_active_staff_id');
       if (savedStaffId) {
         const found = RECEPTION_STAFF_PROFILES.find((s) => s.id === savedStaffId);
@@ -38,14 +43,14 @@ export default function ReceptionDashboardPage() {
       const savedVisitors = localStorage.getItem('msi_visitors_data');
       if (savedVisitors) {
         const parsed = JSON.parse(savedVisitors);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setVisitors(parsed);
         }
       }
     } catch (err) {
       console.warn('Could not read from localStorage:', err);
     }
-  }, []);
+  }, [router]);
 
   // Save visitors to localStorage on change
   const saveVisitors = (updated: Visitor[]) => {
@@ -74,10 +79,14 @@ export default function ReceptionDashboardPage() {
   const handleLogout = () => {
     try {
       localStorage.removeItem('msi_reception_logged_in');
+      localStorage.removeItem('msi_active_staff_id');
+      localStorage.removeItem('msi_active_staff_name');
+      localStorage.removeItem('msi_active_staff_phone');
+      localStorage.removeItem('msi_active_staff_email');
     } catch (err) {
       console.warn(err);
     }
-    router.push('/reception/login');
+    router.push('/student/login');
   };
 
   // Register new visitor (Flow: Form -> Mobile Verify -> Webcam -> Save -> Pass)
@@ -113,7 +122,7 @@ export default function ReceptionDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#FFF9EF] flex flex-col selection:bg-[#EFC988] selection:text-[#89190E]">
-      {/* 1. Header with live headcount & terminal switcher */}
+      {/* 1. Header with live headcount & official receptionist badge */}
       <ReceptionHeader
         currentStaff={currentStaff}
         allStaff={RECEPTION_STAFF_PROFILES}
@@ -153,10 +162,6 @@ export default function ReceptionDashboardPage() {
 
           {activeTab === 'history' && (
             <VisitorHistoryTab visitors={visitors} />
-          )}
-
-          {activeTab === 'super-admin' && (
-            <SuperAdminTab visitors={visitors} />
           )}
         </main>
       </div>

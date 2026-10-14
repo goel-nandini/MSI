@@ -1,8 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, CheckCircle, AlertCircle, X, Image as ImageIcon, Sparkles } from 'lucide-react';
-import { DEMO_VISITOR_PHOTO_FALLBACKS } from './data/receptionMockData';
+import {
+  Camera,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  X,
+  Upload,
+  SwitchCamera,
+  Timer,
+  Zap,
+} from 'lucide-react';
 
 interface WebcamCaptureModalProps {
   onCapture: (photoUrl: string) => void;
@@ -17,56 +26,126 @@ export default function WebcamCaptureModal({
 }: WebcamCaptureModalProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [hasCamera, setHasCamera] = useState<boolean | null>(null);
+  const [cameraState, setCameraState] = useState<'initializing' | 'active' | 'error'>('initializing');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [useTimer, setUseTimer] = useState(false);
+  const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
-  // Stop camera helper
+  // Stop camera stream tracks cleanly
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {
+          console.warn('Track stop error:', e);
+        }
+      });
       streamRef.current = null;
     }
   }, []);
 
-  // Initialize camera
-  const startCamera = useCallback(async () => {
+  // Connect stream to video element safely
+  const bindStreamToVideo = useCallback((videoElement: HTMLVideoElement | null, stream: MediaStream | null) => {
+    if (!videoElement || !stream) return;
+    try {
+      videoElement.srcObject = stream;
+      videoElement.onloadedmetadata = () => {
+        videoElement.play().catch((err) => {
+          console.warn('Autoplay error:', err);
+        });
+      };
+    } catch (err) {
+      console.warn('bindStreamToVideo error:', err);
+    }
+  }, []);
+
+  // Callback ref for video element ensures srcObject is bound whenever the element mounts
+  const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element;
+    if (element && streamRef.current) {
+      bindStreamToVideo(element, streamRef.current);
+    }
+  }, [bindStreamToVideo]);
+
+  // Start webcam
+  const startCamera = useCallback(async (deviceIdToUse?: string) => {
     setErrorMessage(null);
     setCapturedImage(null);
+    setCameraState('initializing');
+
     try {
       stopCamera();
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCamera(false);
-        setErrorMessage('Webcam access not supported in this environment. Please choose a sample photo below.');
+
+      if (typeof window === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
+        setCameraState('error');
+        setErrorMessage('Webcam access is not supported by your browser. Please use the Upload Photo option below.');
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user',
-        },
-        audio: false,
-      });
+      // Constraints with graceful fallback
+      let stream: MediaStream | null = null;
+
+      try {
+        const videoConstraints: MediaTrackConstraints = deviceIdToUse
+          ? { deviceId: { exact: deviceIdToUse } }
+          : {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: 'user',
+            };
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false,
+        });
+      } catch (constraintErr) {
+        console.warn('FacingMode / HD constraint failed, trying basic video:', constraintErr);
+        // Fallback to basic video constraint without facingMode (fixes many Windows USB cameras)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
+
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        bindStreamToVideo(videoRef.current, stream);
       }
-      setHasCamera(true);
+
+      setCameraState('active');
+
+      // Enumerate camera devices for device switcher
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+        setAvailableDevices(videoDevices);
+        if (!deviceIdToUse && videoDevices.length > 0) {
+          const currentTrack = stream.getVideoTracks()[0];
+          const settings = currentTrack?.getSettings?.();
+          if (settings?.deviceId) {
+            setSelectedDeviceId(settings.deviceId);
+          }
+        }
+      } catch (enumErr) {
+        console.warn('Could not enumerate devices:', enumErr);
+      }
     } catch (err: unknown) {
-      console.warn('Webcam permission error or camera not detected:', err);
-      setHasCamera(false);
+      console.error('Webcam access error:', err);
+      setCameraState('error');
       setErrorMessage(
-        'Webcam access unavailable or permission denied. You can select a preset visitor photo or upload one.'
+        'Unable to access webcam. Please verify camera permissions in your browser or click "Upload Photo" below.'
       );
     }
-  }, [stopCamera]);
+  }, [stopCamera, bindStreamToVideo]);
 
+  // Initial mount
   useEffect(() => {
     startCamera();
     return () => {
@@ -74,11 +153,46 @@ export default function WebcamCaptureModal({
     };
   }, [startCamera, stopCamera]);
 
-  // Take snapshot from video stream
-  const handleSnap = () => {
-    if (!videoRef.current) return;
+  // Switch camera device
+  const handleSwitchDevice = (newDeviceId: string) => {
+    setSelectedDeviceId(newDeviceId);
+    startCamera(newDeviceId);
+  };
 
-    // Optional 3-sec countdown for realistic photo booth feeling
+  // Execute snapshot from active video stream
+  const executeCapture = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+
+    const canvas = document.createElement('canvas');
+    const squareSize = 500;
+    canvas.width = squareSize;
+    canvas.height = squareSize;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // Center-crop to clean square for ID badge
+      const minDim = Math.min(width, height);
+      const startX = (width - minDim) / 2;
+      const startY = (height - minDim) / 2;
+
+      ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, squareSize, squareSize);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      setCapturedImage(dataUrl);
+      stopCamera();
+    }
+  };
+
+  // Snap trigger (instant vs 3s countdown)
+  const handleSnapClick = () => {
+    if (!useTimer) {
+      executeCapture();
+      return;
+    }
+
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((prev) => {
@@ -89,33 +203,27 @@ export default function WebcamCaptureModal({
         }
         return prev ? prev - 1 : null;
       });
-    }, 600);
+    }, 700);
   };
 
-  const executeCapture = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = 480;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      // Calculate crop to center square
-      const minDim = Math.min(video.videoWidth || 480, video.videoHeight || 480);
-      const startX = ((video.videoWidth || 480) - minDim) / 2;
-      const startY = ((video.videoHeight || 480) - minDim) / 2;
-
-      ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, 480, 480);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setCapturedImage(dataUrl);
-      stopCamera();
+  // Upload file fallback
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file (JPG, PNG, WebP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        const result = loadEvent.target?.result as string;
+        if (result) {
+          setCapturedImage(result);
+          stopCamera();
+        }
+      };
+      reader.readAsDataURL(file);
     }
-  };
-
-  // Select demo fallback photo
-  const handleSelectDemo = (url: string) => {
-    setCapturedImage(url);
-    stopCamera();
   };
 
   // Confirm photo
@@ -127,20 +235,20 @@ export default function WebcamCaptureModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
       <div className="w-full max-w-lg bg-white rounded-3xl border border-[#E8DCCB] shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
+        {/* Modal Header */}
         <div className="px-6 py-4 bg-[#FFF9EF] border-b border-[#E8DCCB] flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
-              <Camera className="w-4 h-4" />
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-[#89190E] text-white flex items-center justify-center shadow-xs">
+              <Camera className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-base text-[#10233F]">
-                Live Webcam Capture
+              <h3 className="font-serif font-bold text-base sm:text-lg text-[#10233F]">
+                Visitor Badge Photo Capture
               </h3>
               <p className="text-[11px] text-[#526174]">
-                {visitorName ? `Capturing official badge photo for ${visitorName}` : 'Position visitor face within the alignment guide'}
+                {visitorName ? `Official entry pass photo for ${visitorName}` : 'Position visitor face within the alignment guide'}
               </p>
             </div>
           </div>
@@ -149,104 +257,155 @@ export default function WebcamCaptureModal({
               stopCamera();
               onClose();
             }}
-            className="p-1.5 rounded-lg text-[#526174] hover:text-[#10233F] hover:bg-black/5 transition-colors"
+            className="p-2 rounded-xl text-[#526174] hover:text-[#10233F] hover:bg-black/5 transition-colors cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Viewport Area */}
-        <div className="p-6 flex flex-col items-center justify-center bg-[#10233F]/5">
+        <div className="p-5 sm:p-6 flex flex-col items-center justify-center bg-[#10233F]/5">
           {/* Main Camera Frame */}
-          <div className="relative w-72 h-72 rounded-2xl overflow-hidden border-2 border-dashed border-[#89190E]/40 bg-black flex items-center justify-center shadow-inner">
+          <div className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden border-2 border-[#89190E]/30 bg-black flex items-center justify-center shadow-lg">
             {capturedImage ? (
-              // Captured preview
+              // Captured Preview
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={capturedImage}
                 alt="Captured visitor"
                 className="w-full h-full object-cover"
               />
-            ) : hasCamera ? (
+            ) : (
               <>
+                {/* Persistent Video Element */}
                 <video
-                  ref={videoRef}
+                  ref={setVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover ${cameraState === 'active' ? 'block' : 'hidden'}`}
                 />
-                {/* Face silhouette alignment guide */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-48 h-60 border-2 border-emerald-400/70 rounded-full border-dashed animate-pulse flex items-center justify-center">
-                    <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-full font-mono">
-                      Align Face Here
-                    </span>
-                  </div>
-                </div>
 
-                {/* Countdown display */}
+                {/* Initializing / Loading Indicator */}
+                {cameraState === 'initializing' && (
+                  <div className="flex flex-col items-center justify-center text-white space-y-2 p-4 text-center">
+                    <RefreshCw className="w-8 h-8 text-[#EFC988] animate-spin" />
+                    <span className="text-xs font-semibold">Initializing Camera Stream...</span>
+                    <span className="text-[10px] text-white/60">Please allow browser webcam permission</span>
+                  </div>
+                )}
+
+                {/* Error / No Camera Fallback */}
+                {cameraState === 'error' && (
+                  <div className="p-6 text-center text-white/90 flex flex-col items-center justify-center">
+                    <AlertCircle className="w-10 h-10 text-amber-400 mb-2" />
+                    <p className="text-xs font-bold text-white">Camera Offline or Blocked</p>
+                    <p className="text-[11px] text-white/70 mt-1 max-w-[220px]">
+                      {errorMessage || 'Webcam permission was denied or no camera found.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="mt-3 px-3.5 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Photo Instead</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Alignment Silhouette Overlay when camera is active */}
+                {cameraState === 'active' && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-48 h-60 border-2 border-emerald-400/80 rounded-full border-dashed animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                      <span className="text-[10px] font-bold text-white bg-black/60 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider backdrop-blur-xs">
+                        Align Face Here
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Countdown Overlay */}
                 {countdown !== null && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="text-6xl font-bold text-white font-mono animate-bounce">
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-xs">
+                    <span className="text-7xl font-bold text-white font-mono animate-bounce drop-shadow-lg">
                       {countdown}
                     </span>
                   </div>
                 )}
               </>
-            ) : (
-              <div className="p-4 text-center text-white/80">
-                <AlertCircle className="w-8 h-8 text-[#EFC988] mx-auto mb-2" />
-                <p className="text-xs font-semibold">Webcam Not Active</p>
-                <p className="text-[10px] text-white/60 mt-1 max-w-[200px] mx-auto">
-                  Use one of the pre-set ID photos below or upload an image.
-                </p>
-              </div>
             )}
           </div>
 
-          {/* Status Alert if error */}
-          {errorMessage && (
-            <div className="mt-3 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2 max-w-sm text-left">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-              <span className="text-[11px]">{errorMessage}</span>
+          {/* Controls Bar under camera */}
+          {!capturedImage && cameraState === 'active' && (
+            <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2">
+              {/* Instant vs Timer Toggle */}
+              <button
+                type="button"
+                onClick={() => setUseTimer(!useTimer)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 border transition-all cursor-pointer ${
+                  useTimer
+                    ? 'bg-[#89190E] text-white border-[#89190E]'
+                    : 'bg-white text-[#526174] border-[#E8DCCB] hover:text-[#10233F]'
+                }`}
+              >
+                <Timer className="w-3.5 h-3.5" />
+                <span>{useTimer ? '3-Sec Timer ON' : 'Instant Snap'}</span>
+              </button>
+
+              {/* Multiple Camera Switcher */}
+              {availableDevices.length > 1 && (
+                <div className="flex items-center space-x-1.5 bg-white border border-[#E8DCCB] rounded-xl px-2.5 py-1">
+                  <SwitchCamera className="w-3.5 h-3.5 text-[#89190E]" />
+                  <select
+                    value={selectedDeviceId}
+                    onChange={(e) => handleSwitchDevice(e.target.value)}
+                    className="text-xs bg-transparent text-[#10233F] font-medium focus:outline-none cursor-pointer"
+                  >
+                    {availableDevices.map((dev, idx) => (
+                      <option key={dev.deviceId || idx} value={dev.deviceId}>
+                        {dev.label || `Camera ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Upload fallback button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FFF9EF] border border-[#E8DCCB] text-xs font-semibold text-[#526174] hover:text-[#10233F] flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Upload File</span>
+              </button>
             </div>
           )}
 
-          {/* Quick Preset Selector Fallbacks */}
-          <div className="mt-4 w-full">
-            <span className="text-[11px] font-bold text-[#526174] uppercase tracking-wider block mb-2 text-center flex items-center justify-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#89190E]" />
-              <span>Or Choose Sample ID Photo (Instant 1-Click)</span>
-            </span>
-            <div className="flex items-center justify-center space-x-2.5">
-              {DEMO_VISITOR_PHOTO_FALLBACKS.map((url, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSelectDemo(url)}
-                  className={`relative w-11 h-11 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${
-                    capturedImage === url
-                      ? 'border-[#89190E] ring-2 ring-[#89190E]/30 scale-105'
-                      : 'border-[#E8DCCB] opacity-80 hover:opacity-100'
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
         </div>
 
-        {/* Action Controls */}
+        {/* Modal Bottom Actions */}
         <div className="px-6 py-4 bg-white border-t border-[#E8DCCB] flex items-center justify-between">
           {capturedImage ? (
             <>
               <button
                 type="button"
-                onClick={startCamera}
-                className="px-4 py-2 rounded-xl border border-[#E8DCCB] hover:border-[#10233F] text-xs font-bold text-[#10233F] flex items-center space-x-1.5 transition-colors"
+                onClick={() => {
+                  setCapturedImage(null);
+                  startCamera(selectedDeviceId);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-[#E8DCCB] hover:border-[#10233F] text-xs font-bold text-[#10233F] flex items-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retake Photo</span>
@@ -255,7 +414,7 @@ export default function WebcamCaptureModal({
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="px-5 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md shadow-[#89190E]/20"
+                className="px-6 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md shadow-[#89190E]/20 cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4" />
                 <span>Use This Photo</span>
@@ -269,19 +428,29 @@ export default function WebcamCaptureModal({
                   stopCamera();
                   onClose();
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#526174] hover:bg-black/5 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#526174] hover:bg-black/5 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
 
-              {hasCamera && (
+              {cameraState === 'active' ? (
                 <button
                   type="button"
-                  onClick={handleSnap}
-                  className="px-6 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-lg shadow-[#89190E]/30 btn-chamfered"
+                  onClick={handleSnapClick}
+                  disabled={countdown !== null}
+                  className="px-6 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-lg shadow-[#89190E]/30 cursor-pointer disabled:opacity-50"
                 >
-                  <Camera className="w-4 h-4" />
-                  <span>Capture Snapshot</span>
+                  <Zap className="w-4 h-4 text-[#EFC988]" />
+                  <span>{useTimer ? 'Start Timer & Snap' : 'Snap Photo Now'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-5 py-2.5 rounded-xl bg-[#10233F] hover:bg-[#1C3A66] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-[#EFC988]" />
+                  <span>Select Image File</span>
                 </button>
               )}
             </>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   UserPlus,
   Smartphone,
@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ArrowRight,
   RefreshCw,
+  Upload,
 } from 'lucide-react';
 import {
   Visitor,
@@ -57,6 +58,24 @@ export default function NewVisitorTab({
   // Flow verification & media state
   const [isMobileVerified, setIsMobileVerified] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const tabFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDirectFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file (JPG, PNG, WebP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setPhotoUrl(ev.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Modals
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -116,39 +135,6 @@ export default function NewVisitorTab({
       if (pv.govtIdNumber) setGovtIdNumber(pv.govtIdNumber);
       if (pv.vehicleNo) setVehicleNo(pv.vehicleNo);
       if (pv.photoUrl) setPhotoUrl(pv.photoUrl);
-      setIsMobileVerified(true);
-    }
-  };
-
-  // Preset demo fillers for quick evaluation
-  const handleLoadDemo = (type: 'parent' | 'official') => {
-    if (type === 'parent') {
-      setName('Harpreet Kaur Gill');
-      setMobile('9872134599');
-      setEmail('harpreet.gill@gmail.com');
-      setVisitorType('Parent');
-      setPurpose('Admission Inquiry & Counseling');
-      handleDepartmentChange('Admissions & Counseling Wing');
-      setGovtIdType('Aadhaar Card');
-      setGovtIdNumber('XXXX-XXXX-7123');
-      setVehicleNo('PB-65-M-4421');
-      setGateNumber('Gate 1 (Main Gate)');
-      setRemarks('Seeking counseling for daughter for 5-Year Integrated B.A. LL.B.');
-      setPhotoUrl(DEMO_VISITOR_PHOTO_FALLBACKS[1]);
-      setIsMobileVerified(true);
-    } else {
-      setName('Justice (Retd.) Surendra Mohan');
-      setMobile('9810012345');
-      setEmail('s.mohan.legal@delhi.gov.in');
-      setVisitorType('Guest Faculty');
-      setPurpose('Guest Lecture / Seminar Speaker');
-      handleDepartmentChange('Faculty of Law & Judiciary');
-      setGovtIdType('Official Employee ID');
-      setGovtIdNumber('HC-DEL-J-891');
-      setVehicleNo('DL-01-A-1001');
-      setGateNumber('Gate 1 (Main Gate)');
-      setRemarks('Guest of Honour for Constitution Day Special Colloquium.');
-      setPhotoUrl(DEMO_VISITOR_PHOTO_FALLBACKS[0]);
       setIsMobileVerified(true);
     }
   };
@@ -227,29 +213,8 @@ export default function NewVisitorTab({
               New Visitor Registration Desk
             </h2>
             <p className="text-xs text-white/80 mt-1 max-w-xl">
-              Complete the visitor identity dossier, verify the primary mobile number via SMS OTP, capture or upload the badge photo, and issue the printable MSI pass.
+              Complete the visitor identity dossier, verify the primary mobile number, capture the badge photo via live webcam or file upload, and issue the printable MSI pass.
             </p>
-          </div>
-
-          {/* Preset Quick Fillers */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase font-bold text-[#EFC988] tracking-wider block w-full md:w-auto">
-              1-Click Demo Fill:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleLoadDemo('parent')}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all cursor-pointer"
-            >
-              + Demo Parent
-            </button>
-            <button
-              type="button"
-              onClick={() => handleLoadDemo('official')}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-[#EFC988] transition-all cursor-pointer"
-            >
-              + Demo Guest Faculty
-            </button>
           </div>
         </div>
 
@@ -532,16 +497,35 @@ export default function NewVisitorTab({
                   Badge Photo Status
                 </span>
                 <span className="text-[11px] text-[#526174] block mb-2">
-                  {photoUrl ? 'Photo captured & ready' : 'Webcam snap required'}
+                  {photoUrl ? 'Photo captured & ready' : 'Webcam snap or file upload'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsCameraOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 cursor-pointer"
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>{photoUrl ? 'Retake Photo' : 'Launch Camera'}</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsCameraOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{photoUrl ? 'Retake' : 'Webcam'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => tabFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FFF9EF] border border-[#E8DCCB] text-[#10233F] text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-[#89190E]" />
+                    <span>Upload</span>
+                  </button>
+
+                  <input
+                    ref={tabFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleDirectFileUpload}
+                    className="hidden"
+                  />
+                </div>
               </div>
             </div>
 

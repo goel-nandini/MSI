@@ -118,79 +118,19 @@ export default function ReceptionHeader({
 
       {/* Right: Staff Profile Switcher & Actions */}
       <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* Terminal Switcher Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowStaffDropdown(!showStaffDropdown)}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#FFF9EF] hover:bg-white border border-[#E8DCCB] hover:border-[#89190E] transition-all text-left shadow-xs cursor-pointer"
-          >
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#89190E]/30 relative flex-shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={currentStaff.avatar}
-                alt={currentStaff.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="hidden sm:block">
-              <span className="block text-xs font-bold text-[#10233F] leading-tight">
-                {currentStaff.name}
-              </span>
-              <span className="block text-[10px] text-[#89190E] font-medium leading-none mt-0.5">
-                {currentStaff.role}
-              </span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-[#526174]" />
-          </button>
-
-          {showStaffDropdown && (
-            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-[#E8DCCB] shadow-2xl p-2 z-50 animate-fadeIn">
-              <div className="px-3 py-2 border-b border-[#E8DCCB] mb-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#89190E] font-bold block">
-                  Switch Terminal / Guard Station
-                </span>
-                <span className="text-xs text-[#526174]">
-                  Simulates multi-gate synchronization
-                </span>
-              </div>
-
-              {allStaff.map((staff) => (
-                <button
-                  key={staff.id}
-                  onClick={() => {
-                    onSwitchStaff(staff.id);
-                    setShowStaffDropdown(false);
-                  }}
-                  className={`w-full flex items-center space-x-3 p-2.5 rounded-xl transition-all text-left ${
-                    currentStaff.id === staff.id
-                      ? 'bg-[#89190E] text-white shadow-xs'
-                      : 'hover:bg-[#FFF9EF] text-[#10233F]'
-                  }`}
-                >
-                  <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={staff.avatar}
-                      alt={staff.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="block text-xs font-bold truncate">
-                      {staff.name}
-                    </span>
-                    <span
-                      className={`block text-[10px] truncate ${
-                        currentStaff.id === staff.id ? 'text-white/80' : 'text-[#89190E]'
-                      }`}
-                    >
-                      {staff.role} • {staff.location}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Active Receptionist Profile Badge */}
+        <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-[#FFF9EF] border border-[#E8DCCB] text-left shadow-xs">
+          <div className="w-7 h-7 rounded-lg bg-[#89190E] text-[#FFF9EF] flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs">
+            {currentStaff.name ? currentStaff.name.charAt(0) : 'H'}
+          </div>
+          <div className="hidden sm:block">
+            <span className="block text-xs font-bold text-[#10233F] leading-tight">
+              {currentStaff.name || 'Harshit'}
+            </span>
+            <span className="block text-[10px] text-[#89190E] font-medium leading-none mt-0.5">
+              Reception Desk • Desk 01
+            </span>
+          </div>
         </div>
 
         {/* Website link */}

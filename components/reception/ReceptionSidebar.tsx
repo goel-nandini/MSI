@@ -17,8 +17,7 @@ import { ReceptionStaff } from './data/receptionMockData';
 export type ReceptionModuleTab =
   | 'new-visitor'
   | 'active-visitors'
-  | 'history'
-  | 'super-admin';
+  | 'history';
 
 interface ReceptionSidebarProps {
   activeTab: ReceptionModuleTab;
@@ -57,12 +56,6 @@ export default function ReceptionSidebar({
       label: 'Visitor History & Logs',
       subtitle: 'Search, repeats & export',
       icon: History,
-    },
-    {
-      id: 'super-admin' as ReceptionModuleTab,
-      label: 'Super Admin Security',
-      subtitle: 'Analytics & Muster Roll',
-      icon: ShieldAlert,
     },
   ];
 
@@ -165,26 +158,19 @@ export default function ReceptionSidebar({
         </nav>
       </div>
 
-      {/* Bottom Emergency Helpdesk Info */}
-      <div className="pt-4 border-t border-[#E8DCCB] space-y-2.5">
-        <div className="p-3 rounded-2xl bg-white border border-[#E8DCCB] shadow-xs">
-          <div className="flex items-center space-x-2 text-[#89190E] mb-1">
-            <Radio className="w-3.5 h-3.5 text-[#89190E] animate-pulse" />
-            <span className="text-[10px] font-mono uppercase font-bold tracking-wider">
-              Control Room Hotline
-            </span>
-          </div>
-          <span className="text-xs font-bold text-[#10233F] block font-mono">
-            Ext: 104 / 0172-5002100
+      {/* Bottom Institute Reception Info */}
+      <div className="pt-4 border-t border-[#E8DCCB] space-y-2">
+        <div className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-center">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#89190E] font-bold block mb-0.5">
+            MSI Visitor Management
+          </span>
+          <span className="text-xs font-bold text-[#10233F] block">
+            Reception Desk Terminal
           </span>
           <span className="text-[10px] text-[#526174] block mt-0.5">
-            Institute Quick Response Security
+            Maharaja Surajmal Institute
           </span>
         </div>
-
-        <span className="text-[10px] text-[#526174] text-center block font-mono">
-          VMS v2.4 • MSI Kharar Institute
-        </span>
       </div>
     </div>
   );

@@ -51,10 +51,10 @@ export default function ActiveVisitorsTab({
 
   const handleTriggerExit = (id: string, name: string) => {
     onMarkExit(id);
-    setExitSuccessMsg(`Exit recorded for ${name}. Gate turnstile barrier opened.`);
+    setExitSuccessMsg(`Exit recorded for ${name}. Visitor departure logged successfully.`);
     setTimeout(() => {
       setExitSuccessMsg(null);
-    }, 4000);
+    }, 3500);
   };
 
   return (
@@ -167,7 +167,7 @@ export default function ActiveVisitorsTab({
           <p className="text-xs text-[#526174] mt-1">
             {searchTerm || selectedDept !== 'ALL'
               ? 'Try changing your search keywords or department filter.'
-              : 'All registered visitors have departed the institute.'}
+              : 'No visitors currently inside the premises. Use New Registration to register incoming visitors.'}
           </p>
         </div>
       ) : (

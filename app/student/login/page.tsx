@@ -536,7 +536,7 @@ export default function StudentLoginPage() {
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#FFF9EF] border border-[#E8DCCB] mb-1.5">
               <Sparkles className="w-3 h-3 text-[#89190E]" />
               <span className="text-[10px] font-mono tracking-widest text-[#89190E] uppercase font-bold">
-                Student Access Gateway
+                MSI Portal Access
               </span>
             </div>
 
@@ -544,17 +544,17 @@ export default function StudentLoginPage() {
               {authStep === 'otp'
                 ? 'Verify Mobile OTP'
                 : authMode === 'signin'
-                ? 'Student Sign In'
+                ? 'Sign In to Portal'
                 : authMode === 'forgot_otp'
                 ? 'Login via Mobile OTP'
-                : 'New Student Registration'}
+                : 'Student Registration'}
             </h1>
 
             <p className="text-xs text-[#526174] mt-1.5">
               {authStep === 'otp'
                 ? `Enter the 6-digit code dispatched to +91 ${activeOtpPhone}`
                 : authMode === 'signin'
-                ? 'Sign in directly with your registered mobile number & password.'
+                ? 'Sign in with your registered mobile number & password.'
                 : authMode === 'forgot_otp'
                 ? 'We will send a one-time OTP to your registered mobile number.'
                 : 'Create your student account with your legal name and password.'}
@@ -712,7 +712,7 @@ export default function StudentLoginPage() {
                   <span>Authenticating Credentials...</span>
                 ) : (
                   <>
-                    <span>Sign In to Student Portal</span>
+                    <span>Sign In to Portal</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -731,7 +731,7 @@ export default function StudentLoginPage() {
                 >
                   Don&apos;t have an account?{' '}
                   <span className="text-[#89190E] font-bold underline">
-                    Register as New Student
+                    Create Student Account
                   </span>
                 </button>
               </div>
@@ -1084,7 +1084,7 @@ export default function StudentLoginPage() {
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Verify & Enter Student Portal</span>
+                    <span>Verify & Enter Portal</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -1095,7 +1095,7 @@ export default function StudentLoginPage() {
           {/* Security & Regulatory Footnote */}
           <div className="mt-6 pt-5 border-t border-[#E8DCCB] flex items-center justify-center space-x-2 text-[11px] text-[#526174]">
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>Maharaja Surajmal Institute Official Student Portal</span>
+            <span>Maharaja Surajmal Institute Official Portal</span>
           </div>
 
         </div>
