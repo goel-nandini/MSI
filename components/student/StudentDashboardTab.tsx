@@ -278,7 +278,7 @@ export default function StudentDashboardTab({
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#EFC988] animate-pulse-beacon flex-shrink-0" />
               <span className="text-[10px] sm:text-[11px] font-mono tracking-wider text-[#EFC988] uppercase font-bold break-words">
-                Maharaja Surajmal Institute • Academic Semester V
+                MSI Group of Institutes • Academic Semester V
               </span>
             </div>
             <h1 className="font-serif text-2xl sm:text-4xl font-bold text-white mt-2 tracking-tight">

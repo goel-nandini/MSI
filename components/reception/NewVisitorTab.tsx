@@ -175,7 +175,7 @@ export default function NewVisitorTab({
       govtIdType,
       govtIdNumber: govtIdNumber.trim() || 'VERIFIED-DESK',
       vehicleNo: vehicleNo.trim() || undefined,
-      isMobileVerified,
+      isMobileVerified: true,
       gateNumber,
       visitCount: repeatNotice.found ? repeatNotice.visitCount : 1,
       remarks: remarks.trim() || undefined,
@@ -213,7 +213,7 @@ export default function NewVisitorTab({
               New Visitor Registration Desk
             </h2>
             <p className="text-xs text-white/80 mt-1 max-w-xl">
-              Complete the visitor identity dossier, verify the primary mobile number, capture the badge photo via live webcam or file upload, and issue the printable MSI pass.
+              Complete the visitor identity dossier, capture the badge photo via live webcam or file upload, and issue the official MSI pass.
             </p>
           </div>
         </div>
@@ -224,15 +224,13 @@ export default function NewVisitorTab({
             <span className="w-5 h-5 rounded-full bg-[#EFC988] text-[#10233F] font-bold flex items-center justify-center text-[10px]">
               1
             </span>
-            <span className="font-semibold">Visitor Form</span>
+            <span className="font-semibold">Visitor Details</span>
           </div>
-          <div className={`flex items-center space-x-2 ${isMobileVerified ? 'text-emerald-400' : 'text-white/60'}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              isMobileVerified ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white'
-            }`}>
+          <div className="flex items-center space-x-2 text-[#EFC988]">
+            <span className="w-5 h-5 rounded-full bg-[#EFC988] text-[#10233F] font-bold flex items-center justify-center text-[10px]">
               2
             </span>
-            <span>Mobile OTP</span>
+            <span className="font-semibold">Host &amp; Purpose</span>
           </div>
           <div className={`flex items-center space-x-2 ${photoUrl ? 'text-emerald-400' : 'text-white/60'}`}>
             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
@@ -240,7 +238,7 @@ export default function NewVisitorTab({
             }`}>
               3
             </span>
-            <span>Webcam Photo</span>
+            <span>Badge Photo</span>
           </div>
           <div className="flex items-center space-x-2 text-white/60">
             <span className="w-5 h-5 rounded-full bg-white/20 text-white font-bold flex items-center justify-center text-[10px]">
@@ -289,7 +287,7 @@ export default function NewVisitorTab({
           <div className="flex items-center space-x-2 text-[#89190E] pb-3 border-b border-[#E8DCCB] mb-5">
             <User className="w-4 h-4" />
             <h3 className="font-serif font-bold text-base text-[#10233F]">
-              1. Visitor Identity & Contact Verification
+              1. Visitor Identity &amp; Contact Details
             </h3>
           </div>
 
@@ -309,7 +307,7 @@ export default function NewVisitorTab({
               />
             </div>
 
-            {/* Mobile Number with OTP Verification trigger */}
+            {/* Mobile Number without OTP Verification */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1.5">
                 Primary Mobile (10-Digit) <span className="text-rose-600">*</span>
@@ -325,27 +323,8 @@ export default function NewVisitorTab({
                   value={mobile}
                   onChange={(e) => handleMobileChange(e.target.value)}
                   placeholder="9876543210"
-                  className="w-full pl-12 pr-28 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] focus:ring-1 focus:ring-[#89190E] font-mono"
+                  className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] focus:ring-1 focus:ring-[#89190E] font-mono font-medium"
                 />
-
-                {/* OTP Trigger Button / Verified Pill */}
-                <div className="absolute right-1.5">
-                  {isMobileVerified ? (
-                    <span className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Verified</span>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={mobile.length !== 10}
-                      onClick={() => setIsOtpOpen(true)}
-                      className="px-2.5 py-1 rounded-lg bg-[#89190E] hover:bg-[#65130D] text-white text-[11px] font-bold uppercase tracking-wider disabled:opacity-40 transition-all cursor-pointer"
-                    >
-                      Verify OTP
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
 

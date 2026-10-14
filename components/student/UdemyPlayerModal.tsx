@@ -767,7 +767,7 @@ export default function UdemyPlayerModal({
               </div>
 
               <span className="text-[11px] font-mono tracking-widest text-[#89190E] uppercase font-bold block mb-1">
-                Maharaja Surajmal Institute • Academy of Legal Studies
+                MSI Group of Institutes • Academy of Legal Studies
               </span>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#10233F]">
                 Certificate of Completion

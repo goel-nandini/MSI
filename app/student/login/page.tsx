@@ -1095,7 +1095,7 @@ export default function StudentLoginPage() {
           {/* Security & Regulatory Footnote */}
           <div className="mt-6 pt-5 border-t border-[#E8DCCB] flex items-center justify-center space-x-2 text-[11px] text-[#526174]">
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>Maharaja Surajmal Institute Official Portal</span>
+            <span>MSI Group of Institutes Official Portal</span>
           </div>
 
         </div>
@@ -1103,7 +1103,7 @@ export default function StudentLoginPage() {
 
       {/* Footer Strip */}
       <footer className="relative z-10 py-4 text-center text-xs text-[#526174] border-t border-[#E8DCCB]/60">
-        © {new Date().getFullYear()} Maharaja Surajmal Institute. All rights reserved. • Kharar, Mohali, Punjab.
+        © {new Date().getFullYear()} MSI Group of Institutes. All rights reserved. • Kharar, Mohali, Punjab.
       </footer>
     </div>
   );

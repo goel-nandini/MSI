@@ -178,7 +178,7 @@ export default function ReceptionSidebar({
             Reception Desk Terminal
           </span>
           <span className="text-[10px] text-[#526174] block mt-0.5">
-            Maharaja Surajmal Institute
+            MSI Group of Institutes
           </span>
         </div>
       </div>

@@ -307,7 +307,7 @@ export default function ReceptionLoginPage() {
 
       {/* Footer Strip */}
       <footer className="relative z-10 py-4 text-center text-xs text-[#526174] border-t border-[#E8DCCB]/60">
-        © {new Date().getFullYear()} Maharaja Surajmal Institute. All rights reserved. • Kharar, Mohali, Punjab.
+        © {new Date().getFullYear()} MSI Group of Institutes. All rights reserved. • Kharar, Mohali, Punjab.
       </footer>
     </div>
   );

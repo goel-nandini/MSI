@@ -101,7 +101,7 @@ const GAZETTE_ARTICLES: GazetteArticle[] = [
     ],
     statutesCited: ['Constitution Art. 21', 'Constitution Art. 32', 'DPDP Act 2023 § 4', 'Puttaswamy (2017) 10 SCC 1'],
     fullSummary:
-      'The Maharaja Surajmal Institute Law delegation recently clinched top honours at the 14th National Constitutional Law Moot Court Competition. Under the mentorship of Dr. Ekta Gahlawat, student counsels argued contentious constitutional issues involving emergent biometric surveillance technologies against the doctrine of proportional privacy.',
+      'The MSI Group of Institutes Law delegation recently clinched top honours at the 14th National Constitutional Law Moot Court Competition. Under the mentorship of Dr. Ekta Gahlawat, student counsels argued contentious constitutional issues involving emergent biometric surveillance technologies against the doctrine of proportional privacy.',
   },
   {
     id: 3,

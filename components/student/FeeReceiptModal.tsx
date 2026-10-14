@@ -63,13 +63,13 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               </div>
               <div>
                 <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#89190E] tracking-tight">
-                  MAHARAJA SURAJMAL INSTITUTE
+                  MSI GROUP OF INSTITUTES
                 </h2>
                 <p className="text-xs text-[#526174] font-medium">
-                  Faculty of Judicial Studies, Law & Allied Sciences
+                  Faculty of Judicial Studies, Law &amp; Allied Sciences
                 </p>
                 <p className="text-[11px] text-[#526174]">
-                  Kharar-Mohali Expressway, Punjab - 140301 • Affiliated & Approved
+                  Kharar-Mohali Expressway, Punjab - 140301 • Affiliated &amp; Approved
                 </p>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 Dean of Accounts & Admissions
               </div>
               <p className="text-[10px] text-[#526174] mt-1">
-                Maharaja Surajmal Institute Finance Cell
+                MSI Group of Institutes Finance Cell
               </p>
             </div>
           </div>

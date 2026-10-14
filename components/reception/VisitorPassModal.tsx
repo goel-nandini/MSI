@@ -131,14 +131,14 @@ export default function VisitorPassModal({
                   />
                 </div>
                 <div>
-                  <h2 className="font-serif font-bold text-lg sm:text-xl text-[#10233F] leading-tight">
-                    MAHARAJA SURAJMAL INSTITUTE
+                  <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#10233F] leading-tight tracking-tight">
+                    MSI
                   </h2>
-                  <span className="text-[10px] sm:text-[11px] font-bold tracking-widest text-[#89190E] uppercase block">
-                    MSI Institute • Kharar, Mohali, Punjab
+                  <span className="text-xs sm:text-sm font-bold tracking-wider text-[#89190E] uppercase block">
+                    GROUP OF INSTITUTES
                   </span>
-                  <span className="text-[9px] text-[#526174] font-medium block">
-                    Approved by Bar Council of India & AICTE
+                  <span className="text-[10px] text-[#526174] font-medium block mt-0.5">
+                    Kharar, Mohali, Punjab • Approved by Bar Council of India &amp; AICTE
                   </span>
                 </div>
               </div>
