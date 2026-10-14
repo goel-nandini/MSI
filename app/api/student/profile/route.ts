@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { phone, profile } = body;
+    const { phone, profile, previousPhone } = body;
 
     if (!phone || !profile) {
       return NextResponse.json(
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const saved = saveStudentProfile(cleanPhone, profile);
+    const cleanPrevious = previousPhone ? sanitizeIndianPhone(previousPhone) : undefined;
+    const saved = saveStudentProfile(cleanPhone, profile, cleanPrevious);
 
     return NextResponse.json({
       success: true,

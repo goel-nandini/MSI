@@ -44,17 +44,21 @@ export async function POST(req: NextRequest) {
 
     const student = authResult.student;
     const profile = getStudentProfile(cleanPhone);
+    const resolvedName = profile?.name || student.name;
+    const resolvedStream = profile?.courseTitle || profile?.batch || student.stream;
+    const resolvedEmail =
+      profile?.email || student.email || `student.${student.phone.slice(-4)}@msi-institutes.edu.in`;
 
     return NextResponse.json({
       success: true,
       message: 'Logged in successfully!',
       user: {
         id: student.id,
-        phone: `+91 ${student.phone.slice(0, 5)} ${student.phone.slice(5)}`,
+        phone: profile?.phone || `+91 ${student.phone.slice(0, 5)} ${student.phone.slice(5)}`,
         cleanPhone: student.phone,
-        name: student.name,
-        email: student.email || `student.${student.phone.slice(-4)}@msi-institutes.edu.in`,
-        stream: student.stream,
+        name: resolvedName,
+        email: resolvedEmail,
+        stream: resolvedStream,
         role: 'student',
         profile,
       },

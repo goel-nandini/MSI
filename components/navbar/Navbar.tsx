@@ -50,7 +50,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
           dashboardUrl: '/teacher/dashboard',
         });
       } else if (isStudent) {
-        const sName = localStorage.getItem('msi_active_student_name') || 'Aarav Sharma';
+        const sName = localStorage.getItem('msi_active_student_name') || 'Student';
         setCurrentUser({
           role: 'student',
           name: sName,

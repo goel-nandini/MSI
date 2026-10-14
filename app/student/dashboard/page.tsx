@@ -40,8 +40,60 @@ import { UdemyCourse } from '@/lib/lmsStore';
 export default function StudentDashboardPage() {
   const router = useRouter();
 
-  // Active student state
-  const [student, setStudent] = useState<StudentProfile>(INITIAL_STUDENT_PROFILE);
+  // Active student state: lazy initializer prevents "Aarav Sharma" dummy flash when logged in as another student
+  const [student, setStudent] = useState<StudentProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedPhone = localStorage.getItem('msi_active_student_phone') || '';
+        const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+
+        if (cleanPhone) {
+          const cachedProfileStr = localStorage.getItem(`msi_student_profile_${cleanPhone}`);
+          if (cachedProfileStr) {
+            const cached = JSON.parse(cachedProfileStr);
+            if (cached && (cached.name || cached.phone)) {
+              return cached;
+            }
+          }
+
+          const storedName = localStorage.getItem('msi_active_student_name');
+          const storedStream = localStorage.getItem('msi_active_student_stream');
+          const storedEmail = localStorage.getItem('msi_active_student_email');
+          const currentYear = new Date().getFullYear();
+          const nextYear = currentYear + 1;
+          const last4 = cleanPhone.slice(-4);
+
+          return {
+            id: `msi-stu-${last4}`,
+            name: storedName || `Student ${last4}`,
+            email: storedEmail || `student.${last4}@msi-institutes.edu.in`,
+            phone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+            dob: '2003-01-15',
+            age: 22,
+            gender: 'Male',
+            enrollmentNo: `MSI/${currentYear}/${last4}`,
+            rollNo: `${currentYear.toString().slice(-2)}-MSI-${last4}`,
+            batch: storedStream
+              ? `${storedStream}, ${currentYear}–${nextYear}`
+              : `PCS-J Punjab Judicial Services, ${currentYear}–${nextYear}`,
+            courseTitle: storedStream || 'PCS-J Punjab Judicial Services',
+            semester: `Academic Year ${currentYear}–${nextYear}`,
+            avatarUrl: '/images/avatars/avatar-1.webp',
+            bloodGroup: 'B+',
+            address: 'Kharar, Mohali, Punjab',
+            guardianName: 'Guardian',
+            guardianContact: `+91 ${cleanPhone.slice(0, 5)} 00000`,
+            admissionDate: `01 July ${currentYear}`,
+            validUntil: `30 June ${nextYear + 1}`,
+          };
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Initial student state error:', err);
+      }
+    }
+    return INITIAL_STUDENT_PROFILE;
+  });
+
   const [activeTab, setActiveTab] = useState<StudentModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -73,11 +125,17 @@ export default function StudentDashboardPage() {
               const data = await res.json();
               if (data.success && data.profile) {
                 setStudent(data.profile);
-                localStorage.setItem(`msi_student_profile_${cleanPhone}`, JSON.stringify(data.profile));
+                localStorage.setItem(
+                  `msi_student_profile_${cleanPhone}`,
+                  JSON.stringify(data.profile)
+                );
                 localStorage.setItem('msi_active_student_profile', JSON.stringify(data.profile));
-                if (data.profile.name) localStorage.setItem('msi_active_student_name', data.profile.name);
-                if (data.profile.email) localStorage.setItem('msi_active_student_email', data.profile.email);
-                if (data.profile.courseTitle) localStorage.setItem('msi_active_student_stream', data.profile.courseTitle);
+                if (data.profile.name)
+                  localStorage.setItem('msi_active_student_name', data.profile.name);
+                if (data.profile.email)
+                  localStorage.setItem('msi_active_student_email', data.profile.email);
+                if (data.profile.courseTitle)
+                  localStorage.setItem('msi_active_student_stream', data.profile.courseTitle);
                 return;
               }
             }
@@ -95,12 +153,24 @@ export default function StudentDashboardPage() {
           setStudent((prev) => ({
             ...prev,
             name: storedName || (cleanPhone ? `Student ${cleanPhone.slice(-4)}` : prev.name),
-            phone: cleanPhone ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : (storedPhone || prev.phone),
-            email: storedEmail || (cleanPhone ? `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in` : prev.email),
+            phone: cleanPhone
+              ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`
+              : storedPhone || prev.phone,
+            email:
+              storedEmail ||
+              (cleanPhone
+                ? `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`
+                : prev.email),
             courseTitle: storedStream || prev.courseTitle,
-            batch: storedStream ? `${storedStream}, ${new Date().getFullYear()}–${new Date().getFullYear() + 1}` : prev.batch,
-            enrollmentNo: cleanPhone ? `MSI/${new Date().getFullYear()}/${cleanPhone.slice(-4)}` : prev.enrollmentNo,
-            rollNo: cleanPhone ? `${new Date().getFullYear().toString().slice(-2)}-MSI-${cleanPhone.slice(-4)}` : prev.rollNo,
+            batch: storedStream
+              ? `${storedStream}, ${new Date().getFullYear()}–${new Date().getFullYear() + 1}`
+              : prev.batch,
+            enrollmentNo: cleanPhone
+              ? `MSI/${new Date().getFullYear()}/${cleanPhone.slice(-4)}`
+              : prev.enrollmentNo,
+            rollNo: cleanPhone
+              ? `${new Date().getFullYear().toString().slice(-2)}-MSI-${cleanPhone.slice(-4)}`
+              : prev.rollNo,
           }));
         }
       } catch (err) {
@@ -135,28 +205,69 @@ export default function StudentDashboardPage() {
 
   // Permanent profile update: updates React state, localStorage by phone, and server storage
   const handleUpdateProfile = async (updated: StudentProfile) => {
-    setStudent(updated);
-    try {
-      const storedPhone = updated.phone || localStorage.getItem('msi_active_student_phone') || '';
-      const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+    // 1. Get current logged-in phone
+    const currentActivePhone = (localStorage.getItem('msi_active_student_phone') || '')
+      .replace(/\D/g, '')
+      .slice(-10);
 
-      // Save to localStorage
-      if (cleanPhone) {
-        localStorage.setItem(`msi_student_profile_${cleanPhone}`, JSON.stringify(updated));
-        localStorage.setItem('msi_active_student_phone', cleanPhone);
+    // 2. Check if the user modified the phone number in the form
+    const formPhoneDigits = updated.phone ? updated.phone.replace(/\D/g, '').slice(-10) : '';
+    const targetCleanPhone =
+      formPhoneDigits.length === 10 ? formPhoneDigits : currentActivePhone;
+
+    // Format phone nicely
+    const formattedPhone =
+      targetCleanPhone.length === 10
+        ? `+91 ${targetCleanPhone.slice(0, 5)} ${targetCleanPhone.slice(5)}`
+        : updated.phone;
+
+    const mergedUpdated: StudentProfile = {
+      ...updated,
+      phone: formattedPhone,
+    };
+
+    setStudent(mergedUpdated);
+
+    try {
+      if (targetCleanPhone) {
+        localStorage.setItem(
+          `msi_student_profile_${targetCleanPhone}`,
+          JSON.stringify(mergedUpdated)
+        );
+        localStorage.setItem('msi_active_student_phone', targetCleanPhone);
       }
-      localStorage.setItem('msi_active_student_profile', JSON.stringify(updated));
-      if (updated.name) localStorage.setItem('msi_active_student_name', updated.name);
-      if (updated.email) localStorage.setItem('msi_active_student_email', updated.email);
-      if (updated.courseTitle) localStorage.setItem('msi_active_student_stream', updated.courseTitle);
+      localStorage.setItem('msi_active_student_profile', JSON.stringify(mergedUpdated));
+      if (mergedUpdated.name) localStorage.setItem('msi_active_student_name', mergedUpdated.name);
+      if (mergedUpdated.email) localStorage.setItem('msi_active_student_email', mergedUpdated.email);
+      if (mergedUpdated.courseTitle)
+        localStorage.setItem('msi_active_student_stream', mergedUpdated.courseTitle);
 
       // Save permanently to server backend
-      if (cleanPhone) {
-        await fetch('/api/student/profile', {
+      if (targetCleanPhone) {
+        const res = await fetch('/api/student/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: cleanPhone, profile: updated }),
+          body: JSON.stringify({
+            phone: targetCleanPhone,
+            previousPhone:
+              currentActivePhone && currentActivePhone !== targetCleanPhone
+                ? currentActivePhone
+                : undefined,
+            profile: mergedUpdated,
+          }),
         });
+
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.profile) {
+            setStudent(resData.profile);
+            localStorage.setItem(
+              `msi_student_profile_${targetCleanPhone}`,
+              JSON.stringify(resData.profile)
+            );
+            localStorage.setItem('msi_active_student_profile', JSON.stringify(resData.profile));
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to sync profile update:', err);

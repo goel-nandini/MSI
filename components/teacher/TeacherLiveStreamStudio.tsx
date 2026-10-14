@@ -1027,7 +1027,7 @@ export default function TeacherLiveStreamStudio({
                       <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                       <span><strong>{activeViewers.length}</strong> Student Watching:</span>
                     </div>
-                    <span className="font-bold">{activeViewers[0]?.name || 'Aarav Sharma'}</span>
+                    <span className="font-bold">{activeViewers[0]?.name || 'Student'}</span>
                   </div>
 
                   {/* Chat Messages (Real time only, no dummy data) */}

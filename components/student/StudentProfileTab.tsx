@@ -352,11 +352,85 @@ export default function StudentProfileTab({
           <div className="flex items-center space-x-2 pb-4 border-b border-[#E8DCCB]">
             <Award className="w-5 h-5 text-[#89190E]" />
             <h3 className="font-serif text-lg font-bold text-[#10233F]">
-              Academic Credentials & Institutional Validity
+              Academic Credentials & Enrolled Course Programme
             </h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+            {/* Enrolled Subject / Course Programme */}
+            <div className="sm:col-span-2 lg:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#526174] mb-1.5">
+                Enrolled Course / Subject Programme
+              </label>
+              {isEditing ? (
+                <div>
+                  <input
+                    type="text"
+                    list="msi-courses-list"
+                    value={formState.courseTitle}
+                    onChange={(e) => handleChange('courseTitle', e.target.value)}
+                    placeholder="Enter or select judicial course/subject"
+                    className="w-full p-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/50 text-sm text-[#10233F] font-semibold focus:outline-none focus:border-[#89190E]"
+                  />
+                  <datalist id="msi-courses-list">
+                    <option value="PCS-J Punjab Judicial Services" />
+                    <option value="Haryana ADA & Judiciary Examination" />
+                    <option value="Himachal Pradesh Judicial Service" />
+                    <option value="Delhi Judicial Services (DJS)" />
+                    <option value="UPSC Law Optional Foundation" />
+                    <option value="CLAT PG & LL.M Entrance Masterclass" />
+                    <option value="CLAT UG & Judiciary Entrance Foundation Programme" />
+                    <option value="Civil & Criminal Litigation Masterclass" />
+                  </datalist>
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
+                  <p className="text-sm font-bold text-[#89190E]">{student.courseTitle}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Academic Session / Semester */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#526174] mb-1.5">
+                Academic Session / Semester
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formState.semester}
+                  onChange={(e) => handleChange('semester', e.target.value)}
+                  placeholder="e.g. Academic Year 2026–2027"
+                  className="w-full p-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/50 text-sm text-[#10233F] font-semibold focus:outline-none focus:border-[#89190E]"
+                />
+              ) : (
+                <div className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
+                  <p className="text-sm font-semibold text-[#10233F]">{student.semester}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Assigned Batch */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#526174] mb-1.5">
+                Assigned Batch Cohort
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formState.batch}
+                  onChange={(e) => handleChange('batch', e.target.value)}
+                  placeholder="e.g. PCS-J Punjab Judicial Services, Morning Batch"
+                  className="w-full p-2.5 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/50 text-sm text-[#10233F] font-semibold focus:outline-none focus:border-[#89190E]"
+                />
+              ) : (
+                <div className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
+                  <p className="text-sm font-medium text-[#10233F]">{student.batch}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Institutional Credentials: Read-Only Badges */}
             <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
               <span className="text-[10px] uppercase font-bold text-[#526174] tracking-wider block">
                 Enrollment ID
@@ -372,15 +446,6 @@ export default function StudentProfileTab({
               </span>
               <span className="font-mono text-sm font-bold text-[#10233F] mt-1 block">
                 {student.rollNo}
-              </span>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
-              <span className="text-[10px] uppercase font-bold text-[#526174] tracking-wider block">
-                Assigned Batch
-              </span>
-              <span className="text-xs font-bold text-[#10233F] mt-1 block truncate">
-                {student.batch}
               </span>
             </div>
 

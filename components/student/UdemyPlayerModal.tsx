@@ -66,7 +66,7 @@ export default function UdemyPlayerModal({
   isOpen,
   onClose,
   studentId = 'msi-stu-001',
-  studentName = 'Aarav Sharma',
+  studentName = 'MSI Student',
 }: UdemyPlayerModalProps) {
   // Flatten lectures for easy navigation
   const allLectures: { lecture: UdemyLecture; sectionTitle: string }[] = [];
@@ -110,7 +110,7 @@ export default function UdemyPlayerModal({
   const [questions, setQuestions] = useState<QuestionItem[]>([
     {
       id: 'q1',
-      author: 'Aarav Sharma',
+      author: studentName,
       avatar: '/images/avatars/avatar-1.webp',
       question: 'In Section 11 CPC Explanation IV, does constructive res judicata apply equally to writ petitions under Article 226?',
       upvotes: 14,

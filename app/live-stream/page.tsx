@@ -60,6 +60,22 @@ function LiveStreamContent() {
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [isPlayingVod, setIsPlayingVod] = useState(false);
 
+  // Active authenticated student details
+  const [activeStudentName, setActiveStudentName] = useState('MSI Student');
+  const [activeStudentId, setActiveStudentId] = useState('MSI-2025-LAW-042');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('msi_active_student_name');
+      if (storedName) setActiveStudentName(storedName);
+      const storedPhone = localStorage.getItem('msi_active_student_phone');
+      if (storedPhone) {
+        const clean = storedPhone.replace(/\D/g, '').slice(-10);
+        setActiveStudentId(`MSI-${new Date().getFullYear()}-${clean.slice(-4)}`);
+      }
+    }
+  }, []);
+
   // WebRTC remote stream from Teacher (webcam / screen share)
   const [remoteWebRTCStream, setRemoteWebRTCStream] = useState<MediaStream | null>(null);
   const receiverRef = useRef<StudentWebRTCReceiver | null>(null);
@@ -88,13 +104,18 @@ function LiveStreamContent() {
     let chatChannel: BroadcastChannel | null = null;
     let mainBc: BroadcastChannel | null = null;
 
+    const currentStudentName =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('msi_active_student_name') || 'MSI Student'
+        : 'MSI Student';
+
     try {
       presenceChannel = new BroadcastChannel(PRESENCE_CHANNEL);
       presenceChannel.postMessage({
         type: 'VIEWER_JOIN',
         student: {
           id: 'MSI-2025-LAW-042',
-          name: 'Aarav Sharma',
+          name: currentStudentName,
           batch: 'Semester V (CLAT UG)',
           joinedAt: Date.now(),
         },
@@ -189,7 +210,7 @@ function LiveStreamContent() {
             body: JSON.stringify({
               action: 'heartbeat',
               id: 'MSI-2025-LAW-042',
-              name: 'Aarav Sharma',
+              name: activeStudentName,
               batch: 'Semester V (CLAT UG)',
             }),
           }).catch(() => {});
@@ -325,7 +346,7 @@ function LiveStreamContent() {
 
     const newMsg: LiveChatMessage = {
       id: 'msg-' + Date.now(),
-      sender: isTeacher ? 'Dr. Ekta Gahlawat (Faculty)' : 'Aarav Sharma',
+      sender: isTeacher ? 'Dr. Ekta Gahlawat (Faculty)' : activeStudentName,
       text: textToSend,
       time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
       isTeacher: isTeacher,
@@ -346,7 +367,7 @@ function LiveStreamContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'send-chat',
-          sender: isTeacher ? 'Dr. Ekta Gahlawat (Faculty)' : 'Aarav Sharma',
+          sender: isTeacher ? 'Dr. Ekta Gahlawat (Faculty)' : activeStudentName,
           text: textToSend,
           isTeacher: isTeacher,
           studentId: 'MSI-2025-LAW-042',
@@ -586,7 +607,7 @@ function LiveStreamContent() {
                 <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
                   <span className="text-[10px] text-gray-400 block font-mono">Your Attendance</span>
                   <span className="font-bold text-sm font-serif text-emerald-400">
-                    Aarav Sharma (Present ✓)
+                    {activeStudentName} (Present ✓)
                   </span>
                 </div>
                 <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
@@ -718,7 +739,7 @@ function LiveStreamContent() {
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
               <span>Attendee:</span>
             </div>
-            <span className="font-bold">Aarav Sharma (You)</span>
+            <span className="font-bold">{activeStudentName} (You)</span>
           </div>
 
           {/* Messages Scroll Area */}
