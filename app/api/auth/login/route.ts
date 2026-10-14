@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
           {
             success: false,
             code: 'INVALID_PASSWORD',
-            message: 'Incorrect password for Reception Desk. Please enter Harshit@reception',
+            message: 'Invalid password. Please try again.',
           },
           { status: 401 }
         );

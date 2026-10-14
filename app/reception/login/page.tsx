@@ -110,7 +110,7 @@ export default function ReceptionLoginPage() {
       // 3. Invalid credentials
       setIsLoading(false);
       setErrorMessage(
-        'Invalid credentials. Authorized fixed login: Mobile 9792303434 and Password Harshit@reception'
+        'Invalid credentials. Please enter a valid mobile number and password.'
       );
     }, 450);
   };
@@ -242,9 +242,6 @@ export default function ReceptionLoginPage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F]">
                   Password
                 </label>
-                <span className="text-[11px] font-mono text-[#89190E] font-semibold">
-                  Harshit@reception
-                </span>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -253,7 +250,7 @@ export default function ReceptionLoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Harshit@reception"
+                  placeholder="••••••••••••"
                   className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] font-mono font-bold"
                 />
                 <button
