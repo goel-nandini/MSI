@@ -43,18 +43,18 @@ export default function FloatingActionDock() {
           </span>
         </button>
 
-        {/* 2. WhatsApp Circular Button — Matches Midnight Navy #10233F & Gold #EFC988 */}
+        {/* 2. WhatsApp Circular Button — Authentic Dark Green #128C7E / #075E54 */}
         <div className="relative group mr-1 sm:mr-1.5">
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#10233F] hover:bg-[#89190E] text-white flex items-center justify-center border-2 border-[#EFC988]/70 hover:border-[#EFC988] shadow-[-2px_4px_14px_rgba(16,35,63,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#EFC988]/60"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#128C7E] hover:bg-[#075E54] text-white flex items-center justify-center border-2 border-white/80 hover:border-white shadow-[-2px_4px_14px_rgba(18,140,126,0.5)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#25D366]/60"
             aria-label="Chat with MSI on WhatsApp"
           >
             {/* Official WhatsApp SVG Icon */}
             <svg
-              className="w-6 h-6 fill-white group-hover:fill-[#FFF9EF] transition-colors"
+              className="w-6 h-6 fill-white transition-transform group-hover:scale-110"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -62,25 +62,25 @@ export default function FloatingActionDock() {
             </svg>
           </a>
           {/* Tooltip on Desktop hover */}
-          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-[#EFC988]/30 animate-fadeIn">
+          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#075E54] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-white/20 animate-fadeIn">
             WhatsApp Admissions
-            <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#10233F]" />
+            <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#075E54]" />
           </div>
         </div>
 
-        {/* 3. Call Circular Button — Matches Midnight Navy #10233F & Gold #EFC988 */}
+        {/* 3. Call Circular Button — Matching Dark Green #128C7E / #075E54 */}
         <div className="relative group mr-1 sm:mr-1.5">
           <a
             href={`tel:${institutePhone}`}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#10233F] hover:bg-[#89190E] text-white flex items-center justify-center border-2 border-[#EFC988]/70 hover:border-[#EFC988] shadow-[-2px_4px_14px_rgba(16,35,63,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#EFC988]/60"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#128C7E] hover:bg-[#075E54] text-white flex items-center justify-center border-2 border-white/80 hover:border-white shadow-[-2px_4px_14px_rgba(18,140,126,0.5)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#25D366]/60"
             aria-label="Call MSI Admissions Helpline"
           >
             <Phone className="w-5 h-5 fill-white text-white rotate-[-15deg] transition-transform group-hover:rotate-0" />
           </a>
           {/* Tooltip on Desktop hover */}
-          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#10233F] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-[#EFC988]/30 animate-fadeIn">
+          <div className="hidden group-hover:block absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-[#075E54] text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-white/20 animate-fadeIn">
             Call: {displayPhone}
-            <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#10233F]" />
+            <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-y-4 border-y-transparent border-l-4 border-l-[#075E54]" />
           </div>
         </div>
       </aside>
