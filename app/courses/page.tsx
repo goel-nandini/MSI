@@ -558,7 +558,7 @@ export default function CoursesPage() {
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="h-10 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center justify-center transition-all shadow-sm cursor-pointer"
+                        className="h-10 px-3 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs flex items-center justify-center transition-all shadow-sm cursor-pointer"
                         title="Chat on WhatsApp"
                       >
                         <Phone className="w-3.5 h-3.5" />
@@ -636,7 +636,7 @@ export default function CoursesPage() {
                         href="https://wa.me/919634299858?text=Hello%20MSI%20Admissions%20Team%2C%20I%20have%20doubts%20regarding%20course%20selection%20and%20enquiry."
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="h-10 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-semibold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
+                        className="h-10 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-semibold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
                         title="Chat on WhatsApp"
                       >
                         <Phone className="w-3.5 h-3.5" />
@@ -715,7 +715,7 @@ export default function CoursesPage() {
                 href="https://wa.me/919634299858?text=Hello%20MSI%20Admissions%20Team%2C%20I%20have%20doubts%20regarding%20course%20selection%20and%20enquiry."
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 sm:flex-none px-5 py-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                className="flex-1 sm:flex-none px-5 py-3.5 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
               >
                 <Phone className="w-4 h-4" />
                 <span>WhatsApp Us</span>
@@ -1405,7 +1405,7 @@ export default function CoursesPage() {
                   href="https://wa.me/919634299858?text=Hello%20MSI%20Admissions%20Team%2C%20I%20have%20questions%20about%20your%20courses."
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-12 px-6 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                  className="h-12 px-6 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs sm:text-sm flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
                 >
                   <Phone className="w-4 h-4" />
                   <span>WhatsApp</span>

@@ -136,7 +136,7 @@ function ThankYouContent() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto flex-1 h-12 px-6 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:bg-[#1caa4f] text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+            className="w-full sm:w-auto flex-1 h-12 px-6 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
           >
             <svg
               className="w-5 h-5 fill-white"

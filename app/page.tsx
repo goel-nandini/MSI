@@ -261,7 +261,7 @@ export default function HomePage() {
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="h-10 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                          className="h-10 px-3 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
                         >
                           <Phone className="w-3.5 h-3.5" />
                           <span>WhatsApp</span>
@@ -306,7 +306,7 @@ export default function HomePage() {
                   href="https://wa.me/919634299858?text=Hello%20MSI%20Admissions%20Team%2C%20I%20want%20to%20enquire%20about%20your%20coaching%20programs."
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-11 px-5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
+                  className="h-11 px-5 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
                 >
                   <Phone className="w-3.5 h-3.5" />
                   <span>WhatsApp</span>

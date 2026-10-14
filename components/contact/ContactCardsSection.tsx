@@ -136,7 +136,7 @@ export default function ContactCardsSection({ onOpenEnquiry }: ContactCardsSecti
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:flex-1 h-11 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:bg-[#1caa4f] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+                  className="w-full sm:flex-1 h-11 px-4 rounded-xl bg-[#128C7E] hover:bg-[#075E54] active:bg-[#05463e] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
                 >
                   <svg
                     className="w-4 h-4 fill-white flex-shrink-0"
