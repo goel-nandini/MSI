@@ -369,29 +369,29 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     switch (status) {
       case 'New':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 text-slate-800 px-2.5 py-1 text-xs font-bold">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700 text-white px-3 py-1 text-xs font-bold shadow-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
             <span>New</span>
           </span>
         );
       case 'Follow-up':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-2.5 py-1 text-xs font-bold border border-amber-300/60">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-400 text-yellow-950 border border-yellow-600 px-3 py-1 text-xs font-extrabold shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-yellow-900 animate-pulse" />
             <span>Follow-up</span>
           </span>
         );
       case 'Converted':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-1 text-xs font-bold border border-emerald-300/60">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-bold shadow-xs">
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Converted</span>
           </span>
         );
       case 'Dead':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-900 px-2.5 py-1 text-xs font-bold">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 text-white px-3 py-1 text-xs font-bold shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-white" />
             <span>Dead</span>
           </span>
         );
@@ -940,14 +940,14 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                   return (
                     <tr
                       key={lead.id}
-                      className={`group transition-colors ${
-                        isUrgent
-                          ? 'bg-amber-50/40 hover:bg-amber-50/80'
+                      className={`group transition-colors border-b border-[#E5E9F0] ${
+                        lead.status === 'Dead'
+                          ? 'border-l-4 border-l-red-500 bg-red-50/25 hover:bg-red-50/60'
                           : lead.status === 'Converted'
-                          ? 'bg-emerald-50/20 hover:bg-emerald-50/50'
-                          : lead.status === 'Dead'
-                          ? 'opacity-70 hover:opacity-100 hover:bg-slate-50'
-                          : 'hover:bg-[#F8F9FB]'
+                          ? 'border-l-4 border-l-emerald-500 bg-emerald-50/25 hover:bg-emerald-50/60'
+                          : lead.status === 'Follow-up'
+                          ? 'border-l-4 border-l-yellow-400 bg-yellow-50/25 hover:bg-yellow-50/60'
+                          : 'border-l-4 border-l-slate-300 hover:bg-[#F8F9FB]'
                       }`}
                     >
                       {/* # */}
@@ -968,20 +968,18 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                           <span
                             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
                               lead.status === 'Converted'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : isUrgent
-                                ? 'bg-[#89190E] text-white'
-                                : 'bg-slate-200 text-[#10233F]'
+                                ? 'bg-emerald-600 text-white'
+                                : lead.status === 'Dead'
+                                ? 'bg-red-600 text-white'
+                                : lead.status === 'Follow-up'
+                                ? 'bg-yellow-500 text-yellow-950 font-bold'
+                                : 'bg-slate-600 text-white'
                             }`}
                           >
                             {initials}
                           </span>
                           <div className="flex flex-col min-w-0">
-                            <span
-                              className={`font-semibold text-xs truncate ${
-                                lead.status === 'Dead' ? 'line-through text-[#526174]' : 'text-[#10233F]'
-                              }`}
-                            >
+                            <span className="font-semibold text-xs truncate text-[#10233F]">
                               {lead.name}
                             </span>
                             <span className="text-[11px] text-[#526174] truncate flex items-center gap-1">
@@ -1020,8 +1018,20 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                         {lead.receivedDate}
                       </td>
 
-                      {/* Status */}
-                      <td className="px-3 py-2.5">{renderStatusBadge(lead.status)}</td>
+                      {/* Status Column (Color-coded: Dead = Red, Converted = Green, Follow-up = Yellow) */}
+                      <td
+                        className={`px-3 py-2.5 transition-colors ${
+                          lead.status === 'Dead'
+                            ? 'bg-red-100/80 border-y border-red-200'
+                            : lead.status === 'Converted'
+                            ? 'bg-emerald-100/80 border-y border-emerald-200'
+                            : lead.status === 'Follow-up'
+                            ? 'bg-yellow-100/90 border-y border-yellow-300'
+                            : 'bg-slate-100/60 border-y border-slate-200'
+                        }`}
+                      >
+                        {renderStatusBadge(lead.status)}
+                      </td>
 
                       {/* Latest Remark with Hover Popover */}
                       <td className="px-3 py-2.5">
@@ -1077,7 +1087,17 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       </td>
 
                       {/* Actions (Sticky Right Column) */}
-                      <td className="px-4 py-2.5 text-right sticky right-0 bg-white group-hover:bg-[#F8F9FB] shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
+                      <td
+                        className={`px-4 py-2.5 text-right sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] transition-colors ${
+                          lead.status === 'Dead'
+                            ? 'bg-[#FFF5F5] group-hover:bg-red-50'
+                            : lead.status === 'Converted'
+                            ? 'bg-[#F2FCF5] group-hover:bg-emerald-50'
+                            : lead.status === 'Follow-up'
+                            ? 'bg-[#FFFEF0] group-hover:bg-yellow-50'
+                            : 'bg-white group-hover:bg-[#F8F9FB]'
+                        }`}
+                      >
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
