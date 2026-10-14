@@ -66,7 +66,7 @@ export default function AdmissionsCountdownCTA({
             <div className="flex flex-wrap items-center gap-6 text-xs text-gray-300">
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-4 h-4 text-[#EFC988]" />
-                <span>Trusted Coaching — Since 1995</span>
+                <span>Trusted Premier Law Coaching</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-[#EFC988]" />

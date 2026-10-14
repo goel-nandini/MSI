@@ -66,10 +66,10 @@ const stats: StatItem[] = [
   },
   {
     icon: Award,
-    target: 1995,
-    suffix: '',
-    label: 'Established Since',
-    sub: '30 years of legal coaching excellence',
+    target: 98,
+    suffix: '%',
+    label: 'Student Satisfaction',
+    sub: 'Proven success rate in law exams',
     color: '#10233F',
   },
 ];
@@ -110,7 +110,7 @@ export default function StatsSection() {
             30 Years of Legal Coaching Excellence
           </h2>
           <p className="mt-4 text-white/60 text-base sm:text-lg max-w-2xl mx-auto">
-            Numbers that reflect our commitment to shaping India's finest legal minds since 1995.
+            Numbers that reflect our commitment to shaping India's finest legal minds.
           </p>
         </Reveal>
 

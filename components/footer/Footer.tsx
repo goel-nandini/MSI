@@ -44,8 +44,8 @@ export default function Footer() {
           <div className="flex items-center space-x-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
             <Award className="w-8 h-8 text-[#EFC988] flex-shrink-0" />
             <div>
-              <div className="text-xs font-bold text-white uppercase tracking-wider">Since 1995</div>
-              <div className="text-[11px] text-gray-400">30 Years of Law Coaching</div>
+              <div className="text-xs font-bold text-white uppercase tracking-wider">Legacy of Trust</div>
+              <div className="text-[11px] text-gray-400">Excellence in Law Coaching</div>
             </div>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
@@ -89,13 +89,13 @@ export default function Footer() {
                   MSI Group of Institutes
                 </h4>
                 <p className="text-xs text-[#EFC988] font-medium tracking-wide">
-                  Shaping Legal Brilliance Since 1995
+                  Shaping Legal Brilliance
                 </p>
               </div>
             </div>
 
             <p className="text-sm text-gray-300 leading-relaxed max-w-md mb-6">
-              Leading coaching institute for PCS J (Judiciary), CLAT, AILET, UGC NET (Law), LLM and all competitive law examinations — serving students from Punjab, Haryana & Himachal Pradesh since 1995.
+              Leading coaching institute for PCS J (Judiciary), CLAT, AILET, UGC NET (Law), LLM and all competitive law examinations — serving students from Punjab, Haryana & Himachal Pradesh.
             </p>
 
             {/* Newsletter Subscription */}

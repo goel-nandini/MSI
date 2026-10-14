@@ -128,9 +128,8 @@ export default function TypewriterHeroBand({ onOpenEnquiry }: TypewriterHeroBand
             {/* HUD tick description */}
             <div className="hud-tick-left mt-6 sm:mt-8 mb-6 sm:mb-8">
               <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md">
-                MSI Group of Institutes has been shaping India's finest legal
-                minds since&nbsp;<strong className="text-[#EFC988]">1995</strong>. Expert faculty,
-                small batches, weekly mock tests — built for maximum selections.
+                MSI Group of Institutes is committed to shaping India's finest legal
+                minds with expert faculty, small batches, weekly mock tests — built for maximum selections.
               </p>
             </div>
 
@@ -174,11 +173,11 @@ export default function TypewriterHeroBand({ onOpenEnquiry }: TypewriterHeroBand
               {/* Data rows — mimics ChainGPT's clean data display */}
               <div className="space-y-4">
                 {[
-                  { label: 'Established', value: '1995' },
                   { label: 'Location', value: 'Kharar, Mohali, Punjab' },
                   { label: 'Courses', value: 'CLAT UG, PCS J, AILET, PU Law, ADJ, UGC NET, AIBE' },
                   { label: 'Faculty', value: '50+ Expert Tutors' },
                   { label: 'Selections', value: '300+ & Growing' },
+                  { label: 'Format', value: 'Classroom & Online' },
                 ].map((row, i) => (
                   <div key={i} className="flex items-start justify-between gap-4 pb-4 border-b border-white/8">
                     <span className="mono-accent text-[10px] sm:text-[11px] text-white/40 uppercase tracking-wider flex-shrink-0">

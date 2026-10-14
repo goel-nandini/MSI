@@ -27,10 +27,10 @@ const reasons: ReasonItem[] = [
   {
     id: 1,
     icon: Trophy,
-    title: 'Established Since 1995',
-    desc: 'Over 30 years of dedicated law coaching experience, producing hundreds of successful judicial officers and law students.',
+    title: 'Proven Track Record of Excellence',
+    desc: 'Dedicated law coaching experience, producing hundreds of successful judicial officers and law students.',
     accent: '#89190E',
-    tag: '30+ Years Legacy',
+    tag: 'Proven Legacy',
   },
   {
     id: 2,

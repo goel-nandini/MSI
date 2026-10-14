@@ -22,8 +22,8 @@ const STENCIL_WORDS_1 = [
   'PCS-J', '◆', 'CLAT', '◆', 'AILET', '◆', 'UGC-NET', '◆', 'JUDICIARY', '◆',
 ];
 const STENCIL_WORDS_2 = [
-  'LEGAL', '◆', 'COACHING', '◆', 'KHARAR', '◆', 'EST.1995', '◆', 'MOHALI', '◆',
-  'LEGAL', '◆', 'COACHING', '◆', 'KHARAR', '◆', 'EST.1995', '◆', 'MOHALI', '◆',
+  'LEGAL', '◆', 'COACHING', '◆', 'KHARAR', '◆', 'EXCELLENCE', '◆', 'MOHALI', '◆',
+  'LEGAL', '◆', 'COACHING', '◆', 'KHARAR', '◆', 'EXCELLENCE', '◆', 'MOHALI', '◆',
 ];
 
 interface CoachingProgramme {
@@ -428,7 +428,7 @@ export default function BlueprintStencilBand({ onOpenEnquiry }: BlueprintStencil
           {/* Right side HUD badge */}
           <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/90 border border-[#E8DCCB] text-[11px] mono-accent font-bold text-[#10233F] shadow-xs flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-[#89190E] animate-ping" />
-            <span>MSI INSTITUTE • EST. 1995 • 300+ SELECTIONS</span>
+            <span>MSI INSTITUTE • 300+ SELECTIONS</span>
           </div>
         </div>
 
@@ -459,7 +459,7 @@ export default function BlueprintStencilBand({ onOpenEnquiry }: BlueprintStencil
         >
           {[
             { val: '300+', lab: 'Selections' },
-            { val: '1995', lab: 'Founded' },
+            { val: '5k+', lab: 'Mentored' },
             { val: '50+', lab: 'Tutors' },
             { val: '30+', lab: 'Courses' },
             { val: '26+', lab: 'Years Exp.' },

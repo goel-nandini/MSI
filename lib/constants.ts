@@ -40,7 +40,7 @@ export const HERO_SLIDES: HeroSlide[] = [
     id: 3,
     image: '/images/ghibli/hero-ghibli-3.jpg',
     alt: 'Law students studying in MSI library with experienced faculty guidance',
-    badge: 'Expert Faculty — Since 1995',
+    badge: 'Expert Faculty & Mentorship',
     tagline: 'Top-Tier Legal Education for All',
   },
 ];

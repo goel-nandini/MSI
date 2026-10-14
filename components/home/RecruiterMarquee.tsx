@@ -32,7 +32,7 @@ export default function RecruiterMarquee() {
     { value: '300+', label: 'Successful Selections', icon: TrendingUp, desc: 'PCS J, CLAT & other law exams' },
     { value: '50+', label: 'Expert Tutors', icon: Trophy, desc: 'Certified legal coaching faculty' },
     { value: '30+', label: 'Courses Offered', icon: Award, desc: 'Judiciary, CLAT, AILET, UGC NET' },
-    { value: '1995', label: 'Est. Since', icon: Building2, desc: '30 years of coaching excellence' },
+    { value: '5,000+', label: 'Students Mentored', icon: Building2, desc: 'Across law entrances and judicial prep' },
   ];
 
 

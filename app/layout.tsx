@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     template: "%s | MSI Group of Institutes",
   },
   description:
-    "MSI Group of Institutes is Kharar & Mohali's premier law coaching institute for PCS (Judicial Services), CLAT (UG & PG), PU Law Entrance, AILET, AIBE, and UGC NET Law. Over 300+ selections since 1995.",
+    "MSI Group of Institutes is Kharar & Mohali's premier law coaching institute for PCS (Judicial Services), CLAT (UG & PG), PU Law Entrance, AILET, AIBE, and UGC NET Law. Over 300+ selections.",
   keywords: [
     "MSI Group of Institutes",
     "MSI Law Institute",

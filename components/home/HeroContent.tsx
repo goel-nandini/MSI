@@ -47,7 +47,7 @@ export default function HeroContent({
 
       {/* Supporting Description */}
       <p className="mt-5 sm:mt-8 text-[#10233F] text-[15px] sm:text-[19px] leading-relaxed max-w-[500px] font-normal">
-        MSI Group of Institutes — premier destination for PCS J (Judiciary), CLAT, AILET, UGC NET and Law Entrance coaching in Kharar, Mohali since 1995.
+        MSI Group of Institutes — premier destination for PCS J (Judiciary), CLAT, AILET, UGC NET and Law Entrance coaching in Kharar, Mohali.
       </p>
 
       {/* Hero Dual CTA Buttons */}

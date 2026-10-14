@@ -210,11 +210,11 @@ export default function SplashScreen({
           </div>
         </div>
 
-        {/* Established Eyebrow Badge */}
+        {/* Location Eyebrow Badge */}
         <div className="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-[#EFC988]/15 border border-[#EFC988]/40 mb-3 backdrop-blur-md shadow-xs">
           <Sparkles className="w-3.5 h-3.5 text-[#EFC988]" />
           <span className="text-[10px] sm:text-xs font-mono font-bold tracking-[0.25em] text-[#EFC988] uppercase">
-            EST. 1995 • KHARAR, MOHALI
+            KHARAR, MOHALI
           </span>
         </div>
 

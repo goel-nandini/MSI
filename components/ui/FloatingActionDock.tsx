@@ -49,7 +49,7 @@ export default function FloatingActionDock() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center shadow-[-2px_4px_14px_rgba(37,211,102,0.45)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#25D366]/60"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#2e7d32] hover:bg-[#256829] text-white flex items-center justify-center shadow-[-2px_4px_14px_rgba(46,125,50,0.45)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#2e7d32]/60"
             aria-label="Chat with MSI on WhatsApp"
           >
             {/* Official WhatsApp SVG Icon */}

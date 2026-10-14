@@ -33,7 +33,7 @@ export default function ResultsPage() {
     { metric: 50, suffix: '+', label: 'NLU Admits', icon: Award, detail: 'Top National Law Universities' },
     { metric: 60, suffix: '+', label: 'PU Law Qualifiers', icon: Building2, detail: 'Panjab University 3-Yr & 5-Yr' },
     { metric: 40, suffix: '+', label: 'UGC NET & JRF', icon: Target, detail: 'Assistant Professor & JRF' },
-    { metric: 26, suffix: '+ Yrs', label: 'Legacy of Trust', icon: Star, detail: 'Since 1995 in Kharar, Mohali' },
+    { metric: 100, suffix: '%', label: 'Legacy of Trust', icon: Star, detail: 'Premier Coaching in Kharar, Mohali' },
   ];
 
   const studentPlacements = [

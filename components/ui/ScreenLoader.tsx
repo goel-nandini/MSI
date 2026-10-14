@@ -129,8 +129,6 @@ export default function ScreenLoader({
 
         <div className="hidden sm:flex items-center space-x-3 text-white/60">
           <span>KHARAR • MOHALI</span>
-          <span className="text-[#EFC988]">◆</span>
-          <span className="text-[#EFC988] font-bold">EST. 1995</span>
         </div>
       </header>
 
