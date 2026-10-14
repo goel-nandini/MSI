@@ -986,20 +986,19 @@ export default function CoursesPage() {
             </div>
 
             {/* Kit 2: Judiciary Aspirant Kit */}
-            <div className="bg-gradient-to-br from-[#10233F] to-[#162f55] text-white rounded-3xl p-6 sm:p-7 border-2 border-[#EFC988] shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#EFC988]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border-2 border-[#E8DCCB] hover:border-[#89190E] shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#10233F] bg-[#EFC988] px-3 py-1 rounded-full font-bold">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#89190E] bg-[#FFF3DD] px-3 py-1 rounded-full font-bold">
                   Flagship Judicial Bundle
                 </span>
-                <h3 className="font-serif text-xl font-bold text-white mt-3 mb-1">
+                <h3 className="font-serif text-xl font-bold text-[#10233F] mt-3 mb-1">
                   MSI Judiciary Aspirant Kit
                 </h3>
                 <div className="flex items-baseline space-x-2 mb-3">
-                  <span className="font-serif text-2xl font-bold text-[#EFC988]">₹3,999</span>
-                  <span className="text-xs text-white/60">Premium Academic Kit</span>
+                  <span className="font-serif text-2xl font-bold text-[#89190E]">₹3,999</span>
+                  <span className="text-xs text-[#526174] line-through">₹5,500+ Value</span>
                 </div>
-                <ul className="space-y-1.5 text-xs text-white/80 mb-5">
+                <ul className="space-y-1.5 text-xs text-[#526174] mb-5">
                   {[
                     'Judiciary Notes & Bare Act Notes',
                     'Landmark Case-Law Compilation',
@@ -1008,7 +1007,7 @@ export default function CoursesPage() {
                     'Test Series, OMR Sheets, Diary & Bag',
                   ].map((item, idx) => (
                     <li key={idx} className="flex items-start space-x-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#EFC988] flex-shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -1019,7 +1018,7 @@ export default function CoursesPage() {
                   setSelectedCourse('MSI Judiciary Aspirant Kit (₹3,999)');
                   setIsEnquiryOpen(true);
                 }}
-                className="w-full py-2.5 rounded-xl bg-[#EFC988] hover:bg-[#ffe0a3] text-[#10233F] text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
                 Order Judiciary Kit (₹3,999)
               </button>
