@@ -937,27 +937,35 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
                   const isUrgent = lead.isOverdue;
 
+                  // Full row color styling: light yellow for Follow-up, light green for Converted, light red for Dead
+                  const rowClass =
+                    lead.status === 'Dead'
+                      ? 'border-l-4 border-l-red-500 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2]/90 border-b border-red-200/80 text-[#10233F]'
+                      : lead.status === 'Converted'
+                      ? 'border-l-4 border-l-emerald-500 bg-[#DCFCE7]/60 hover:bg-[#DCFCE7]/90 border-b border-emerald-200/80 text-[#10233F]'
+                      : lead.status === 'Follow-up'
+                      ? 'border-l-4 border-l-amber-500 bg-[#FEF9C3]/65 hover:bg-[#FEF9C3]/90 border-b border-amber-200/80 text-[#10233F]'
+                      : 'border-l-4 border-l-slate-300 bg-white hover:bg-slate-50 border-b border-[#E5E9F0] text-[#10233F]';
+
+                  const stickyActionBg =
+                    lead.status === 'Dead'
+                      ? 'bg-[#FEE2E2] group-hover:bg-[#FECACA]'
+                      : lead.status === 'Converted'
+                      ? 'bg-[#DCFCE7] group-hover:bg-[#BBF7D0]'
+                      : lead.status === 'Follow-up'
+                      ? 'bg-[#FEF9C3] group-hover:bg-[#FEF08A]'
+                      : 'bg-white group-hover:bg-slate-50';
+
                   return (
-                    <tr
-                      key={lead.id}
-                      className={`group transition-colors border-b border-[#E5E9F0] ${
-                        lead.status === 'Dead'
-                          ? 'border-l-4 border-l-red-500 bg-red-50/25 hover:bg-red-50/60'
-                          : lead.status === 'Converted'
-                          ? 'border-l-4 border-l-emerald-500 bg-emerald-50/25 hover:bg-emerald-50/60'
-                          : lead.status === 'Follow-up'
-                          ? 'border-l-4 border-l-yellow-400 bg-yellow-50/25 hover:bg-yellow-50/60'
-                          : 'border-l-4 border-l-slate-300 hover:bg-[#F8F9FB]'
-                      }`}
-                    >
+                    <tr key={lead.id} className={`group transition-colors ${rowClass}`}>
                       {/* # */}
-                      <td className="px-3 py-2.5 text-center font-mono text-[#526174] text-[11px]">
+                      <td className="px-3 py-2.5 text-center font-mono text-[#334155] font-semibold text-[11px]">
                         {(currentPage - 1) * pageSize + index + 1}
                       </td>
 
                       {/* Lead ID */}
                       <td className="px-3 py-2.5 font-mono font-bold text-[#89190E]">
-                        <span className="rounded-md bg-[#FFF3DD] border border-[#EFC988] px-1.5 py-0.5">
+                        <span className="rounded-md bg-white/90 border border-slate-300/80 px-1.5 py-0.5 shadow-2xs">
                           {lead.id}
                         </span>
                       </td>
@@ -966,23 +974,23 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2.5">
                           <span
-                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 shadow-2xs ${
                               lead.status === 'Converted'
                                 ? 'bg-emerald-600 text-white'
                                 : lead.status === 'Dead'
                                 ? 'bg-red-600 text-white'
                                 : lead.status === 'Follow-up'
-                                ? 'bg-yellow-500 text-yellow-950 font-bold'
-                                : 'bg-slate-600 text-white'
+                                ? 'bg-amber-500 text-white font-bold'
+                                : 'bg-slate-700 text-white'
                             }`}
                           >
                             {initials}
                           </span>
                           <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-xs truncate text-[#10233F]">
+                            <span className="font-bold text-xs truncate text-[#10233F]">
                               {lead.name}
                             </span>
-                            <span className="text-[11px] text-[#526174] truncate flex items-center gap-1">
+                            <span className="text-[11px] text-[#334155] font-medium truncate flex items-center gap-1">
                               {lead.location}
                             </span>
                           </div>
@@ -992,11 +1000,11 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       {/* Contact Info (with 1-click Softphone Call Link) */}
                       <td className="px-3 py-2.5 font-mono">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-xs">{lead.mobile}</span>
+                          <span className="font-bold text-xs text-[#10233F]">{lead.mobile}</span>
                           <a
                             href={`tel:${lead.mobile.replace(/\s+/g, '')}`}
                             title="1-Click Call Softphone"
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-[#765a24] bg-[#FFF3DD] hover:bg-[#fed795] transition-colors"
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-[#765a24] bg-white/90 hover:bg-white border border-slate-200 shadow-2xs transition-colors"
                           >
                             <PhoneCall className="w-3.5 h-3.5" />
                           </a>
@@ -1005,7 +1013,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
                       {/* Course Target */}
                       <td className="px-3 py-2.5">
-                        <span className="inline-block rounded-md bg-slate-100 border border-slate-200/80 px-2 py-0.5 text-[11px] font-semibold text-[#89190E]">
+                        <span className="inline-block rounded-md bg-white/90 border border-slate-300/80 px-2 py-0.5 text-[11px] font-bold text-[#89190E] shadow-2xs">
                           {lead.targetCourse}
                         </span>
                       </td>
@@ -1014,29 +1022,19 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       <td className="px-3 py-2.5">{renderSourceBadge(lead.source)}</td>
 
                       {/* Received Date */}
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#526174]">
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#334155] font-medium">
                         {lead.receivedDate}
                       </td>
 
-                      {/* Status Column (Color-coded: Dead = Red, Converted = Green, Follow-up = Yellow) */}
-                      <td
-                        className={`px-3 py-2.5 transition-colors ${
-                          lead.status === 'Dead'
-                            ? 'bg-red-100/80 border-y border-red-200'
-                            : lead.status === 'Converted'
-                            ? 'bg-emerald-100/80 border-y border-emerald-200'
-                            : lead.status === 'Follow-up'
-                            ? 'bg-yellow-100/90 border-y border-yellow-300'
-                            : 'bg-slate-100/60 border-y border-slate-200'
-                        }`}
-                      >
+                      {/* Status Column */}
+                      <td className="px-3 py-2.5">
                         {renderStatusBadge(lead.status)}
                       </td>
 
                       {/* Latest Remark with Hover Popover */}
                       <td className="px-3 py-2.5">
                         <div className="relative group/tip">
-                          <p className="max-w-[220px] truncate text-xs text-[#526174] font-medium">
+                          <p className="max-w-[220px] truncate text-xs text-[#1E293B] font-medium">
                             {lead.latestRemark}
                           </p>
                           {lead.fullRemark && lead.fullRemark !== lead.latestRemark && (
@@ -1061,42 +1059,34 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                           </div>
                         ) : lead.dueText ? (
                           <div>
-                            <div className="flex items-center gap-1 text-amber-900 font-bold text-xs">
-                              <Calendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                            <div className="flex items-center gap-1 text-amber-950 font-bold text-xs">
+                              <Calendar className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                               <span>{lead.nextFollowupTime || 'Today'}</span>
                             </div>
-                            <span className="text-[10px] text-amber-800 font-semibold block">
+                            <span className="text-[10px] text-amber-900 font-bold block">
                               {lead.dueText}
                             </span>
                           </div>
                         ) : lead.status === 'Converted' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-800 font-bold text-xs">
-                            <Check className="w-3.5 h-3.5" />
+                          <span className="inline-flex items-center gap-1 text-emerald-900 font-bold text-xs">
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                             <span>Enrolled</span>
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs">
+                          <span className="text-slate-600 font-medium text-xs">
                             {lead.nextFollowupTime || '--'}
                           </span>
                         )}
                       </td>
 
                       {/* Agent */}
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#526174] truncate">
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#334155] font-semibold truncate">
                         {lead.agent}
                       </td>
 
                       {/* Actions (Sticky Right Column) */}
                       <td
-                        className={`px-4 py-2.5 text-right sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] transition-colors ${
-                          lead.status === 'Dead'
-                            ? 'bg-[#FFF5F5] group-hover:bg-red-50'
-                            : lead.status === 'Converted'
-                            ? 'bg-[#F2FCF5] group-hover:bg-emerald-50'
-                            : lead.status === 'Follow-up'
-                            ? 'bg-[#FFFEF0] group-hover:bg-yellow-50'
-                            : 'bg-white group-hover:bg-[#F8F9FB]'
-                        }`}
+                        className={`px-4 py-2.5 text-right sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] transition-colors ${stickyActionBg}`}
                       >
                         <div className="flex items-center justify-end gap-1">
                           <button
