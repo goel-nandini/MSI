@@ -22,6 +22,16 @@ interface NavbarProps {
   onOpenEnquiry?: () => void;
 }
 
+const MSI_TICKER_ITEMS = [
+  { icon: '⚖️', text: 'PREMIER INSTITUTE FOR PCS-J (PUNJAB & HARYANA JUDICIAL SERVICES)' },
+  { icon: '🚀', text: 'ADMISSIONS OPEN 2026–2027: JUDICIAL FOUNDATION & CLAT BATCHES' },
+  { icon: '🏆', text: '500+ JUDICIAL OFFICERS, ADVOCATES & TOP NLU SELECTIONS' },
+  { icon: '🏛️', text: 'DISTINGUISHED FACULTY OF RETIRED SESSIONS JUDGES & SENIOR ADVOCATES' },
+  { icon: '📍', text: 'CAMPUS: MONGA CITY CENTRE, KHARAR (CHANDIGARH TRICITY)' },
+  { icon: '⭐', text: '1-ON-1 JUDICIAL MENTORSHIP & SPEED OMR SIMULATIONS' },
+  { icon: '📞', text: 'ADMISSIONS HELPLINE: +91 79863 13013 / +91 96342 99858' },
+];
+
 export default function Navbar({ onOpenEnquiry }: NavbarProps) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -132,10 +142,41 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
 
   return (
     <>
+      {/* ── TOP ANNOUNCEMENT TICKER (Continuous Infinite Loop for MSI) ─────── */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-7 sm:h-8 bg-[#091524] text-white flex items-center overflow-hidden border-b border-[#EFC988]/25 shadow-xs select-none">
+        <div className="marquee-container w-full">
+          <div className="marquee-track flex items-center whitespace-nowrap space-x-8 py-1">
+            {MSI_TICKER_ITEMS.map((item, idx) => (
+              <div
+                key={`t1-${idx}`}
+                onClick={onOpenEnquiry}
+                className="inline-flex items-center space-x-2 text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-200 font-semibold cursor-pointer hover:text-white transition-colors"
+              >
+                <span>{item.icon}</span>
+                <span>{item.text}</span>
+                <span className="text-[#EFC988]/70 text-xs ml-4 font-normal">✦</span>
+              </div>
+            ))}
+            {/* Seamless duplicate track for infinite scrolling */}
+            {MSI_TICKER_ITEMS.map((item, idx) => (
+              <div
+                key={`t2-${idx}`}
+                onClick={onOpenEnquiry}
+                className="inline-flex items-center space-x-2 text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-200 font-semibold cursor-pointer hover:text-white transition-colors"
+              >
+                <span>{item.icon}</span>
+                <span>{item.text}</span>
+                <span className="text-[#EFC988]/70 text-xs ml-4 font-normal">✦</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Main Floating Capsule Header */}
       <header
         className={`fixed left-0 right-0 z-40 flex justify-center pointer-events-none transition-all duration-400 ease-out ${
-          scrolled ? 'top-2 sm:top-3' : 'top-3 sm:top-4'
+          scrolled ? 'top-8 sm:top-10' : 'top-10 sm:top-12'
         }`}
       >
         <div
