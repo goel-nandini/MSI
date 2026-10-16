@@ -8,6 +8,7 @@ import Footer from '@/components/footer/Footer';
 import EnquiryModal from '@/components/modals/EnquiryModal';
 import UdemyCourseModal from '@/components/courses/UdemyCourseModal';
 import StudentEnrollLoginModal from '@/components/courses/StudentEnrollLoginModal';
+import RazorpayCheckoutModal from '@/components/payments/RazorpayCheckoutModal';
 import PageHero from '@/components/ui/PageHero';
 import Reveal from '@/components/ui/Reveal';
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -98,6 +99,7 @@ export default function CoursesPage() {
   const [selectedUdemyCategory, setSelectedUdemyCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeUdemyModalCourse, setActiveUdemyModalCourse] = useState<UdemyCourse | null>(null);
+  const [directCheckoutCourse, setDirectCheckoutCourse] = useState<UdemyCourse | null>(null);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [loginModalCourse, setLoginModalCourse] = useState<UdemyCourse | null>(null);
@@ -1319,7 +1321,10 @@ export default function CoursesPage() {
 
                     <button
                       type="button"
-                      onClick={(e) => handleInstantEnroll(course, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDirectCheckoutCourse(course);
+                      }}
                       className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer active:scale-98"
                     >
                       <span>Enroll Now</span>
@@ -1470,6 +1475,27 @@ export default function CoursesPage() {
         onClose={() => setLoginModalCourse(null)}
         onLoginSuccess={handleLoginEnrollSuccess}
       />
+
+      {/* Direct Razorpay Checkout Modal (Authentic Razorpay Standard Sheet) */}
+      {directCheckoutCourse && (
+        <RazorpayCheckoutModal
+          isOpen={!!directCheckoutCourse}
+          onClose={() => setDirectCheckoutCourse(null)}
+          course={{
+            id: directCheckoutCourse.id,
+            title: directCheckoutCourse.title,
+            price: directCheckoutCourse.price,
+            originalPrice: directCheckoutCourse.originalPrice,
+          }}
+          studentName="Harshit (MSI Scholar)"
+          studentPhone="+91 97923 03434"
+          onPaymentSuccess={(info) => {
+            enrollStudentAction(activeStudentId, directCheckoutCourse.id, 'self');
+            loadLmsData();
+            showToast(`🎉 Enrolled in ${directCheckoutCourse.title}! Verified via ${info.receiptNumber}`);
+          }}
+        />
+      )}
     </div>
   );
 }
