@@ -86,6 +86,9 @@ export interface TeacherApprovalRecord {
   assignedCourseIds: string[];
   rating: number;
   studentsCount: number;
+  password?: string;
+  temporaryPassword?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface CourseEnrollment {

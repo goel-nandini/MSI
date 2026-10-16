@@ -27,6 +27,7 @@ import {
   enrollStudentAction,
   getStoredEnrollments,
 } from '@/lib/lmsStore';
+import RazorpayCheckoutModal, { RazorpayPaymentSuccessInfo } from '@/components/payments/RazorpayCheckoutModal';
 
 interface UdemyCourseModalProps {
   course: UdemyCourse | null;
@@ -54,6 +55,7 @@ export default function UdemyCourseModal({
   });
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
   const [enrolledNotice, setEnrolledNotice] = useState(false);
+  const [showRazorpayCheckout, setShowRazorpayCheckout] = useState(false);
 
   if (!isOpen || !course) return null;
 
@@ -71,17 +73,10 @@ export default function UdemyCourseModal({
   };
 
   const handleEnroll = () => {
-    const isLoggedIn =
-      typeof window !== 'undefined' &&
-      localStorage.getItem('msi_student_logged_in') === 'true';
+    setShowRazorpayCheckout(true);
+  };
 
-    if (!isLoggedIn) {
-      if (onRequireLogin) {
-        onRequireLogin(course);
-      }
-      return;
-    }
-
+  const handleRazorpaySuccess = (info: RazorpayPaymentSuccessInfo) => {
     enrollStudentAction(activeStudentId, course.id, 'self');
     setEnrolledNotice(true);
     if (onEnrollSuccess) {
@@ -510,6 +505,32 @@ export default function UdemyCourseModal({
           </div>
         </div>
       )}
+
+      {/* Razorpay Test Environment Sandbox Checkout Modal */}
+      {showRazorpayCheckout && (
+        <RazorpayCheckoutModal
+          isOpen={showRazorpayCheckout}
+          onClose={() => setShowRazorpayCheckout(false)}
+          course={{
+            id: course.id,
+            title: course.title,
+            price: course.price,
+            originalPrice: course.originalPrice,
+          }}
+          studentName={
+            typeof window !== 'undefined'
+              ? localStorage.getItem('msi_active_student_name') || 'Harshit (MSI Scholar)'
+              : 'Harshit (MSI Scholar)'
+          }
+          studentPhone={
+            typeof window !== 'undefined'
+              ? localStorage.getItem('msi_active_student_phone') || '+91 97923 03434'
+              : '+91 97923 03434'
+          }
+          onPaymentSuccess={handleRazorpaySuccess}
+        />
+      )}
     </div>
   );
 }
+

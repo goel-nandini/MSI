@@ -42,7 +42,24 @@ function writeLeadsToDisk(leads: Lead[]): void {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Support Meta Ads Webhook Verification (hub.mode=subscribe)
+  const { searchParams } = new URL(req.url);
+  const hubMode = searchParams.get('hub.mode');
+  const hubChallenge = searchParams.get('hub.challenge');
+  const hubVerifyToken = searchParams.get('hub.verify_token');
+
+  if (hubMode === 'subscribe') {
+    const EXPECTED_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'msi_meta_leads_2026_secret';
+    if (hubVerifyToken === EXPECTED_TOKEN && hubChallenge) {
+      return new NextResponse(hubChallenge, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+    return NextResponse.json({ error: 'Verification token mismatch' }, { status: 403 });
+  }
+
   const leads = readLeadsFromDisk();
   return NextResponse.json({
     success: true,
@@ -54,6 +71,93 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // 1. Bulk Lead Import from Excel / CSV
+    if (body.bulk === true && Array.isArray(body.leads)) {
+      const diskLeads = readLeadsFromDisk();
+      const newItems: Lead[] = body.leads.map((raw: any, idx: number) => {
+        const cleanPhone = (raw.mobile || '').replace(/\D/g, '').slice(-10);
+        return {
+          id: `lead-bulk-${Date.now().toString().slice(-6)}-${idx + 1}`,
+          name: (raw.name || 'Inbound Candidate').trim(),
+          mobile: cleanPhone.length === 10 ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : (raw.mobile || '+91 98765 00000').trim(),
+          location: (raw.location || 'Chandigarh / Mohali').trim(),
+          targetCourse: raw.targetCourse || 'PCS-J Comprehensive Foundation 2026-27',
+          source: (raw.source || 'Bulk Excel Import') as any,
+          receivedDate: 'Imported Today',
+          status: 'New',
+          latestRemark: (raw.notes || 'Imported via Bulk Excel / CSV Upload').trim(),
+          fullRemark: (raw.notes || 'Candidate profile imported via Excel / CSV batch dispatch.').trim(),
+          agent: raw.agent || 'Harshit (Reception Desk)',
+          remarksHistory: [
+            {
+              id: `rem-${Date.now()}-${idx}`,
+              outcome: 'Connected — Interested',
+              text: raw.notes || 'Imported from Excel / CSV dataset',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              author: 'Super Admin Import',
+              leadStatus: 'New',
+            },
+          ],
+        };
+      });
+
+      const updated = [...newItems, ...diskLeads];
+      writeLeadsToDisk(updated);
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully imported ${newItems.length} leads into Reception CRM.`,
+        importedCount: newItems.length,
+        leads: updated,
+      });
+    }
+
+    // 2. Meta Ads Automated Inbound Webhook (Facebook / Instagram Lead Gen)
+    if (body.object === 'page' && Array.isArray(body.entry)) {
+      const diskLeads = readLeadsFromDisk();
+      const metaLeadItems: Lead[] = [];
+
+      for (const entry of body.entry) {
+        if (Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            const val = change.value;
+            const leadName = val?.lead_name || val?.full_name || 'Meta Ads Prospect';
+            const leadPhone = val?.phone_number || val?.mobile || '+91 98000 00000';
+            const leadCourse = val?.course || 'Judiciary / CLAT Entrance Preparation';
+
+            metaLeadItems.push({
+              id: `lead-meta-${Date.now().toString().slice(-6)}`,
+              name: leadName,
+              mobile: leadPhone,
+              location: val?.city || 'Meta Lead Gen (Digital)',
+              targetCourse: leadCourse,
+              source: 'Meta Ads (Facebook/Instagram)' as any,
+              receivedDate: 'Just now (Instant)',
+              status: 'New',
+              latestRemark: `Instant Lead from Meta Ad Campaign: ${val?.ad_name || 'Campaign 2026'}`,
+              agent: 'Harshit (Reception Desk)',
+              remarksHistory: [
+                {
+                  id: `rem-meta-${Date.now()}`,
+                  outcome: 'Connected — Interested',
+                  text: 'Real-time webhook intake from Meta Lead Ads',
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  author: 'Meta Webhook Sync',
+                  leadStatus: 'New',
+                },
+              ],
+            });
+          }
+        }
+      }
+
+      const updated = [...metaLeadItems, ...diskLeads];
+      writeLeadsToDisk(updated);
+      return NextResponse.json({ success: true, processed: metaLeadItems.length });
+    }
+
+    // 3. Single Lead Generation from Super Admin
     const { name, mobile, location, targetCourse, source, notes, agent } = body;
 
     if (!name || !name.trim()) {
@@ -78,8 +182,8 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       mobile: cleanPhone.length === 10 ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : mobile.trim(),
       location: location?.trim() || 'Chandigarh / Mohali (NCR)',
-      targetCourse: targetCourse || 'PCS-J Comprehensive Foundation 2026-27',
-      source: source || 'Super Admin (#2410)',
+      targetCourse: targetCourse || 'PCS-J Punjab Judicial Services',
+      source: (source || 'Super Admin (#2410)') as any,
       receivedDate: 'Just now (Today)',
       status: 'New',
       latestRemark: notes?.trim() || 'Inbound lead entered via Super Admin Master Console.',
@@ -113,6 +217,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
 export async function PATCH(req: NextRequest) {
   try {

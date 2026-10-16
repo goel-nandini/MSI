@@ -45,12 +45,21 @@ import {
   MapPin,
   ChevronRight,
   FolderOpen,
+  Copy,
+  FileSpreadsheet,
+  Share2,
+  HelpCircle,
+  Radio,
+  Tv,
 } from 'lucide-react';
 import {
   UdemyCourse,
+  UdemyLecture,
+  UdemySection,
   TeacherApprovalRecord,
   CourseEnrollment,
   getStoredCourses,
+  saveStoredCourses,
   getStoredTeachers,
   saveStoredTeachers,
   getStoredEnrollments,
@@ -61,6 +70,8 @@ import {
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
 import { GalleryItem } from '../api/admin/gallery/route';
+import { AdminTransaction } from '../api/admin/transactions/route';
+
 
 type AdminTab =
   | 'dashboard'
@@ -86,8 +97,8 @@ interface RegisteredStudent {
 export default function SuperAdminMasterDashboard() {
   // Session Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [authPhone, setAuthPhone] = useState('9792303434');
-  const [authPassword, setAuthPassword] = useState('MSI@superadmin');
+  const [authPhone, setAuthPhone] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
@@ -103,6 +114,7 @@ export default function SuperAdminMasterDashboard() {
   const [teachers, setTeachers] = useState<TeacherApprovalRecord[]>([]);
   const [courses, setCourses] = useState<UdemyCourse[]>([]);
   const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([]);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Notification Toast
@@ -134,8 +146,21 @@ export default function SuperAdminMasterDashboard() {
   const [newLeadMobile, setNewLeadMobile] = useState('');
   const [newLeadLocation, setNewLeadLocation] = useState('Chandigarh / Mohali');
   const [newLeadCourse, setNewLeadCourse] = useState('PCS-J Punjab Judicial Services');
+  const [newLeadSource, setNewLeadSource] = useState('Meta Ads (Facebook/Instagram)');
+  const [newLeadAgent, setNewLeadAgent] = useState('Harshit (Reception Desk)');
   const [newLeadNotes, setNewLeadNotes] = useState('');
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+
+  // 4b. Bulk Lead Import Modal (Excel / CSV)
+  const [showBulkLeadModal, setShowBulkLeadModal] = useState(false);
+  const [bulkLeadsText, setBulkLeadsText] = useState('');
+  const [bulkDefaultSource, setBulkDefaultSource] = useState('Meta Ads (Facebook/Instagram)');
+  const [bulkDefaultAgent, setBulkDefaultAgent] = useState('Auto Round-Robin Distribution');
+  const [bulkDefaultCourse, setBulkDefaultCourse] = useState('PCS-J Punjab Judicial Services');
+  const [isImportingBulk, setIsImportingBulk] = useState(false);
+
+  // 4c. Meta Webhook Modal (For Ankit)
+  const [showMetaWebhookModal, setShowMetaWebhookModal] = useState(false);
 
   // 5. Add Gallery Media Modal
   const [showAddGalleryModal, setShowAddGalleryModal] = useState(false);
@@ -159,6 +184,37 @@ export default function SuperAdminMasterDashboard() {
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherSpecialization, setNewTeacherSpecialization] = useState('Constitutional Law & Jurisprudence');
   const [newTeacherExp, setNewTeacherExp] = useState('8');
+  const [newTeacherPassword, setNewTeacherPassword] = useState('MSI@Faculty2026');
+  const [createdFacultyCredentials, setCreatedFacultyCredentials] = useState<{
+    name: string;
+    email: string;
+    pass: string;
+  } | null>(null);
+
+  // 9. Course Creation Modal (Super Admin LMS)
+  const [showAddCourseModal, setShowAddCourseModal] = useState(false);
+  const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [newCourseHeadline, setNewCourseHeadline] = useState('');
+  const [newCourseCategory, setNewCourseCategory] = useState<
+    'Judiciary' | 'Law Entrance' | 'Criminal Law' | 'Constitutional Law' | 'Cyber Law' | 'Postgraduate'
+  >('Judiciary');
+  const [newCoursePrice, setNewCoursePrice] = useState('4999');
+  const [newCourseOriginalPrice, setNewCourseOriginalPrice] = useState('14999');
+  const [newCourseTeacherId, setNewCourseTeacherId] = useState('');
+  const [newCourseLevel, setNewCourseLevel] = useState<'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced'>('All Levels');
+  const [newCourseDesc, setNewCourseDesc] = useState('');
+  const [newCourseLectureTitle, setNewCourseLectureTitle] = useState('Orientation & Landmark Constitutional Doctrines');
+  const [newCourseLectureVideo, setNewCourseLectureVideo] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+  const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
+
+  // 10. Add Recorded Lecture Modal to existing Course
+  const [selectedCourseForLecture, setSelectedCourseForLecture] = useState<UdemyCourse | null>(null);
+  const [newLectureTitle, setNewLectureTitle] = useState('');
+  const [newLectureVideoUrl, setNewLectureVideoUrl] = useState('');
+  const [newLectureDuration, setNewLectureDuration] = useState('45 mins');
+  const [newLectureSummary, setNewLectureSummary] = useState('');
+  const [isSubmittingLecture, setIsSubmittingLecture] = useState(false);
+
 
   // ── Authentication Check ────────────────────────────────────────────────────
   useEffect(() => {
@@ -260,12 +316,25 @@ export default function SuperAdminMasterDashboard() {
     }
   }, []);
 
+  const fetchTransactions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/transactions', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.transactions)) {
+        setTransactions(data.transactions);
+      }
+    } catch (err) {
+      console.warn('Could not fetch transactions:', err);
+    }
+  }, []);
+
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
       fetchStudents(),
       fetchLeads(),
       fetchGallery(),
+      fetchTransactions(),
       new Promise<void>((resolve) => {
         setTeachers(getStoredTeachers());
         setCourses(getStoredCourses());
@@ -274,7 +343,8 @@ export default function SuperAdminMasterDashboard() {
       }),
     ]);
     setIsRefreshing(false);
-  }, [fetchStudents, fetchLeads, fetchGallery]);
+  }, [fetchStudents, fetchLeads, fetchGallery, fetchTransactions]);
+
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -375,6 +445,16 @@ export default function SuperAdminMasterDashboard() {
 
     setIsSubmittingLead(true);
     try {
+      const selectedAgent =
+        newLeadAgent === 'Auto Round-Robin Distribution'
+          ? [
+              'Harshit (Reception Desk)',
+              'Counselor Priya (Law Admissions Desk)',
+              'Counselor Rohit (Judiciary Services Desk)',
+              'Counselor Simran (CLAT & Entrance Desk)',
+            ][Math.floor(Math.random() * 4)]
+          : newLeadAgent;
+
       const res = await fetch('/api/admin/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -383,14 +463,15 @@ export default function SuperAdminMasterDashboard() {
           mobile: newLeadMobile.trim(),
           location: newLeadLocation.trim(),
           targetCourse: newLeadCourse,
-          notes: newLeadNotes.trim() || 'Generated via Super Admin Master Portal',
-          source: 'Super Admin (#2410)',
+          notes: newLeadNotes.trim() || `Inbound lead from ${newLeadSource}`,
+          source: newLeadSource,
+          agent: selectedAgent,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        showToast(`Lead created! Dispatched to Reception Desk in real-time.`);
+        showToast(`Lead created! Assigned to ${selectedAgent} with source "${newLeadSource}".`);
         setShowAddLeadModal(false);
         setNewLeadName('');
         setNewLeadMobile('');
@@ -409,11 +490,112 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
-  // 4. Add Gallery Media (Instantly updates public website /gallery)
+  // 3b. Bulk Import Leads (Excel / CSV)
+  const handleBulkImportLeads = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkLeadsText.trim()) {
+      showToast('Please enter or paste CSV/Excel lead data.');
+      return;
+    }
+
+    setIsImportingBulk(true);
+    try {
+      const lines = bulkLeadsText.trim().split('\n').filter((l) => l.trim().length > 0);
+      const telecallersList = [
+        'Harshit (Reception Desk)',
+        'Counselor Priya (Law Admissions Desk)',
+        'Counselor Rohit (Judiciary Services Desk)',
+        'Counselor Simran (CLAT & Entrance Desk)',
+      ];
+
+      const parsedLeads: any[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (i === 0 && (line.toLowerCase().includes('name') || line.toLowerCase().includes('mobile'))) {
+          continue;
+        }
+
+        const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+        const name = parts[0]?.trim() || `Candidate #${i + 1}`;
+        const mobile = parts[1]?.trim() || '9876543210';
+        const location = parts[2]?.trim() || 'Chandigarh / Mohali';
+        const course = parts[3]?.trim() || bulkDefaultCourse;
+        const source = parts[4]?.trim() || bulkDefaultSource;
+        const agent =
+          bulkDefaultAgent === 'Auto Round-Robin Distribution' || !parts[5]?.trim()
+            ? telecallersList[i % telecallersList.length]
+            : parts[5].trim();
+        const notes = parts[6]?.trim() || `Batch imported lead (${source})`;
+
+        parsedLeads.push({
+          name,
+          mobile,
+          location,
+          targetCourse: course,
+          source,
+          agent,
+          notes,
+        });
+      }
+
+      if (parsedLeads.length === 0) {
+        showToast('No valid candidate rows detected.');
+        setIsImportingBulk(false);
+        return;
+      }
+
+      const res = await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bulk: true,
+          leads: parsedLeads,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Imported ${parsedLeads.length} leads successfully! Distributed to counselors.`);
+        setShowBulkLeadModal(false);
+        setBulkLeadsText('');
+        fetchLeads();
+        try {
+          window.dispatchEvent(new Event('msi_leads_sync'));
+        } catch (_) {}
+      } else {
+        showToast(data.message || 'Bulk import failed.');
+      }
+    } catch (err) {
+      showToast('Network error during bulk lead import.');
+    } finally {
+      setIsImportingBulk(false);
+    }
+  };
+
+  // 4. Add Gallery Media (Direct File Upload & Instant Sync)
+  const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setNewGalleryImage(base64);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateGallery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGalleryTitle.trim() || !newGalleryImage.trim()) {
-      showToast('Please specify title and image URL.');
+      showToast('Please specify title and select/provide an image.');
       return;
     }
 
@@ -440,6 +622,7 @@ export default function SuperAdminMasterDashboard() {
         fetchGallery();
         try {
           window.dispatchEvent(new Event('msi_gallery_sync'));
+          window.dispatchEvent(new Event('storage'));
         } catch (_) {}
       } else {
         showToast(data.message || 'Failed to upload gallery media.');
@@ -465,6 +648,7 @@ export default function SuperAdminMasterDashboard() {
         fetchGallery();
         try {
           window.dispatchEvent(new Event('msi_gallery_sync'));
+          window.dispatchEvent(new Event('storage'));
         } catch (_) {}
       } else {
         showToast(data.message || 'Failed to delete gallery item.');
@@ -502,6 +686,7 @@ export default function SuperAdminMasterDashboard() {
       return;
     }
 
+    const tempPassword = newTeacherPassword.trim() || 'MSI@Faculty2026';
     const current = getStoredTeachers();
     const newFaculty: TeacherApprovalRecord = {
       id: `fac-${Date.now()}`,
@@ -525,6 +710,9 @@ export default function SuperAdminMasterDashboard() {
       approvedBy: 'MSI Super Admin',
       rating: 4.9,
       studentsCount: 120,
+      password: tempPassword,
+      temporaryPassword: tempPassword,
+      mustChangePassword: true,
     };
 
     const updated = [newFaculty, ...current];
@@ -533,8 +721,195 @@ export default function SuperAdminMasterDashboard() {
     setShowAddTeacherModal(false);
     setNewTeacherName('');
     setNewTeacherEmail('');
-    showToast(`Faculty member ${newTeacherName} created and approved.`);
+    setCreatedFacultyCredentials({
+      name: newFaculty.name,
+      email: newFaculty.email,
+      pass: tempPassword,
+    });
+    showToast(`Faculty member ${newTeacherName} created! Temporary password assigned.`);
   };
+
+  // 7. Create Course & Assign Faculty (LMS)
+  const handleCreateCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourseTitle.trim()) {
+      showToast('Please provide course program title.');
+      return;
+    }
+
+    setIsSubmittingCourse(true);
+    try {
+      const currentCourses = getStoredCourses();
+      const assignedFaculty =
+        teachers.find((t) => t.id === newCourseTeacherId) || teachers[0] || {
+          id: 'fac-01',
+          name: 'Dr. Ekta Gahlawat',
+          designation: 'Professor of Law & Constitutional Jurist',
+          avatarUrl: '/images/faculty/faculty-1.webp',
+        };
+
+      const courseId = `crs-msi-${Date.now().toString().slice(-6)}`;
+      const newCourse: UdemyCourse = {
+        id: courseId,
+        slug: newCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        title: newCourseTitle.trim(),
+        headline: newCourseHeadline.trim() || 'Comprehensive Curriculum & Judicial Practice',
+        description: newCourseDesc.trim() || 'Official curriculum accredited by MSI Group of Institutes.',
+        category: newCourseCategory,
+        department: 'law',
+        badge: 'Hot & New',
+        rating: 5.0,
+        reviewCount: 1,
+        totalDuration: '40 hours',
+        totalLectures: 1,
+        level: newCourseLevel,
+        thumbnail: '/images/courses/clat.jpg',
+        price: Number(newCoursePrice) || 4999,
+        originalPrice: Number(newCourseOriginalPrice) || 14999,
+        isFreeForMsiStudents: true,
+        instructorId: assignedFaculty.id,
+        instructorName: assignedFaculty.name,
+        instructorTitle: assignedFaculty.designation,
+        instructorAvatar: assignedFaculty.avatarUrl,
+        whatYouWillLearn: [
+          'Mastery over ratio decidendi and obiter dicta distinctions',
+          'Timed answer drafting drills and Bare Act interpretations',
+          'Live judicial mentoring and doubt clearing',
+        ],
+        requirements: ['Dedication to daily legal study drills', 'No prior legal diploma required'],
+        sections: [
+          {
+            id: `sec-${Date.now()}-1`,
+            title: 'Module 1: Foundational Jurisprudence & Overview',
+            duration: '3 hours',
+            lectures: [
+              {
+                id: `lec-${Date.now()}-1`,
+                title: newCourseLectureTitle.trim() || 'Orientation & Landmark Case Briefs',
+                duration: '45 mins',
+                durationSeconds: 2700,
+                videoUrl: newCourseLectureVideo.trim() || 'https://vz-389201.b-cdn.net/sample.mp4',
+                preview: true,
+                summary: 'Initial recorded foundational orientation lecture for registered scholars.',
+                resources: [
+                  {
+                    title: 'Official Lecture Handout & Landmark Briefs',
+                    type: 'pdf',
+                    size: '2.4 MB',
+                    downloadUrl: '#',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        language: 'English & Bilingual Legal Notes',
+        isPublished: true,
+      };
+
+      const updatedCourses = [newCourse, ...currentCourses];
+      saveStoredCourses(updatedCourses);
+      setCourses(updatedCourses);
+
+      // Auto-assign to faculty
+      if (assignedFaculty) {
+        const currentTeachers = getStoredTeachers();
+        const updatedTeachers = currentTeachers.map((t) => {
+          if (t.id === assignedFaculty.id) {
+            return {
+              ...t,
+              assignedCourseIds: Array.from(new Set([...(t.assignedCourseIds || []), courseId])),
+            };
+          }
+          return t;
+        });
+        saveStoredTeachers(updatedTeachers);
+        setTeachers(updatedTeachers);
+      }
+
+      setShowAddCourseModal(false);
+      setNewCourseTitle('');
+      setNewCourseHeadline('');
+      setNewCourseDesc('');
+      showToast(`Course "${newCourse.title}" published and assigned to ${assignedFaculty.name}!`);
+    } catch (err) {
+      showToast('Error creating course program.');
+    } finally {
+      setIsSubmittingCourse(false);
+    }
+  };
+
+  // 8. Add Lecture to existing Course
+  const handleAddLectureToCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCourseForLecture || !newLectureTitle.trim()) {
+      showToast('Please specify lecture title.');
+      return;
+    }
+
+    setIsSubmittingLecture(true);
+    try {
+      const currentCourses = getStoredCourses();
+      const updatedCourses = currentCourses.map((crs) => {
+        if (crs.id === selectedCourseForLecture.id) {
+          const sections =
+            crs.sections && crs.sections.length > 0
+              ? [...crs.sections]
+              : [
+                  {
+                    id: `sec-${Date.now()}`,
+                    title: 'Module 1: Core Curriculum & Recorded Lectures',
+                    duration: '2 hours',
+                    lectures: [],
+                  },
+                ];
+
+          const newLec: UdemyLecture = {
+            id: `lec-${Date.now()}`,
+            title: newLectureTitle.trim(),
+            duration: newLectureDuration.trim() || '45 mins',
+            durationSeconds: 2700,
+            videoUrl: newLectureVideoUrl.trim() || 'https://vz-389201.b-cdn.net/sample.mp4',
+            preview: false,
+            summary: newLectureSummary.trim() || 'Classroom recording with case law analysis.',
+            resources: [
+              {
+                title: `${newLectureTitle.trim()} Notes & Bare Act Handout`,
+                type: 'pdf',
+                size: '1.8 MB',
+                downloadUrl: '#',
+              },
+            ],
+          };
+
+          sections[0].lectures.push(newLec);
+          const totalLecs = sections.reduce((acc, s) => acc + s.lectures.length, 0);
+
+          return {
+            ...crs,
+            sections,
+            totalLectures: totalLecs,
+            updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          };
+        }
+        return crs;
+      });
+
+      saveStoredCourses(updatedCourses);
+      setCourses(updatedCourses);
+      setSelectedCourseForLecture(null);
+      setNewLectureTitle('');
+      setNewLectureVideoUrl('');
+      setNewLectureSummary('');
+      showToast(`Recorded lecture added to ${selectedCourseForLecture.title}!`);
+    } catch (err) {
+      showToast('Error adding recorded lecture.');
+    } finally {
+      setIsSubmittingLecture(false);
+    }
+  };
+
 
   // ── Filtered Search Results ────────────────────────────────────────────────
   const filteredStudents = useMemo(() => {
@@ -1685,7 +2060,23 @@ export default function SuperAdminMasterDashboard() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={() => setShowMetaWebhookModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] hover:bg-[#FFF9EF] text-[#10233F] text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4 text-[#89190E]" />
+                    <span>Meta & Google Webhook</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowBulkLeadModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>📥 Bulk Import (Excel / CSV)</span>
+                  </button>
+
                   <button
                     onClick={() => setShowAddLeadModal(true)}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
@@ -1695,6 +2086,7 @@ export default function SuperAdminMasterDashboard() {
                   </button>
                 </div>
               </div>
+
 
               {/* Leads Table */}
               <div className="bg-white rounded-2xl border border-[#E8EEFF] shadow-xs overflow-hidden">
@@ -1892,6 +2284,21 @@ export default function SuperAdminMasterDashboard() {
                     Judiciary, CLAT, AILET, and LL.M Foundation syllabi synchronized with student learning portal.
                   </p>
                 </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      if (teachers.length > 0 && !newCourseTeacherId) {
+                        setNewCourseTeacherId(teachers[0].id);
+                      }
+                      setShowAddCourseModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Create Course & Assign Faculty</span>
+                  </button>
+                </div>
               </div>
 
               {/* Courses Grid */}
@@ -1929,19 +2336,32 @@ export default function SuperAdminMasterDashboard() {
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-gray-100 mt-4 flex items-center justify-between text-xs">
+                    <div className="pt-3 border-t border-gray-100 mt-4 flex items-center justify-between text-xs gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedCourseForLecture(crs);
+                          setNewLectureTitle('');
+                          setNewLectureVideoUrl('');
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Add Lecture</span>
+                      </button>
+
                       <Link
                         href={`/courses`}
                         target="_blank"
-                        className="text-[#89190E] font-bold hover:underline flex items-center gap-1"
+                        className="text-[#89190E] font-bold hover:underline flex items-center gap-1 shrink-0"
                       >
-                        <span>View Public Course Page</span>
+                        <span>View Public Page</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
                 ))}
               </div>
+
             </div>
           )}
 
@@ -2071,58 +2491,66 @@ export default function SuperAdminMasterDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E8EEFF]">
-                      <tr className="hover:bg-[#F0F3FF]/50 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
-                          #TXN-88491
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-[#071B37]">
-                          Harshit
-                        </td>
-                        <td className="py-3.5 px-4 text-[#58413D]">
-                          PCS-J Punjab Judicial Services
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-[#071B37]">
-                          ₹45,000
-                        </td>
-                        <td className="py-3.5 px-4 text-[#58413D]">
-                          UPI (Google Pay)
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                            Captured
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                          Today, 10:24 AM
-                        </td>
-                      </tr>
-
-                      <tr className="hover:bg-[#F0F3FF]/50 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
-                          #TXN-88490
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-[#071B37]">
-                          Ankit Sir
-                        </td>
-                        <td className="py-3.5 px-4 text-[#58413D]">
-                          Judiciary Comprehensive Foundation & Procedural Law
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-[#071B37]">
-                          ₹65,000
-                        </td>
-                        <td className="py-3.5 px-4 text-[#58413D]">
-                          NetBanking
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                            Captured
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                          Today, 09:48 AM
-                        </td>
-                      </tr>
+                      {transactions.length === 0 ? (
+                        <tr className="hover:bg-[#F0F3FF]/50 transition-colors">
+                          <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
+                            #TXN-88491
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-[#071B37]">
+                            Harshit
+                          </td>
+                          <td className="py-3.5 px-4 text-[#58413D]">
+                            Legal Reasoning for CLAT
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-[#071B37]">
+                            ₹4,999
+                          </td>
+                          <td className="py-3.5 px-4 text-[#58413D]">
+                            Razorpay UPI (Test Gateway)
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                              Captured (Test Mode)
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
+                            Today, 02:45 PM
+                          </td>
+                        </tr>
+                      ) : (
+                        transactions.map((txn) => (
+                          <tr key={txn.id} className="hover:bg-[#F0F3FF]/50 transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
+                              {txn.id}
+                              <span className="block text-[9px] font-mono text-gray-400">
+                                {txn.razorpayPaymentId}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-bold text-[#071B37]">
+                              {txn.studentName}
+                            </td>
+                            <td className="py-3.5 px-4 text-[#58413D] max-w-xs truncate font-medium">
+                              {txn.courseTitle}
+                            </td>
+                            <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
+                              ₹{txn.amount.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 text-[#58413D]">
+                              {txn.paymentMethod}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                {txn.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
+                              {txn.timestamp}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
+
                   </table>
                 </div>
               </div>
@@ -2442,6 +2870,45 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
+              {/* Source & Telecaller Assignment Fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Lead Source *
+                  </label>
+                  <select
+                    value={newLeadSource}
+                    onChange={(e) => setNewLeadSource(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="Meta Ads (Facebook/Instagram)">Meta Ads (Facebook/Instagram)</option>
+                    <option value="Google Ads">Google Ads Search & Display</option>
+                    <option value="Local Walk-in">Local Walk-in (Campus Desk)</option>
+                    <option value="College Workshop">College Workshop & Judicial Seminar</option>
+                    <option value="Website Enquiry">Website Inbound Form</option>
+                    <option value="Alumni Referral">Alumni / Student Referral</option>
+                    <option value="Super Admin (#2410)">Super Admin (#2410)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Assign To Telecaller *
+                  </label>
+                  <select
+                    value={newLeadAgent}
+                    onChange={(e) => setNewLeadAgent(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="Harshit (Reception Desk)">Harshit (Reception Desk)</option>
+                    <option value="Counselor Priya (Law Admissions Desk)">Counselor Priya (Law Admissions Desk)</option>
+                    <option value="Counselor Rohit (Judiciary Services Desk)">Counselor Rohit (Judiciary Services Desk)</option>
+                    <option value="Counselor Simran (CLAT & Entrance Desk)">Counselor Simran (CLAT & Entrance Desk)</option>
+                    <option value="Auto Round-Robin Distribution">Auto Round-Robin (Equal Distribution)</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
                   Counselor Note / Instructions
@@ -2450,7 +2917,7 @@ export default function SuperAdminMasterDashboard() {
                   rows={2}
                   value={newLeadNotes}
                   onChange={(e) => setNewLeadNotes(e.target.value)}
-                  placeholder="e.g. High priority candidate. Inquired about scholarship test and fee structure."
+                  placeholder="e.g. Inquired about scholarship test and fee structure."
                   className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
               </div>
@@ -2459,7 +2926,7 @@ export default function SuperAdminMasterDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowAddLeadModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2481,13 +2948,240 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
+      {/* 4b. Bulk Import Leads Modal (Excel / CSV) */}
+      {showBulkLeadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBulkLeadModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Bulk Import Leads (Excel / CSV)
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Import multiple inbound leads from Meta, Google Ads, or campus workshop spreadsheets.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleBulkImportLeads} className="space-y-4">
+              <div className="grid grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
+                    Default Source
+                  </label>
+                  <select
+                    value={bulkDefaultSource}
+                    onChange={(e) => setBulkDefaultSource(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
+                  >
+                    <option value="Meta Ads (Facebook/Instagram)">Meta Ads</option>
+                    <option value="Google Ads">Google Ads</option>
+                    <option value="College Workshop">College Workshop</option>
+                    <option value="Local Walk-in">Local Walk-in</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
+                    Default Course
+                  </label>
+                  <select
+                    value={bulkDefaultCourse}
+                    onChange={(e) => setBulkDefaultCourse(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
+                  >
+                    <option value="PCS-J Punjab Judicial Services">PCS-J Punjab</option>
+                    <option value="CLAT 2027 (2-Yr Class)">CLAT 2027</option>
+                    <option value="CLAT 2026 (1-Yr Target)">CLAT 2026</option>
+                    <option value="Judiciary Mains Answer Writing">Judiciary Mains</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
+                    Telecaller Assignee
+                  </label>
+                  <select
+                    value={bulkDefaultAgent}
+                    onChange={(e) => setBulkDefaultAgent(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
+                  >
+                    <option value="Auto Round-Robin Distribution">Auto Round-Robin</option>
+                    <option value="Harshit (Reception Desk)">Harshit</option>
+                    <option value="Counselor Priya (Law Admissions Desk)">Counselor Priya</option>
+                    <option value="Counselor Rohit (Judiciary Services Desk)">Counselor Rohit</option>
+                    <option value="Counselor Simran (CLAT & Entrance Desk)">Counselor Simran</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase text-[#10233F]">
+                    Paste CSV or Tab-Separated Excel Data
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkLeadsText(
+                        `Priyanshu Verma, 9876543210, Chandigarh, PCS-J Punjab Judicial Services, Meta Ads, Harshit (Reception Desk), High intent lead\nRohan Khanna, 9812345678, Mohali, CLAT 2027 (2-Yr Class), Google Ads, Counselor Priya (Law Admissions Desk), Wants weekend demo batch\nSimran Kaur, 9898765432, Ludhiana, PCS-J Punjab Judicial Services, College Workshop, Counselor Rohit (Judiciary Services Desk), Met at campus law seminar`
+                      );
+                    }}
+                    className="text-xs text-[#89190E] font-bold hover:underline cursor-pointer"
+                  >
+                    Load Sample Excel Data
+                  </button>
+                </div>
+                <textarea
+                  rows={6}
+                  required
+                  value={bulkLeadsText}
+                  onChange={(e) => setBulkLeadsText(e.target.value)}
+                  placeholder="Format: Name, Mobile, City, Course, Source, Assigned Telecaller, Notes&#10;e.g. Rohit Sharma, 9876543210, Chandigarh, PCS-J, Meta Ads, Harshit, Demo requested"
+                  className="w-full p-3 rounded-2xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  💡 You can copy rows directly from Excel or Google Sheets and paste here.
+                </p>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkLeadModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isImportingBulk}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isImportingBulk ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span>Import All Leads to CRM</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 4c. Meta Ads Webhook Integration Guide (For Ankit) */}
+      {showMetaWebhookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setShowMetaWebhookModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                <Share2 className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E]">
+                  Integration Guide for Ankit
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Meta (Facebook/Instagram) & Google Ads CRM Sync
+                </h3>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs text-[#526174]">
+              <div className="p-3.5 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] space-y-2">
+                <span className="font-bold text-[#10233F] block">
+                  1. Real-Time Webhook Callback URL:
+                </span>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#E8DCCB] font-mono text-[11px] text-[#89190E]">
+                  <span className="truncate">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/api/admin/leads?source=meta` : '/api/admin/leads?source=meta'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        navigator.clipboard.writeText(`${window.location.origin}/api/admin/leads?source=meta`);
+                        showToast('Webhook URL copied to clipboard!');
+                      }
+                    }}
+                    className="ml-2 text-gray-500 hover:text-gray-900 cursor-pointer"
+                    title="Copy URL"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <span className="font-bold text-[#10233F] block pt-1">
+                  2. Verify Token (Paste in Meta App Setup):
+                </span>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#E8DCCB] font-mono text-[11px] text-[#10233F]">
+                  <span>msi_meta_leads_2026_secret</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText('msi_meta_leads_2026_secret');
+                      showToast('Verify Token copied!');
+                    }}
+                    className="ml-2 text-gray-500 hover:text-gray-900 cursor-pointer"
+                    title="Copy Token"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="font-bold text-[#10233F] block">
+                  How Ankit can configure Meta Lead Ads:
+                </span>
+                <ol className="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
+                  <li>Go to <strong>Meta for Developers / Facebook Business Manager</strong> → Webhooks.</li>
+                  <li>Subscribe to the <strong>Page</strong> object and check the <code>leadgen</code> topic.</li>
+                  <li>Enter the Callback URL and Verify Token above. Verification is handled automatically.</li>
+                  <li>Whenever an ad form is submitted on Instagram or Facebook, the lead is instantly parsed and routed to your telecallers!</li>
+                </ol>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMetaWebhookModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold cursor-pointer"
+                >
+                  Done / Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 5. Add Gallery Media Modal */}
       {showAddGalleryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setShowAddGalleryModal(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700"
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2501,7 +3195,7 @@ export default function SuperAdminMasterDashboard() {
                   Upload Media to Website /gallery
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Adds photo/video directly to the public website gallery.
+                  Adds photo directly to the public website gallery. Reflects instantly on /gallery.
                 </p>
               </div>
             </div>
@@ -2542,31 +3236,66 @@ export default function SuperAdminMasterDashboard() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Image / Video URL *
+                    Tagline
                   </label>
                   <input
                     type="text"
-                    required
-                    value={newGalleryImage}
-                    onChange={(e) => setNewGalleryImage(e.target.value)}
-                    placeholder="/images/hero-1.webp"
+                    value={newGalleryTagline}
+                    onChange={(e) => setNewGalleryTagline(e.target.value)}
+                    placeholder="e.g. Campus Excellence"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                   />
                 </div>
               </div>
 
+              {/* Real File Upload from Computer */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                  Tagline
+                  Choose Photo from Your Device (PNG, JPG, WEBP)
                 </label>
-                <input
-                  type="text"
-                  value={newGalleryTagline}
-                  onChange={(e) => setNewGalleryTagline(e.target.value)}
-                  placeholder="e.g. Scholarly Sanctuary"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
-                />
+                <div className="border-2 border-dashed border-[#E8DCCB] rounded-2xl p-4 text-center hover:border-[#89190E] transition-colors bg-[#FFF9EF]/50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="gallery-file-input"
+                    onChange={handleGalleryFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="gallery-file-input"
+                    className="cursor-pointer flex flex-col items-center justify-center space-y-1.5"
+                  >
+                    <Upload className="w-6 h-6 text-[#89190E]" />
+                    <span className="text-xs font-bold text-[#10233F]">
+                      Click to Browse Photo from Computer
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      Uploaded photo will be saved and displayed instantly on the public /gallery
+                    </span>
+                  </label>
+                </div>
               </div>
+
+              {/* Preview Thumbnail */}
+              {newGalleryImage && (
+                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 flex items-center space-x-3">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-300 bg-white shrink-0">
+                    <img
+                      src={newGalleryImage}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] font-bold text-emerald-700 block">
+                      ✓ Image Ready to Publish
+                    </span>
+                    <p className="text-[10px] text-gray-500 truncate font-mono">
+                      {newGalleryImage.slice(0, 45)}...
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
@@ -2585,7 +3314,7 @@ export default function SuperAdminMasterDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowAddGalleryModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2606,6 +3335,7 @@ export default function SuperAdminMasterDashboard() {
           </div>
         </div>
       )}
+
 
       {/* 6. Delete Gallery Confirmation Modal */}
       {galleryToDelete && (
@@ -2797,11 +3527,42 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
+              {/* Temporary Password Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase text-[#10233F]">
+                    Temporary Login Password *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const gen = `MSI@Faculty${Math.floor(1000 + Math.random() * 9000)}`;
+                      setNewTeacherPassword(gen);
+                      showToast(`Generated: ${gen}`);
+                    }}
+                    className="text-[10px] text-[#89190E] font-bold hover:underline cursor-pointer"
+                  >
+                    ⚡ Auto-Generate
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={newTeacherPassword}
+                  onChange={(e) => setNewTeacherPassword(e.target.value)}
+                  placeholder="MSI@Faculty2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  The faculty jurist will use this temporary password for their initial login. On first login, they will be required to change it to their private password.
+                </p>
+              </div>
+
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddTeacherModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2811,6 +3572,391 @@ export default function SuperAdminMasterDashboard() {
                 >
                   <Check className="w-4 h-4" />
                   <span>Create & Approve Faculty</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 8b. Faculty Credentials Issued Modal */}
+      {createdFacultyCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-200 text-center relative">
+            <button
+              onClick={() => setCreatedFacultyCredentials(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block mb-1">
+              Account Created & Approved
+            </span>
+            <h3 className="font-serif text-lg font-bold text-[#10233F] mb-1">
+              Faculty Access Issued
+            </h3>
+            <p className="text-xs text-gray-500 mb-5">
+              Share these credentials with <strong>{createdFacultyCredentials.name}</strong>. Upon first login, they will be prompted to set their private password.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-left space-y-3 mb-5 font-mono text-xs">
+              <div>
+                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Portal URL:</span>
+                <span className="text-[#10233F] font-bold select-all">/teacher/login</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Official Email:</span>
+                <span className="text-[#10233F] font-bold select-all">{createdFacultyCredentials.email}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Temporary Password:</span>
+                <span className="text-[#89190E] font-bold select-all bg-white px-2 py-1 rounded-md border border-[#E8DCCB] inline-block mt-0.5">
+                  {createdFacultyCredentials.pass}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/teacher/login\nEmail: ${createdFacultyCredentials.email}\nTemp Password: ${createdFacultyCredentials.pass}\nNote: Please set your new password on first login.`;
+                  navigator.clipboard.writeText(msg);
+                  showToast('Credentials copied to clipboard!');
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] hover:bg-[#FFF9EF] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Copy className="w-4 h-4 text-[#89190E]" />
+                <span>Copy Credentials</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedFacultyCredentials(null)}
+                className="flex-1 py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Create Course & Assign Faculty Modal */}
+      {showAddCourseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setShowAddCourseModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E]">
+                  LMS Course Builder
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Create Course & Assign Faculty Jurist
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Super Admin configures curriculum, fees, and assigns certified faculty to lead lectures.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateCourse} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Course Program Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newCourseTitle}
+                  onChange={(e) => setNewCourseTitle(e.target.value)}
+                  placeholder="e.g. PCS-J Comprehensive Judicial Services Foundation 2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Headline / Catchphrase
+                </label>
+                <input
+                  type="text"
+                  value={newCourseHeadline}
+                  onChange={(e) => setNewCourseHeadline(e.target.value)}
+                  placeholder="e.g. Prelims + Mains Integrated Legal Answer Writing Mastery"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Academic Stream / Category
+                  </label>
+                  <select
+                    value={newCourseCategory}
+                    onChange={(e) => setNewCourseCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="Judiciary">Judiciary (PCS-J / HJS)</option>
+                    <option value="Law Entrance">Law Entrance (CLAT / AILET)</option>
+                    <option value="Criminal Law">Criminal Law & CrPC / BNS</option>
+                    <option value="Constitutional Law">Constitutional Law & Doctrines</option>
+                    <option value="Cyber Law">Cyber Law & Digital Evidence</option>
+                    <option value="Postgraduate">Postgraduate LL.M Specialization</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Assign Faculty Instructor *
+                  </label>
+                  <select
+                    value={newCourseTeacherId}
+                    onChange={(e) => setNewCourseTeacherId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="">-- Choose Instructor --</option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.designation || 'Faculty'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Enrolment Fee (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={newCoursePrice}
+                    onChange={(e) => setNewCoursePrice(e.target.value)}
+                    placeholder="4999"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Original Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={newCourseOriginalPrice}
+                    onChange={(e) => setNewCourseOriginalPrice(e.target.value)}
+                    placeholder="14999"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-gray-500 focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Level
+                  </label>
+                  <select
+                    value={newCourseLevel}
+                    onChange={(e) => setNewCourseLevel(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="All Levels">All Levels</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced Judicial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Course Synopsis & Syllabus Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={newCourseDesc}
+                  onChange={(e) => setNewCourseDesc(e.target.value)}
+                  placeholder="Overview of syllabus, bare act coverage, landmark judgments, and mock test schedules."
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              {/* Initial Recorded Lecture Module */}
+              <div className="p-3.5 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] space-y-3">
+                <span className="text-[11px] font-bold text-[#10233F] block uppercase tracking-wider">
+                  Initial Module 1 Recorded Lecture:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
+                      Lecture Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newCourseLectureTitle}
+                      onChange={(e) => setNewCourseLectureTitle(e.target.value)}
+                      placeholder="Orientation & Landmark Doctrines"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E8DCCB] text-xs bg-white text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
+                      Video Stream URL (MP4 / BunnyCDN / HLS)
+                    </label>
+                    <input
+                      type="url"
+                      value={newCourseLectureVideo}
+                      onChange={(e) => setNewCourseLectureVideo(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2 rounded-xl border border-[#E8DCCB] text-xs bg-white text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCourseModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCourse}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingCourse ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <BookOpen className="w-4 h-4" />
+                  )}
+                  <span>Publish Course & Assign Faculty</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 10. Add Recorded Lecture Modal to Existing Course */}
+      {selectedCourseForLecture && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+            <button
+              onClick={() => setSelectedCourseForLecture(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                <Video className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E]">
+                  Course LMS
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Add Lecture to {selectedCourseForLecture.title}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Instructor: <strong>{selectedCourseForLecture.instructorName}</strong>
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddLectureToCourse} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Lecture Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newLectureTitle}
+                  onChange={(e) => setNewLectureTitle(e.target.value)}
+                  placeholder="e.g. Lecture 4: Section 164 Statements & Police Diary"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={newLectureDuration}
+                    onChange={(e) => setNewLectureDuration(e.target.value)}
+                    placeholder="45 mins"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Video Stream / Cloud URL
+                  </label>
+                  <input
+                    type="url"
+                    value={newLectureVideoUrl}
+                    onChange={(e) => setNewLectureVideoUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Lecture Summary & Study Points
+                </label>
+                <textarea
+                  rows={2}
+                  value={newLectureSummary}
+                  onChange={(e) => setNewLectureSummary(e.target.value)}
+                  placeholder="Key concepts covered, relevant case laws, and bare act sections."
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourseForLecture(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingLecture}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingLecture ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>Upload & Attach Lecture</span>
                 </button>
               </div>
             </form>

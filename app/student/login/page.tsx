@@ -100,16 +100,15 @@ export default function StudentLoginPage() {
     try {
       const cleanPhone = (userData.cleanPhone || userData.phone || '').replace(/\D/g, '').slice(-10);
 
-      // Check if user is Reception Staff
+      // Check if user specifically requested reception redirect
       if (
-        cleanPhone === '9792303434' ||
         userData.role === 'reception' ||
         userData.redirectTo === '/reception/dashboard'
       ) {
         localStorage.setItem('msi_reception_logged_in', 'true');
         localStorage.setItem('msi_active_staff_id', 'staff-harshit');
         localStorage.setItem('msi_active_staff_name', 'Harshit');
-        localStorage.setItem('msi_active_staff_phone', '9792303434');
+        localStorage.setItem('msi_active_staff_phone', cleanPhone || '9792303434');
         localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
         setSuccessMessage('Reception Desk credentials verified! Opening Reception Portal...');
         setTimeout(() => {
@@ -1026,18 +1025,9 @@ export default function StudentLoginPage() {
               {/* Dev Mode notification helper if test fallback was triggered */}
               {devOtpNotification && (
                 <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-2xl text-amber-900 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5">
-                      <KeyRound className="w-3.5 h-3.5 text-amber-700" />
-                      <span className="font-bold">Test OTP Generated</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAutoFillDevOtp}
-                      className="px-2 py-0.5 rounded-md bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
-                    >
-                      Auto-fill Code
-                    </button>
+                  <div className="flex items-center space-x-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-700" />
+                    <span className="font-bold">Test Verification Code Dispatched</span>
                   </div>
                   <p className="mt-1 text-[11px] text-amber-800 leading-tight">
                     For local testing, your verification code is:{' '}

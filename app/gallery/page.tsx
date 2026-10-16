@@ -41,13 +41,22 @@ export default function GalleryPage() {
 
   const fetchGallery = async () => {
     try {
-      const res = await fetch('/api/admin/gallery');
+      const res = await fetch('/api/admin/gallery', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.items) && data.items.length > 0) {
         setGalleryItems(data.items);
+        try {
+          localStorage.setItem('msi_gallery_items_cache', JSON.stringify(data.items));
+        } catch (_) {}
       }
     } catch (err) {
       console.warn('Using default gallery fallback:', err);
+      try {
+        const cached = localStorage.getItem('msi_gallery_items_cache');
+        if (cached) {
+          setGalleryItems(JSON.parse(cached));
+        }
+      } catch (_) {}
     }
   };
 
@@ -177,6 +186,7 @@ export default function GalleryPage() {
                     src={item.image}
                     alt={item.title}
                     fill
+                    unoptimized
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
@@ -248,10 +258,12 @@ export default function GalleryPage() {
                 src={lightboxImage.image}
                 alt={lightboxImage.title}
                 fill
+                unoptimized
                 className="object-cover"
                 sizes="100vw"
               />
             </div>
+
 
             {/* Caption bar */}
             <div className="p-6 bg-[#10233F] text-white">

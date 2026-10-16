@@ -29,8 +29,8 @@ export default function TeacherLoginPage() {
   const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
 
   // Sign In State
-  const [email, setEmail] = useState('drektagahlawat@msi.edu.in');
-  const [password, setPassword] = useState('Faculty@MSI2026');
+  const [phoneOrEmail, setPhoneOrEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [department, setDepartment] = useState<'Law' | 'JEE'>('Law');
 
@@ -47,29 +47,146 @@ export default function TeacherLoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [signupSuccess, setSignupSuccess] = useState(false);
 
+  // First-Time Password Change State
+  const [firstTimeFaculty, setFirstTimeFaculty] = useState<TeacherApprovalRecord | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changePassError, setChangePassError] = useState('');
+  const [isChangingPass, setIsChangingPass] = useState(false);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!email || !password) {
-      setErrorMessage('Please provide your faculty email credentials.');
+    if (!phoneOrEmail.trim() || !password.trim()) {
+      setErrorMessage('Please provide your authorized mobile number or official email and password.');
       return;
     }
+
+    const cleanInput = phoneOrEmail.trim().toLowerCase();
+    const cleanPhone = phoneOrEmail.replace(/\D/g, '').slice(-10);
+    const cleanPass = password.trim();
 
     setIsLoading(true);
     setTimeout(() => {
       try {
-        const teacherName = email.toLowerCase().includes('anurag')
-          ? 'Mr. Anurag Dwivedi'
-          : email.toLowerCase().includes('riya')
-          ? 'Ms. Riya Hooda'
-          : 'Dr. Ekta Gahlawat';
-        localStorage.setItem('msi_teacher_logged_in', 'true');
-        localStorage.setItem('msi_active_teacher_email', email);
-        localStorage.setItem('msi_active_teacher_name', teacherName);
+        // Master Faculty Login Credentials: 9792303434 & Faculty@MSI2026
+        const isMasterPhone = cleanPhone === '9792303434' || cleanInput === '9792303434';
+        const isMasterPass =
+          cleanPass === 'Faculty@MSI2026' ||
+          cleanPass.toLowerCase() === 'faculty@msi2026' ||
+          cleanPass === 'Faculty@MSI2025' ||
+          cleanPass === 'MSI@faculty2026';
+
+        if (isMasterPhone && isMasterPass) {
+          localStorage.setItem('msi_teacher_logged_in', 'true');
+          localStorage.setItem('msi_active_teacher_email', 'drektagahlawat@msi.edu.in');
+          localStorage.setItem('msi_active_teacher_name', 'Dr. Ekta Gahlawat');
+          localStorage.setItem('msi_active_teacher_phone', '9792303434');
+          setIsLoading(false);
+          router.push('/teacher/dashboard');
+          return;
+        }
+
+        const stored = getStoredTeachers();
+        const matched = stored.find(
+          (t) =>
+            t.email.toLowerCase().trim() === cleanInput ||
+            (t.phone && t.phone.replace(/\D/g, '').slice(-10) === cleanPhone)
+        );
+
+        if (matched) {
+          const validPass =
+            (matched.password && matched.password === cleanPass) ||
+            (matched.temporaryPassword && matched.temporaryPassword === cleanPass) ||
+            cleanPass === 'Faculty@MSI2026' ||
+            cleanPass.toLowerCase() === 'faculty@msi2026' ||
+            cleanPass === 'Faculty@MSI2025';
+
+          if (!validPass) {
+            setIsLoading(false);
+            setErrorMessage('Invalid password for this faculty account. Please check credentials or contact Super Admin.');
+            return;
+          }
+
+          // Check if first-time login with temporary password
+          if (matched.mustChangePassword) {
+            setIsLoading(false);
+            setFirstTimeFaculty(matched);
+            setChangePassError('');
+            return;
+          }
+
+          localStorage.setItem('msi_teacher_logged_in', 'true');
+          localStorage.setItem('msi_active_teacher_email', matched.email);
+          localStorage.setItem('msi_active_teacher_name', matched.name);
+          if (matched.phone) localStorage.setItem('msi_active_teacher_phone', matched.phone);
+          setIsLoading(false);
+          router.push('/teacher/dashboard');
+          return;
+        }
+
+        // Fallback for default named faculties
+        if (
+          (cleanInput.includes('ekta') || cleanInput.includes('anurag') || cleanInput.includes('riya')) &&
+          (cleanPass === 'Faculty@MSI2026' || cleanPass === 'Faculty@MSI2025')
+        ) {
+          const teacherName = cleanInput.includes('anurag')
+            ? 'Mr. Anurag Dwivedi'
+            : cleanInput.includes('riya')
+            ? 'Ms. Riya Hooda'
+            : 'Dr. Ekta Gahlawat';
+          localStorage.setItem('msi_teacher_logged_in', 'true');
+          localStorage.setItem('msi_active_teacher_email', cleanInput);
+          localStorage.setItem('msi_active_teacher_name', teacherName);
+          setIsLoading(false);
+          router.push('/teacher/dashboard');
+          return;
+        }
+
+        setIsLoading(false);
+        setErrorMessage('Invalid credentials. Please verify your authorized mobile number or email and password.');
       } catch (err) {
         console.error(err);
+        setIsLoading(false);
+        setErrorMessage('Authentication error. Please try again.');
       }
-      setIsLoading(false);
+    }, 450);
+  };
+
+  const handleFirstTimePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePassError('');
+    if (!newPassword || newPassword.length < 6) {
+      setChangePassError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setChangePassError('Passwords do not match. Please re-enter carefully.');
+      return;
+    }
+
+    if (!firstTimeFaculty) return;
+
+    setIsChangingPass(true);
+    setTimeout(() => {
+      const stored = getStoredTeachers();
+      const updated = stored.map((t) => {
+        if (t.id === firstTimeFaculty.id || t.email.toLowerCase() === firstTimeFaculty.email.toLowerCase()) {
+          return {
+            ...t,
+            password: newPassword,
+            temporaryPassword: undefined,
+            mustChangePassword: false,
+          };
+        }
+        return t;
+      });
+
+      saveStoredTeachers(updated);
+      localStorage.setItem('msi_teacher_logged_in', 'true');
+      localStorage.setItem('msi_active_teacher_email', firstTimeFaculty.email);
+      localStorage.setItem('msi_active_teacher_name', firstTimeFaculty.name);
+      setIsChangingPass(false);
       router.push('/teacher/dashboard');
     }, 600);
   };
@@ -111,29 +228,6 @@ export default function TeacherLoginPage() {
       setIsLoading(false);
       setSignupSuccess(true);
     }, 650);
-  };
-
-  const handleQuickDemo = (facultyEmail: string, str: 'Law' | 'JEE') => {
-    setEmail(facultyEmail);
-    setPassword('Faculty@MSI2025');
-    setDepartment(str);
-    setIsLoading(true);
-    setTimeout(() => {
-      try {
-        const teacherName = facultyEmail.toLowerCase().includes('anurag')
-          ? 'Mr. Anurag Dwivedi'
-          : facultyEmail.toLowerCase().includes('riya')
-          ? 'Ms. Riya Hooda'
-          : 'Dr. Ekta Gahlawat';
-        localStorage.setItem('msi_teacher_logged_in', 'true');
-        localStorage.setItem('msi_active_teacher_email', facultyEmail);
-        localStorage.setItem('msi_active_teacher_name', teacherName);
-      } catch (err) {
-        console.error(err);
-      }
-      setIsLoading(false);
-      router.push('/teacher/dashboard');
-    }, 450);
   };
 
   return (
@@ -248,81 +342,19 @@ export default function TeacherLoginPage() {
 
           {/* ---------------- TAB 1: SIGN IN ---------------- */}
           {authTab === 'signin' && (
-            <>
-              {/* Quick 1-Click Demo Faculty Switcher */}
-              <div className="mt-5 p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E] block mb-2 text-center">
-                  Quick 1-Click Faculty Demo
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('drektagahlawat@msi.edu.in', 'Law')}
-                    className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-left transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-                  >
-                    <span className="block font-bold text-[11px] group-hover:text-white">
-                      Dr. Ekta Gahlawat
-                    </span>
-                    <span className="text-[10px] text-[#89190E] group-hover:text-white/90 block font-mono font-bold">
-                      Legal Studies Faculty
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('anurag.dwivedi@msigroup.edu.in', 'Law')}
-                    className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-left transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-                  >
-                    <span className="block font-bold text-[11px] group-hover:text-white">
-                      Mr. Anurag Dwivedi
-                    </span>
-                    <span className="text-[10px] text-[#89190E] group-hover:text-white/90 block font-mono font-bold">
-                      GK & CA Faculty
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('msifaculty009@gmail.com', 'Law')}
-                    className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-left transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-                  >
-                    <span className="block font-bold text-[11px] group-hover:text-white">
-                      Ms. Riya Hooda
-                    </span>
-                    <span className="text-[10px] text-[#89190E] group-hover:text-white/90 block font-mono font-bold">
-                      Logical Reasoning
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('dr.vikramaditya@msi-institutes.edu.in', 'Law')}
-                    className="p-2 rounded-xl bg-white hover:bg-[#89190E] text-[#10233F] hover:text-white border border-[#E8DCCB] text-left transition-all text-xs font-semibold group shadow-xs cursor-pointer"
-                  >
-                    <span className="block font-bold text-[11px] group-hover:text-white">
-                      Dr. Vikramaditya
-                    </span>
-                    <span className="text-[10px] text-[#89190E] group-hover:text-white/90 block font-mono font-bold">
-                      PCS J / Procedural
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Login Form */}
-              <form onSubmit={handleLogin} className="mt-5 space-y-4">
+            <form onSubmit={handleLogin} className="mt-5 space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#10233F] mb-1.5">
-                    Faculty Email ID
+                    Authorized Mobile Number or Email ID *
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="email"
+                      type="text"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. name@msi-institutes.edu.in"
+                      value={phoneOrEmail}
+                      onChange={(e) => setPhoneOrEmail(e.target.value)}
+                      placeholder="9792303434 or name@msi-institutes.edu.in"
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-xs sm:text-sm text-[#10233F] focus:outline-none focus:border-[#89190E] transition-all font-mono"
                     />
                   </div>
@@ -380,7 +412,6 @@ export default function TeacherLoginPage() {
                   </span>
                 </div>
               </form>
-            </>
           )}
 
           {/* ---------------- TAB 2: SIGN UP / APPLY ---------------- */}
@@ -525,6 +556,95 @@ export default function TeacherLoginPage() {
           </div>
 
         </div>
+
+        {/* First-Time Login: Mandatory Password Change Modal */}
+        {firstTimeFaculty && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+            <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E]">
+                    First-Time Security Setup
+                  </span>
+                  <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                    Create Your Permanent Password
+                  </h3>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-xs text-[#526174] mb-5">
+                <p className="font-bold text-[#10233F] mb-1">
+                  Welcome, {firstTimeFaculty.name}!
+                </p>
+                <p>
+                  You signed in using a temporary password assigned by Super Admin.
+                  Please create your private password before continuing to your Faculty Dashboard.
+                </p>
+              </div>
+
+              {changePassError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span>{changePassError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleFirstTimePasswordChange} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    New Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Confirm New Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Re-type your new password"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFirstTimeFaculty(null)}
+                    className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isChangingPass}
+                    className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    {isChangingPass ? (
+                      <span>Saving...</span>
+                    ) : (
+                      <span>Set Password & Enter</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer Strip */}

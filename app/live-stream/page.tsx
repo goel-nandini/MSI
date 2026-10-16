@@ -32,6 +32,7 @@ import {
   Eye,
   Play,
   Trash2,
+  Video,
 } from 'lucide-react';
 import {
   StudentWebRTCReceiver,
@@ -629,9 +630,49 @@ function LiveStreamContent() {
                     autoplay={true}
                     videoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
                   />
+                  <div className="p-3 bg-[#10233F] text-center">
+                    <button
+                      onClick={() => setIsPlayingVod(false)}
+                      className="px-4 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold cursor-pointer"
+                    >
+                      Close Recording Playback
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/live-stream', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'start',
+                            title: streamTitle,
+                            teacherName: 'Dr. Ekta Gahlawat',
+                            batch: 'Semester V (CLAT UG)',
+                          }),
+                        });
+                      } catch (_) {}
+                      setIsLive(true);
+                      setStreamEnded(false);
+                      setIsPlayingVod(false);
+                    }}
+                    className="px-6 py-3 rounded-2xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xl cursor-pointer flex items-center space-x-2 active:scale-98"
+                  >
+                    <Radio className="w-4 h-4 text-[#EFC988] animate-pulse" />
+                    <span>Start / Resume Live Broadcast</span>
+                  </button>
+
+                  <Link
+                    href="/live-stream?role=teacher"
+                    className="px-5 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all border border-white/30 flex items-center space-x-1.5"
+                  >
+                    <Video className="w-4 h-4 text-[#EFC988]" />
+                    <span>Faculty Studio Mode</span>
+                  </Link>
+
                   <button
                     onClick={() => setIsPlayingVod(true)}
                     className="px-6 py-3 rounded-2xl bg-[#EFC988] hover:bg-[#ffe2aa] text-[#10233F] text-xs font-bold transition-all shadow-xl cursor-pointer flex items-center space-x-2 active:scale-98"

@@ -24,9 +24,9 @@ import { RECEPTION_STAFF_PROFILES } from '@/components/reception/data/receptionM
 export default function ReceptionLoginPage() {
   const router = useRouter();
 
-  // Fixed credentials per requirement: Mobile 9792303434 & Password Harshit@reception
-  const [phoneOrId, setPhoneOrId] = useState('9792303434');
-  const [password, setPassword] = useState('Harshit@reception');
+  // Authorized credentials: Mobile 9792303434 & Password Harshit@reception
+  const [phoneOrId, setPhoneOrId] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -193,14 +193,7 @@ export default function ReceptionLoginPage() {
 
 
 
-          {/* Fixed Credentials Info Pill */}
-          <div className="mt-3.5 px-3 py-2 rounded-xl bg-[#EFC988]/20 border border-[#EFC988] text-[11px] flex items-center justify-between text-[#89190E]">
-            <span className="font-semibold flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>Fixed Terminal Login:</span>
-            </span>
-            <span className="font-mono font-bold">9792303434</span>
-          </div>
+
 
           {/* Error message alert */}
           {errorMessage && (

@@ -152,18 +152,7 @@ export default function CoursesPage() {
 
   const handleInstantEnroll = (course: UdemyCourse, e: React.MouseEvent) => {
     e.stopPropagation();
-    const isLoggedIn =
-      typeof window !== 'undefined' &&
-      localStorage.getItem('msi_student_logged_in') === 'true';
-
-    if (!isLoggedIn) {
-      setLoginModalCourse(course);
-      return;
-    }
-
-    enrollStudentAction(activeStudentId, course.id, 'self');
-    loadLmsData();
-    showToast(`✓ Enrolled in ${course.title}! Available in your Student Portal.`);
+    setActiveUdemyModalCourse(course);
   };
 
   const handleLoginEnrollSuccess = (course: UdemyCourse) => {
