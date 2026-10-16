@@ -43,6 +43,8 @@ interface StudentLearningTabProps {
   notes: NotePDF[];
   pyqs: PYQItem[];
   assignments: AssignmentItem[];
+  studentId?: string;
+  studentPhone?: string;
   onPlayVideo: (video: RecordedVideo) => void;
   onSubmitAssignment: (assignment: AssignmentItem) => void;
   onOpenUdemyCourse?: (course: UdemyCourse) => void;
@@ -53,6 +55,8 @@ export default function StudentLearningTab({
   notes,
   pyqs,
   assignments,
+  studentId,
+  studentPhone,
   onPlayVideo,
   onSubmitAssignment,
   onOpenUdemyCourse,
@@ -72,7 +76,15 @@ export default function StudentLearningTab({
   const loadUdemy = () => {
     const allCourses = getStoredCourses();
     const allEnrollments = getStoredEnrollments();
-    const myEnrollments = allEnrollments.filter((e) => e.studentId === 'msi-stu-001');
+    const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+    const cleanPhone = (studentPhone || storedPhone).replace(/\D/g, '').slice(-10);
+
+    const myEnrollments = allEnrollments.filter((e) => {
+      if (studentId && e.studentId === studentId) return true;
+      if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+      if (!cleanPhone && (!studentId || studentId === 'msi-stu-001') && e.studentId === 'msi-stu-001') return true;
+      return false;
+    });
 
     const merged = myEnrollments
       .map((enr) => {

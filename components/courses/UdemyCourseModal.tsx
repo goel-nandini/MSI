@@ -28,6 +28,7 @@ import {
   getStoredEnrollments,
 } from '@/lib/lmsStore';
 import RazorpayCheckoutModal, { RazorpayPaymentSuccessInfo } from '@/components/payments/RazorpayCheckoutModal';
+import StudentEnrollLoginModal from '@/components/courses/StudentEnrollLoginModal';
 
 interface UdemyCourseModalProps {
   course: UdemyCourse | null;
@@ -56,14 +57,28 @@ export default function UdemyCourseModal({
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
   const [enrolledNotice, setEnrolledNotice] = useState(false);
   const [showRazorpayCheckout, setShowRazorpayCheckout] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   if (!isOpen || !course) return null;
 
+  // Check login status
+  const isStudentLoggedIn = () => {
+    if (typeof window === 'undefined') return false;
+    const loggedIn = localStorage.getItem('msi_student_logged_in') === 'true';
+    const phone = localStorage.getItem('msi_active_student_phone');
+    return loggedIn && !!phone;
+  };
+
   // Check if currently enrolled
+  const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+  const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
   const enrollments = getStoredEnrollments();
-  const isEnrolled = enrollments.some(
-    (e) => e.studentId === activeStudentId && e.courseId === course.id
-  );
+  const isEnrolled = enrollments.some((e) => {
+    if (e.courseId !== course.id) return false;
+    if (e.studentId === activeStudentId) return true;
+    if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+    return false;
+  });
 
   const toggleSection = (secId: string) => {
     setExpandedSections((prev) => ({
@@ -73,11 +88,25 @@ export default function UdemyCourseModal({
   };
 
   const handleEnroll = () => {
+    if (!isStudentLoggedIn()) {
+      setShowLoginModal(true);
+      return;
+    }
+    setShowRazorpayCheckout(true);
+  };
+
+  const handleLoginEnrollSuccess = (c: UdemyCourse, studentData: { name: string; phone: string }) => {
+    setShowLoginModal(false);
     setShowRazorpayCheckout(true);
   };
 
   const handleRazorpaySuccess = (info: RazorpayPaymentSuccessInfo) => {
-    enrollStudentAction(activeStudentId, course.id, 'self');
+    const studentPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+    const studentName = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_name') || 'Student' : 'Student';
+    const cleanPh = studentPhone.replace(/\D/g, '').slice(-10);
+    const stuId = cleanPh ? `msi-stu-${cleanPh.slice(-4)}` : activeStudentId;
+
+    enrollStudentAction(stuId, course.id, 'self', studentName, 'Purchased via Razorpay', cleanPh, studentName);
     setEnrolledNotice(true);
     if (onEnrollSuccess) {
       onEnrollSuccess(course);
@@ -427,14 +456,25 @@ export default function UdemyCourseModal({
 
                 {/* Action Buttons */}
                 <div className="space-y-2.5">
-                  <button
-                    type="button"
-                    onClick={handleEnroll}
-                    className="w-full py-3.5 px-6 rounded-xl bg-[#89190E] hover:bg-[#6e140b] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-[#89190E]/25 hover:shadow-xl hover:shadow-[#89190E]/35 active:scale-[0.98] cursor-pointer"
-                  >
-                    <span>Enroll Now (Instant Access)</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {isEnrolled ? (
+                    <button
+                      type="button"
+                      onClick={handleGoToCourse}
+                      className="w-full py-3.5 px-6 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                      <span>Already Enrolled • Launch Player</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleEnroll}
+                      className="w-full py-3.5 px-6 rounded-xl bg-[#89190E] hover:bg-[#6e140b] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-[#89190E]/25 hover:shadow-xl hover:shadow-[#89190E]/35 active:scale-[0.98] cursor-pointer"
+                    >
+                      <span>Enroll Now (Instant Access)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
 
                   <p className="text-[11px] text-center text-[#526174]">
                     30-Day Full Curriculum Guarantee • Lifetime Academic Access
@@ -506,6 +546,14 @@ export default function UdemyCourseModal({
         </div>
       )}
 
+      {/* Student Login Required to Purchase Modal */}
+      <StudentEnrollLoginModal
+        isOpen={showLoginModal}
+        course={course}
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={handleLoginEnrollSuccess}
+      />
+
       {/* Razorpay Test Environment Sandbox Checkout Modal */}
       {showRazorpayCheckout && (
         <RazorpayCheckoutModal
@@ -519,13 +567,13 @@ export default function UdemyCourseModal({
           }}
           studentName={
             typeof window !== 'undefined'
-              ? localStorage.getItem('msi_active_student_name') || 'Harshit (MSI Scholar)'
-              : 'Harshit (MSI Scholar)'
+              ? localStorage.getItem('msi_active_student_name') || 'Student'
+              : 'Student'
           }
           studentPhone={
             typeof window !== 'undefined'
-              ? localStorage.getItem('msi_active_student_phone') || '+91 97923 03434'
-              : '+91 97923 03434'
+              ? localStorage.getItem('msi_active_student_phone') || ''
+              : ''
           }
           onPaymentSuccess={handleRazorpaySuccess}
         />

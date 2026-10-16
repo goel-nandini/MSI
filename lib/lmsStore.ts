@@ -93,6 +93,8 @@ export interface TeacherApprovalRecord {
 
 export interface CourseEnrollment {
   studentId: string;
+  studentPhone?: string;
+  studentName?: string;
   courseId: string;
   enrolledAt: string;
   progressPercentage: number;
@@ -1252,16 +1254,22 @@ export function enrollStudentAction(
   courseId: string,
   assignedBy: 'self' | 'super-admin' | 'teacher' = 'self',
   assignedByName?: string,
-  assignedNote?: string
+  assignedNote?: string,
+  studentPhone?: string,
+  studentName?: string
 ): CourseEnrollment {
   const enrollments = getStoredEnrollments();
-  const existing = enrollments.find((e) => e.studentId === studentId && e.courseId === courseId);
+  const existing = enrollments.find(
+    (e) => (e.studentId === studentId || (studentPhone && e.studentPhone === studentPhone)) && e.courseId === courseId
+  );
   if (existing) {
     return existing;
   }
 
   const newEnrollment: CourseEnrollment = {
     studentId,
+    studentPhone,
+    studentName,
     courseId,
     enrolledAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
     progressPercentage: 0,

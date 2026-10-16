@@ -355,6 +355,8 @@ export default function StudentDashboardPage() {
 
           {activeTab === 'learning' && (
             <StudentLearningTab
+              studentId={student.id}
+              studentPhone={student.phone}
               videos={RECORDED_VIDEOS}
               notes={NOTES_PDFS}
               pyqs={PYQS_LIST}

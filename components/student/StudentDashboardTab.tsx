@@ -82,7 +82,15 @@ export default function StudentDashboardTab({
   const loadEnrolledUdemy = () => {
     const allCourses = getStoredCourses();
     const allEnrollments = getStoredEnrollments();
-    const studentEnrollments = allEnrollments.filter((e) => e.studentId === student.id);
+    const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+    const cleanPhone = (student.phone || storedPhone).replace(/\D/g, '').slice(-10);
+
+    const studentEnrollments = allEnrollments.filter((e) => {
+      if (e.studentId === student.id) return true;
+      if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+      if (!cleanPhone && (e.studentId === 'msi-stu-001' || student.id === 'msi-stu-001')) return true;
+      return false;
+    });
 
     const merged = studentEnrollments
       .map((enr) => {

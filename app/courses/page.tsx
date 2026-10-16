@@ -152,15 +152,34 @@ export default function CoursesPage() {
     }
   };
 
+  const isStudentLoggedIn = () => {
+    if (typeof window === 'undefined') return false;
+    const loggedIn = localStorage.getItem('msi_student_logged_in') === 'true';
+    const phone = localStorage.getItem('msi_active_student_phone');
+    return loggedIn && !!phone;
+  };
+
+  const isCourseEnrolled = (courseId: string) => {
+    const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+    const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+    const enrollments = getStoredEnrollments();
+    return enrollments.some((e) => {
+      if (e.courseId !== courseId) return false;
+      if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+      if (!cleanPhone && e.studentId === activeStudentId) return true;
+      return false;
+    });
+  };
+
   const handleInstantEnroll = (course: UdemyCourse, e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveUdemyModalCourse(course);
   };
 
-  const handleLoginEnrollSuccess = (course: UdemyCourse) => {
+  const handleLoginEnrollSuccess = (course: UdemyCourse, student: { name: string; phone: string }) => {
     setLoginModalCourse(null);
     loadLmsData();
-    showToast(`🎉 Logged in! You are now enrolled in ${course.title}. Available in your Student Portal.`);
+    setDirectCheckoutCourse(course);
   };
 
   // Filter Udemy courses
@@ -1319,17 +1338,32 @@ export default function CoursesPage() {
                       Curriculum
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDirectCheckoutCourse(course);
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer active:scale-98"
-                    >
-                      <span>Enroll Now</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    {isCourseEnrolled(course.id) ? (
+                      <Link
+                        href="/student/dashboard"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Enrolled</span>
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isStudentLoggedIn()) {
+                            setLoginModalCourse(course);
+                            return;
+                          }
+                          setDirectCheckoutCourse(course);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer active:scale-98"
+                      >
+                        <span>Enroll Now</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1487,12 +1521,26 @@ export default function CoursesPage() {
             price: directCheckoutCourse.price,
             originalPrice: directCheckoutCourse.originalPrice,
           }}
-          studentName="Harshit (MSI Scholar)"
-          studentPhone="+91 97923 03434"
+          studentName={
+            typeof window !== 'undefined'
+              ? localStorage.getItem('msi_active_student_name') || 'Student'
+              : 'Student'
+          }
+          studentPhone={
+            typeof window !== 'undefined'
+              ? localStorage.getItem('msi_active_student_phone') || ''
+              : ''
+          }
           onPaymentSuccess={(info) => {
-            enrollStudentAction(activeStudentId, directCheckoutCourse.id, 'self');
+            const studentPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+            const studentName = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_name') || 'Student' : 'Student';
+            const cleanPhone = studentPhone.replace(/\D/g, '').slice(-10);
+            const stuId = cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : activeStudentId;
+
+            enrollStudentAction(stuId, directCheckoutCourse.id, 'self', studentName, 'Purchased via Razorpay', cleanPhone, studentName);
             loadLmsData();
             showToast(`🎉 Enrolled in ${directCheckoutCourse.title}! Verified via ${info.receiptNumber}`);
+            setDirectCheckoutCourse(null);
           }}
         />
       )}
