@@ -815,7 +815,7 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
     id: 'fac-law-ekta',
     name: 'Dr. Ekta Gahlawat',
     email: 'drektagahlawat@msi.edu.in',
-    phone: '+91 98144 23001',
+    phone: '9792303434',
     avatarUrl: '/images/avatars/avatar-2.webp',
     department: 'School of Law & Legal Studies',
     designation: 'Faculty – Legal Studies, MSI Group of Institutes',
@@ -832,7 +832,10 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
     approvedBy: 'Governing Academic Directorate',
     assignedCourseIds: ['crs-msi-legstudies'],
     rating: 4.9,
-    studentsCount: 1680
+    studentsCount: 1680,
+    password: 'Faculty@MSI2026',
+    temporaryPassword: 'Faculty@MSI2026',
+    mustChangePassword: false,
   },
   // 2. Mr. Anurag Dwivedi (GK & Current Affairs)
   {
@@ -1098,7 +1101,27 @@ export function getStoredTeachers(): TeacherApprovalRecord[] {
       localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(INITIAL_TEACHERS));
       return INITIAL_TEACHERS;
     }
-    return JSON.parse(raw);
+    const teachers: TeacherApprovalRecord[] = JSON.parse(raw);
+    let changed = false;
+    const updated = teachers.map((t) => {
+      const isEkta = t.id === 'fac-law-ekta' || t.email.toLowerCase().includes('ekta');
+      const needsPhone = isEkta && (!t.phone || !t.phone.includes('9792303434'));
+      const needsPass = !t.password;
+      if (needsPhone || needsPass) {
+        changed = true;
+        return {
+          ...t,
+          phone: isEkta ? '9792303434' : t.phone,
+          password: t.password || 'Faculty@MSI2026',
+          temporaryPassword: t.temporaryPassword || 'Faculty@MSI2026',
+        };
+      }
+      return t;
+    });
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(updated));
+    }
+    return updated;
   } catch {
     return INITIAL_TEACHERS;
   }

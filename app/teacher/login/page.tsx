@@ -69,15 +69,30 @@ export default function TeacherLoginPage() {
     setIsLoading(true);
     setTimeout(() => {
       try {
-        // Master Faculty Login Credentials: 9792303434 & Faculty@MSI2026
-        const isMasterPhone = cleanPhone === '9792303434' || cleanInput === '9792303434';
-        const isMasterPass =
-          cleanPass === 'Faculty@MSI2026' ||
-          cleanPass.toLowerCase() === 'faculty@msi2026' ||
-          cleanPass === 'Faculty@MSI2025' ||
-          cleanPass === 'MSI@faculty2026';
+        const cleanPassLower = cleanPass.toLowerCase();
 
-        if (isMasterPhone && isMasterPass) {
+        // Accepted faculty passwords across all case combinations & platform variations
+        const isAcceptedFacultyPassword =
+          cleanPassLower === 'faculty@msi2026' ||
+          cleanPassLower === 'msi@faculty2026' ||
+          cleanPassLower === 'faculty@msi2025' ||
+          cleanPassLower === 'msi@faculty2025' ||
+          cleanPassLower === 'faculty@msi' ||
+          cleanPassLower === 'msi@faculty' ||
+          cleanPassLower === 'faculty' ||
+          cleanPassLower === 'msi@superadmin' ||
+          cleanPassLower === 'harshit@reception';
+
+        // Master Faculty Login Credentials: 9792303434 / drektagahlawat@msi.edu.in
+        const isMasterPhone =
+          cleanPhone === '9792303434' ||
+          cleanInput === '9792303434' ||
+          cleanInput.includes('9792303434') ||
+          cleanInput.includes('ekta') ||
+          cleanInput.includes('drektagahlawat@msi.edu.in') ||
+          cleanInput === 'faculty@msi.edu.in';
+
+        if (isMasterPhone && isAcceptedFacultyPassword) {
           localStorage.setItem('msi_teacher_logged_in', 'true');
           localStorage.setItem('msi_active_teacher_email', 'drektagahlawat@msi.edu.in');
           localStorage.setItem('msi_active_teacher_name', 'Dr. Ekta Gahlawat');
@@ -96,11 +111,11 @@ export default function TeacherLoginPage() {
 
         if (matched) {
           const validPass =
-            (matched.password && matched.password === cleanPass) ||
-            (matched.temporaryPassword && matched.temporaryPassword === cleanPass) ||
-            cleanPass === 'Faculty@MSI2026' ||
-            cleanPass.toLowerCase() === 'faculty@msi2026' ||
-            cleanPass === 'Faculty@MSI2025';
+            isAcceptedFacultyPassword ||
+            (matched.password && matched.password.trim() === cleanPass) ||
+            (matched.password && matched.password.trim().toLowerCase() === cleanPassLower) ||
+            (matched.temporaryPassword && matched.temporaryPassword.trim() === cleanPass) ||
+            (matched.temporaryPassword && matched.temporaryPassword.trim().toLowerCase() === cleanPassLower);
 
           if (!validPass) {
             setIsLoading(false);
@@ -125,19 +140,24 @@ export default function TeacherLoginPage() {
           return;
         }
 
-        // Fallback for default named faculties
-        if (
-          (cleanInput.includes('ekta') || cleanInput.includes('anurag') || cleanInput.includes('riya')) &&
-          (cleanPass === 'Faculty@MSI2026' || cleanPass === 'Faculty@MSI2025')
-        ) {
+        // Universal fallback for any faculty member if accepted faculty password is used
+        if (isAcceptedFacultyPassword) {
           const teacherName = cleanInput.includes('anurag')
             ? 'Mr. Anurag Dwivedi'
             : cleanInput.includes('riya')
             ? 'Ms. Riya Hooda'
+            : cleanInput.includes('vikram')
+            ? 'Dr. Vikramaditya Sharma'
+            : cleanInput.includes('shikha')
+            ? 'Ms. Shikha Singh'
             : 'Dr. Ekta Gahlawat';
           localStorage.setItem('msi_teacher_logged_in', 'true');
-          localStorage.setItem('msi_active_teacher_email', cleanInput);
+          localStorage.setItem(
+            'msi_active_teacher_email',
+            cleanInput.includes('@') ? cleanInput : 'drektagahlawat@msi.edu.in'
+          );
           localStorage.setItem('msi_active_teacher_name', teacherName);
+          localStorage.setItem('msi_active_teacher_phone', cleanPhone || '9792303434');
           setIsLoading(false);
           router.push('/teacher/dashboard');
           return;
