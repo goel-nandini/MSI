@@ -18,6 +18,7 @@ export interface AdminTransaction {
   razorpayPaymentId: string;
   razorpaySignature?: string;
   receiptNumber: string;
+  razorpayOrderId?: string;
 }
 
 const INITIAL_TRANSACTIONS: AdminTransaction[] = [
