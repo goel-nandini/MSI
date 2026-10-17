@@ -21,8 +21,12 @@ import {
   BookOpen,
   Award,
 } from 'lucide-react';
-import { TEACHER_PROFILES } from '@/components/teacher/data/teacherMockData';
-import { getStoredTeachers, saveStoredTeachers, TeacherApprovalRecord } from '@/lib/lmsStore';
+import {
+  getStoredTeachers,
+  saveStoredTeachers,
+  syncTeachersFromServer,
+  TeacherApprovalRecord,
+} from '@/lib/lmsStore';
 
 export default function TeacherLoginPage() {
   const router = useRouter();
@@ -54,7 +58,12 @@ export default function TeacherLoginPage() {
   const [changePassError, setChangePassError] = useState('');
   const [isChangingPass, setIsChangingPass] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Sync teachers from server on mount
+  React.useEffect(() => {
+    syncTeachersFromServer().catch(() => {});
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     if (!phoneOrEmail.trim() || !password.trim()) {
@@ -65,112 +74,144 @@ export default function TeacherLoginPage() {
     const cleanInput = phoneOrEmail.trim().toLowerCase();
     const cleanPhone = phoneOrEmail.replace(/\D/g, '').slice(-10);
     const cleanPass = password.trim();
+    const isEmailInput = cleanInput.includes('@');
 
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const cleanPassLower = cleanPass.toLowerCase();
+
+      // Accepted faculty passwords across all case combinations & platform variations
+      const isAcceptedFacultyPassword =
+        cleanPassLower === 'faculty@msi2026' ||
+        cleanPassLower === 'msi@faculty2026' ||
+        cleanPassLower === 'faculty@msi2025' ||
+        cleanPassLower === 'msi@faculty2025' ||
+        cleanPassLower === 'faculty@msi' ||
+        cleanPassLower === 'msi@faculty' ||
+        cleanPassLower === 'faculty' ||
+        cleanPassLower === 'msi@superadmin' ||
+        cleanPassLower === 'harshit@reception';
+
+      // 1. Primary: Server-side Authentication against data/teachers.json
       try {
-        const cleanPassLower = cleanPass.toLowerCase();
-
-        // Accepted faculty passwords across all case combinations & platform variations
-        const isAcceptedFacultyPassword =
-          cleanPassLower === 'faculty@msi2026' ||
-          cleanPassLower === 'msi@faculty2026' ||
-          cleanPassLower === 'faculty@msi2025' ||
-          cleanPassLower === 'msi@faculty2025' ||
-          cleanPassLower === 'faculty@msi' ||
-          cleanPassLower === 'msi@faculty' ||
-          cleanPassLower === 'faculty' ||
-          cleanPassLower === 'msi@superadmin' ||
-          cleanPassLower === 'harshit@reception';
-
-        // Master Faculty Login Credentials: 9792303434 / drektagahlawat@msi.edu.in
-        const isMasterPhone =
-          cleanPhone === '9792303434' ||
-          cleanInput === '9792303434' ||
-          cleanInput.includes('9792303434') ||
-          cleanInput.includes('ekta') ||
-          cleanInput.includes('drektagahlawat@msi.edu.in') ||
-          cleanInput === 'faculty@msi.edu.in';
-
-        if (isMasterPhone && isAcceptedFacultyPassword) {
-          localStorage.setItem('msi_teacher_logged_in', 'true');
-          localStorage.setItem('msi_active_teacher_email', 'drektagahlawat@msi.edu.in');
-          localStorage.setItem('msi_active_teacher_name', 'Dr. Ekta Gahlawat');
-          localStorage.setItem('msi_active_teacher_phone', '9792303434');
-          setIsLoading(false);
-          router.push('/teacher/dashboard');
-          return;
-        }
-
-        const stored = getStoredTeachers();
-        const matched = stored.find(
-          (t) =>
-            t.email.toLowerCase().trim() === cleanInput ||
-            (t.phone && t.phone.replace(/\D/g, '').slice(-10) === cleanPhone)
-        );
-
-        if (matched) {
-          const validPass =
-            isAcceptedFacultyPassword ||
-            (matched.password && matched.password.trim() === cleanPass) ||
-            (matched.password && matched.password.trim().toLowerCase() === cleanPassLower) ||
-            (matched.temporaryPassword && matched.temporaryPassword.trim() === cleanPass) ||
-            (matched.temporaryPassword && matched.temporaryPassword.trim().toLowerCase() === cleanPassLower);
-
-          if (!validPass) {
-            setIsLoading(false);
-            setErrorMessage('Invalid password for this faculty account. Please check credentials or contact Super Admin.');
-            return;
-          }
-
-          // Check if first-time login with temporary password
-          if (matched.mustChangePassword) {
-            setIsLoading(false);
-            setFirstTimeFaculty(matched);
-            setChangePassError('');
-            return;
+        const authRes = await fetch('/api/teacher/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: cleanInput, password: cleanPass }),
+        });
+        const authData = await authRes.json();
+        if (authData.success && authData.teacher) {
+          const authTeacher: TeacherApprovalRecord = authData.teacher;
+          // Synchronize locally
+          const stored = getStoredTeachers();
+          if (!stored.some((t) => t.id === authTeacher.id || t.email.toLowerCase() === authTeacher.email.toLowerCase())) {
+            saveStoredTeachers([authTeacher, ...stored]);
           }
 
           localStorage.setItem('msi_teacher_logged_in', 'true');
-          localStorage.setItem('msi_active_teacher_email', matched.email);
-          localStorage.setItem('msi_active_teacher_name', matched.name);
-          if (matched.phone) localStorage.setItem('msi_active_teacher_phone', matched.phone);
+          localStorage.setItem('msi_active_teacher_email', authTeacher.email);
+          localStorage.setItem('msi_active_teacher_name', authTeacher.name);
+          localStorage.setItem('msi_active_teacher_id', authTeacher.id);
+          if (authTeacher.phone) localStorage.setItem('msi_active_teacher_phone', authTeacher.phone);
+
           setIsLoading(false);
           router.push('/teacher/dashboard');
           return;
         }
-
-        // Universal fallback for any faculty member if accepted faculty password is used
-        if (isAcceptedFacultyPassword) {
-          const teacherName = cleanInput.includes('anurag')
-            ? 'Mr. Anurag Dwivedi'
-            : cleanInput.includes('riya')
-            ? 'Ms. Riya Hooda'
-            : cleanInput.includes('vikram')
-            ? 'Dr. Vikramaditya Sharma'
-            : cleanInput.includes('shikha')
-            ? 'Ms. Shikha Singh'
-            : 'Dr. Ekta Gahlawat';
-          localStorage.setItem('msi_teacher_logged_in', 'true');
-          localStorage.setItem(
-            'msi_active_teacher_email',
-            cleanInput.includes('@') ? cleanInput : 'drektagahlawat@msi.edu.in'
-          );
-          localStorage.setItem('msi_active_teacher_name', teacherName);
-          localStorage.setItem('msi_active_teacher_phone', cleanPhone || '9792303434');
-          setIsLoading(false);
-          router.push('/teacher/dashboard');
-          return;
-        }
-
-        setIsLoading(false);
-        setErrorMessage('Invalid credentials. Please verify your authorized mobile number or email and password.');
-      } catch (err) {
-        console.error(err);
-        setIsLoading(false);
-        setErrorMessage('Authentication error. Please try again.');
+      } catch (serverErr) {
+        console.warn('Server auth fallback to client store:', serverErr);
       }
-    }, 450);
+
+      // 2. Master Faculty Login Credentials: 9792303434 / drektagahlawat@msi.edu.in
+      const isMasterPhone =
+        cleanPhone === '9792303434' ||
+        cleanInput === '9792303434' ||
+        cleanInput.includes('9792303434') ||
+        cleanInput.includes('ekta') ||
+        cleanInput.includes('drektagahlawat@msi.edu.in') ||
+        cleanInput === 'faculty@msi.edu.in';
+
+      if (isMasterPhone && isAcceptedFacultyPassword) {
+        localStorage.setItem('msi_teacher_logged_in', 'true');
+        localStorage.setItem('msi_active_teacher_email', 'drektagahlawat@msi.edu.in');
+        localStorage.setItem('msi_active_teacher_name', 'Dr. Ekta Gahlawat');
+        localStorage.setItem('msi_active_teacher_phone', '9792303434');
+        localStorage.setItem('msi_active_teacher_id', 'fac-law-ekta');
+        setIsLoading(false);
+        router.push('/teacher/dashboard');
+        return;
+      }
+
+      // 3. Client LocalStorage Matching Fallback
+      const stored = getStoredTeachers();
+      const matched = stored.find((t) => {
+        const tEmail = (t.email || '').trim().toLowerCase();
+        const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+
+        if (isEmailInput) {
+          return tEmail === cleanInput;
+        }
+        if (cleanPhone.length >= 10 && tPhone === cleanPhone) {
+          return true;
+        }
+        return tEmail === cleanInput || t.name.trim().toLowerCase() === cleanInput;
+      });
+
+      if (matched) {
+        const validPass =
+          isAcceptedFacultyPassword ||
+          (matched.password && matched.password.trim() === cleanPass) ||
+          (matched.password && matched.password.trim().toLowerCase() === cleanPassLower) ||
+          (matched.temporaryPassword && matched.temporaryPassword.trim() === cleanPass) ||
+          (matched.temporaryPassword && matched.temporaryPassword.trim().toLowerCase() === cleanPassLower);
+
+        if (!validPass) {
+          setIsLoading(false);
+          setErrorMessage('Invalid password for this faculty account. Please check credentials or contact Super Admin.');
+          return;
+        }
+
+        // Direct Login Authorized
+        localStorage.setItem('msi_teacher_logged_in', 'true');
+        localStorage.setItem('msi_active_teacher_email', matched.email);
+        localStorage.setItem('msi_active_teacher_name', matched.name);
+        localStorage.setItem('msi_active_teacher_id', matched.id);
+        if (matched.phone) localStorage.setItem('msi_active_teacher_phone', matched.phone);
+        setIsLoading(false);
+        router.push('/teacher/dashboard');
+        return;
+      }
+
+      // 4. Universal fallback for any faculty member if accepted faculty password is used
+      if (isAcceptedFacultyPassword) {
+        const teacherName = cleanInput.includes('anurag')
+          ? 'Mr. Anurag Dwivedi'
+          : cleanInput.includes('riya')
+          ? 'Ms. Riya Hooda'
+          : cleanInput.includes('vikram')
+          ? 'Dr. Vikramaditya Sharma'
+          : cleanInput.includes('shikha')
+          ? 'Ms. Shikha Singh'
+          : 'Dr. Ekta Gahlawat';
+        localStorage.setItem('msi_teacher_logged_in', 'true');
+        localStorage.setItem(
+          'msi_active_teacher_email',
+          cleanInput.includes('@') ? cleanInput : 'drektagahlawat@msi.edu.in'
+        );
+        localStorage.setItem('msi_active_teacher_name', teacherName);
+        localStorage.setItem('msi_active_teacher_phone', cleanPhone || '9792303434');
+        setIsLoading(false);
+        router.push('/teacher/dashboard');
+        return;
+      }
+
+      setIsLoading(false);
+      setErrorMessage('Invalid credentials. Please verify your authorized mobile number or email and password.');
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+      setErrorMessage('Authentication error. Please try again.');
+    }
   };
 
   const handleFirstTimePasswordChange = (e: React.FormEvent) => {
@@ -635,7 +676,7 @@ export default function TeacherLoginPage() {
                     type="password"
                     required
                     value={confirmPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-type your new password"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                   />

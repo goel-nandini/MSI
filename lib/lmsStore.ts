@@ -1101,6 +1101,8 @@ export function getStoredTeachers(): TeacherApprovalRecord[] {
     const raw = localStorage.getItem(STORAGE_KEY_TEACHERS);
     if (!raw) {
       localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(INITIAL_TEACHERS));
+      // Trigger background sync from server
+      syncTeachersFromServer().catch(() => {});
       return INITIAL_TEACHERS;
     }
     const teachers: TeacherApprovalRecord[] = JSON.parse(raw);
@@ -1137,6 +1139,57 @@ export function saveStoredTeachers(teachers: TeacherApprovalRecord[]) {
   } catch (err) {
     console.error(err);
   }
+}
+
+/**
+ * Synchronize local storage teachers with server data/teachers.json
+ */
+export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]> {
+  if (typeof window === 'undefined') return INITIAL_TEACHERS;
+  try {
+    const res = await fetch('/api/admin/faculty', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.teachers)) {
+      const local = getStoredTeachers();
+      const map = new Map<string, TeacherApprovalRecord>();
+      // Put server teachers first
+      data.teachers.forEach((t: TeacherApprovalRecord) => map.set(t.id, t));
+      // Overlay any local updates
+      local.forEach((t) => {
+        if (!map.has(t.id)) {
+          map.set(t.id, t);
+        } else {
+          map.set(t.id, { ...map.get(t.id)!, ...t });
+        }
+      });
+      const merged = Array.from(map.values());
+      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(merged));
+      notifyLmsStoreChange();
+      return merged;
+    }
+  } catch (err) {
+    console.warn('Could not sync teachers from server:', err);
+  }
+  return getStoredTeachers();
+}
+
+/**
+ * Convert a stored TeacherApprovalRecord into a full TeacherProfile for dashboard rendering
+ */
+export function buildTeacherProfileFromRecord(rec: TeacherApprovalRecord) {
+  return {
+    id: rec.id,
+    name: rec.name,
+    title: rec.designation || 'Professor of Law & Faculty Jurist',
+    department: rec.department || 'School of Law & Judicial Studies',
+    email: rec.email,
+    phone: rec.phone || '+91 98000 00000',
+    avatarUrl: rec.avatarUrl || '/images/avatars/avatar-2.webp',
+    stream: (rec.stream as 'Law' | 'JEE') || 'Law',
+    cabin: 'Academic Block A, Jurists Chamber #104',
+    assignedCourseCodes: rec.assignedCourseIds || [],
+    assignedSubjects: [rec.specialization || 'Jurisprudence & Judicial Practice'],
+  };
 }
 
 // Enrollments

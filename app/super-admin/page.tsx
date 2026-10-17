@@ -57,6 +57,7 @@ import {
   Key,
   Printer,
   Globe,
+  ExternalLink,
 } from 'lucide-react';
 import {
   UdemyCourse,
@@ -190,12 +191,14 @@ export default function SuperAdminMasterDashboard() {
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
+  const [newTeacherPhone, setNewTeacherPhone] = useState('');
   const [newTeacherSpecialization, setNewTeacherSpecialization] = useState('Constitutional Law & Jurisprudence');
   const [newTeacherExp, setNewTeacherExp] = useState('8');
   const [newTeacherPassword, setNewTeacherPassword] = useState('MSI@Faculty2026');
   const [createdFacultyCredentials, setCreatedFacultyCredentials] = useState<{
     name: string;
     email: string;
+    phone?: string;
     pass: string;
   } | null>(null);
 
@@ -427,6 +430,19 @@ export default function SuperAdminMasterDashboard() {
     }
   }, []);
 
+  const fetchFaculty = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/faculty', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.teachers)) {
+        setTeachers(data.teachers);
+        saveStoredTeachers(data.teachers);
+      }
+    } catch (err) {
+      console.warn('Could not fetch faculty from disk:', err);
+    }
+  }, []);
+
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -434,15 +450,15 @@ export default function SuperAdminMasterDashboard() {
       fetchLeads(),
       fetchGallery(),
       fetchTransactions(),
+      fetchFaculty(),
       new Promise<void>((resolve) => {
-        setTeachers(getStoredTeachers());
         setCourses(getStoredCourses());
         setEnrollments(getStoredEnrollments());
         resolve();
       }),
     ]);
     setIsRefreshing(false);
-  }, [fetchStudents, fetchLeads, fetchGallery, fetchTransactions]);
+  }, [fetchStudents, fetchLeads, fetchGallery, fetchTransactions, fetchFaculty]);
 
 
   useEffect(() => {
@@ -778,7 +794,7 @@ export default function SuperAdminMasterDashboard() {
     showToast(`Courses assigned to ${assigningTeacher.name} successfully.`);
   };
 
-  const handleCreateTeacher = (e: React.FormEvent) => {
+  const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeacherName.trim() || !newTeacherEmail.trim()) {
       showToast('Please provide faculty name and email.');
@@ -786,46 +802,76 @@ export default function SuperAdminMasterDashboard() {
     }
 
     const tempPassword = newTeacherPassword.trim() || 'MSI@Faculty2026';
-    const current = getStoredTeachers();
-    const newFaculty: TeacherApprovalRecord = {
-      id: `fac-${Date.now()}`,
-      name: newTeacherName.trim(),
-      email: newTeacherEmail.trim(),
-      phone: '+91 98000 00000',
-      avatarUrl: '/images/faculty/faculty-1.webp',
-      department: 'School of Law & Judicial Studies',
-      designation: 'Professor of Law / Senior Jurist',
-      qualifications: 'LL.M / Ph.D in Law',
-      experienceYears: Number(newTeacherExp) || 8,
-      stream: 'Law',
-      bio: `Distinguished faculty member specializing in ${newTeacherSpecialization}.`,
-      specialization: newTeacherSpecialization,
-      sampleLectureTitle: `${newTeacherSpecialization} — Landmark Case Briefs`,
-      sampleLectureDuration: '45m',
-      status: 'approved',
-      assignedCourseIds: ['crs-udemy-pcsj', 'crs-udemy-clat'],
-      applicationDate: new Date().toISOString(),
-      approvedAt: new Date().toISOString(),
-      approvedBy: 'MSI Super Admin',
-      rating: 4.9,
-      studentsCount: 120,
-      password: tempPassword,
-      temporaryPassword: tempPassword,
-      mustChangePassword: true,
-    };
+    const cleanEmail = newTeacherEmail.trim().toLowerCase();
+    const cleanPhone = newTeacherPhone.trim() || '+91 98000 00000';
 
-    const updated = [newFaculty, ...current];
-    saveStoredTeachers(updated);
-    setTeachers(updated);
-    setShowAddTeacherModal(false);
-    setNewTeacherName('');
-    setNewTeacherEmail('');
-    setCreatedFacultyCredentials({
-      name: newFaculty.name,
-      email: newFaculty.email,
-      pass: tempPassword,
-    });
-    showToast(`Faculty member ${newTeacherName} created! Temporary password assigned.`);
+    try {
+      // 1. Persist to server disk data/teachers.json
+      const res = await fetch('/api/admin/faculty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTeacherName.trim(),
+          email: cleanEmail,
+          phone: cleanPhone,
+          specialization: newTeacherSpecialization.trim() || 'Constitutional Law & Jurisprudence',
+          experienceYears: Number(newTeacherExp) || 8,
+          password: tempPassword,
+          temporaryPassword: tempPassword,
+        }),
+      });
+
+      const data = await res.json();
+      const savedTeacher: TeacherApprovalRecord = data.success && data.teacher
+        ? data.teacher
+        : {
+            id: `fac-${Date.now()}`,
+            name: newTeacherName.trim(),
+            email: cleanEmail,
+            phone: cleanPhone,
+            avatarUrl: '/images/faculty/faculty-1.webp',
+            department: 'School of Law & Judicial Studies',
+            designation: 'Professor of Law / Senior Jurist',
+            qualifications: 'LL.M / Ph.D in Law',
+            experienceYears: Number(newTeacherExp) || 8,
+            stream: 'Law',
+            bio: `Distinguished faculty member specializing in ${newTeacherSpecialization}.`,
+            specialization: newTeacherSpecialization,
+            sampleLectureTitle: `${newTeacherSpecialization} — Landmark Case Briefs`,
+            sampleLectureDuration: '45m',
+            status: 'approved',
+            assignedCourseIds: ['crs-udemy-pcsj', 'crs-udemy-clat'],
+            applicationDate: new Date().toISOString(),
+            approvedAt: new Date().toISOString(),
+            approvedBy: 'MSI Super Admin',
+            rating: 4.9,
+            studentsCount: 120,
+            password: tempPassword,
+            temporaryPassword: tempPassword,
+            mustChangePassword: false,
+          };
+
+      const current = getStoredTeachers();
+      const updated = [
+        savedTeacher,
+        ...current.filter((t) => t.id !== savedTeacher.id && t.email.toLowerCase() !== cleanEmail),
+      ];
+      saveStoredTeachers(updated);
+      setTeachers(updated);
+      setShowAddTeacherModal(false);
+      setNewTeacherName('');
+      setNewTeacherEmail('');
+      setNewTeacherPhone('');
+      setCreatedFacultyCredentials({
+        name: savedTeacher.name,
+        email: savedTeacher.email,
+        phone: savedTeacher.phone,
+        pass: tempPassword,
+      });
+      showToast(`Faculty member ${savedTeacher.name} created! Authorized for immediate login.`);
+    } catch (err) {
+      showToast('Error saving faculty member.');
+    }
   };
 
   // 7. Create Course & Assign Faculty (LMS)
@@ -4276,14 +4322,27 @@ export default function SuperAdminMasterDashboard() {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                  Official Email *
+                  Official Email or Gmail ID *
                 </label>
                 <input
                   type="email"
                   required
                   value={newTeacherEmail}
                   onChange={(e) => setNewTeacherEmail(e.target.value)}
-                  placeholder="e.g. rohit.mehra@msi-institutes.edu.in"
+                  placeholder="e.g. rohit.law@gmail.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Mobile / Phone Number (Optional)
+                </label>
+                <input
+                  type="tel"
+                  value={newTeacherPhone}
+                  onChange={(e) => setNewTeacherPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
               </div>
@@ -4315,11 +4374,11 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
-              {/* Temporary Password Field */}
+              {/* Login Password Field */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold uppercase text-[#10233F]">
-                    Temporary Login Password *
+                    Faculty Login Password *
                   </label>
                   <button
                     type="button"
@@ -4342,7 +4401,7 @@ export default function SuperAdminMasterDashboard() {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
                 <p className="text-[10px] text-gray-500 mt-1">
-                  The faculty jurist will use this temporary password for their initial login. On first login, they will be required to change it to their private password.
+                  This faculty member can log in directly using this password and their Gmail ID at /teacher/login.
                 </p>
               </div>
 
@@ -4389,7 +4448,7 @@ export default function SuperAdminMasterDashboard() {
               Faculty Access Issued
             </h3>
             <p className="text-xs text-gray-500 mb-5">
-              Share these credentials with <strong>{createdFacultyCredentials.name}</strong>. Upon first login, they will be prompted to set their private password.
+              Faculty account for <strong>{createdFacultyCredentials.name}</strong> is live and authorized for immediate login.
             </p>
 
             <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-left space-y-3 mb-5 font-mono text-xs">
@@ -4398,36 +4457,52 @@ export default function SuperAdminMasterDashboard() {
                 <span className="text-[#10233F] font-bold select-all">/teacher/login</span>
               </div>
               <div>
-                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Official Email:</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Official Email / Gmail:</span>
                 <span className="text-[#10233F] font-bold select-all">{createdFacultyCredentials.email}</span>
               </div>
+              {createdFacultyCredentials.phone && (
+                <div>
+                  <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Mobile Phone:</span>
+                  <span className="text-[#10233F] font-bold select-all">{createdFacultyCredentials.phone}</span>
+                </div>
+              )}
               <div>
-                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Temporary Password:</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Password:</span>
                 <span className="text-[#89190E] font-bold select-all bg-white px-2 py-1 rounded-md border border-[#E8DCCB] inline-block mt-0.5">
                   {createdFacultyCredentials.pass}
                 </span>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/teacher/login\nEmail: ${createdFacultyCredentials.email}\nTemp Password: ${createdFacultyCredentials.pass}\nNote: Please set your new password on first login.`;
-                  navigator.clipboard.writeText(msg);
-                  showToast('Credentials copied to clipboard!');
-                }}
-                className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] hover:bg-[#FFF9EF] flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Copy className="w-4 h-4 text-[#89190E]" />
-                <span>Copy Credentials</span>
-              </button>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/teacher/login\nEmail: ${createdFacultyCredentials.email}\nPassword: ${createdFacultyCredentials.pass}\nStatus: Active & Authorized`;
+                    navigator.clipboard.writeText(msg);
+                    showToast('Credentials copied to clipboard!');
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] hover:bg-[#FFF9EF] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Copy className="w-4 h-4 text-[#89190E]" />
+                  <span>Copy Credentials</span>
+                </button>
+                <Link
+                  href="/teacher/login"
+                  target="_blank"
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <span>Open Login</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
               <button
                 type="button"
                 onClick={() => setCreatedFacultyCredentials(null)}
-                className="flex-1 py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold cursor-pointer"
+                className="w-full py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold cursor-pointer"
               >
-                Done
+                Close
               </button>
             </div>
           </div>
