@@ -1,5 +1,33 @@
 [
   {
+    "id": "fac-1792272628956",
+    "name": "Dr. Ananya Sharma",
+    "email": "ananya.sharma@gmail.com",
+    "phone": "+91 98765 43210",
+    "avatarUrl": "/images/avatars/avatar-2.webp",
+    "department": "School of Law & Judicial Studies",
+    "designation": "Professor of Law / Senior Jurist",
+    "qualifications": "LL.M / Ph.D in Law",
+    "experienceYears": 10,
+    "stream": "Law",
+    "bio": "Faculty specialist in Constitutional Law & Jurisprudence.",
+    "specialization": "Constitutional Law & Jurisprudence",
+    "sampleLectureTitle": "Constitutional Law & Jurisprudence — Landmark Case Briefs",
+    "sampleLectureDuration": "45 mins",
+    "status": "approved",
+    "applicationDate": "2026-10-17T21:30:28.957Z",
+    "approvedAt": "2026-10-17T21:30:28.957Z",
+    "approvedBy": "MSI Super Admin",
+    "assignedCourseIds": [
+      "crs-udemy-pcsj"
+    ],
+    "rating": 4.9,
+    "studentsCount": 120,
+    "password": "MSI@Faculty2026",
+    "temporaryPassword": "MSI@Faculty2026",
+    "mustChangePassword": false
+  },
+  {
     "id": "fac-law-ekta",
     "name": "Dr. Ekta Gahlawat",
     "email": "drektagahlawat@msi.edu.in",
