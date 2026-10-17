@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       teacher: result.teacher,
     });
   } catch (error: any) {
+    console.error('Teacher Auth Error:', error);
     return NextResponse.json(
       { success: false, message: error?.message || 'Authentication error' },
       { status: 500 }
