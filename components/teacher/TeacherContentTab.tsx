@@ -16,26 +16,49 @@ import {
   Download,
 } from 'lucide-react';
 import { TeacherContentItem, TeacherCourse } from './data/teacherMockData';
+import { UdemyCourse } from '@/lib/lmsStore';
 
 interface TeacherContentTabProps {
   content: TeacherContentItem[];
   courses: TeacherCourse[];
+  lmsCourses?: UdemyCourse[];
   stream: 'Law' | 'JEE';
   onTogglePublish: (contentId: string) => void;
+  onOpenLectureModal?: (course: UdemyCourse) => void;
 }
 
 export default function TeacherContentTab({
   content,
   courses,
+  lmsCourses = [],
   stream,
   onTogglePublish,
+  onOpenLectureModal,
 }: TeacherContentTabProps) {
   const [selectedCategory, setSelectedCategory] = useState<
     'All' | 'Video' | 'Notes' | 'PYQ' | 'Assignment' | 'Reference'
   >('All');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>('All');
 
-  const filteredContent = content.filter((item) => {
+  // Also convert LMS lectures to content items
+  const dynamicLmsLectures: TeacherContentItem[] = lmsCourses.flatMap((crs) => {
+    const lecs = crs.sections ? crs.sections.flatMap((s) => s.lectures) : [];
+    return lecs.map((l) => ({
+      id: l.id,
+      title: l.title,
+      courseCode: crs.title.split(':')[0].trim().slice(0, 18),
+      category: 'Video' as const,
+      uploadDate: crs.updatedDate || 'Session 2026',
+      sizeOrDuration: l.duration,
+      downloadCount: 38,
+      isPublished: true,
+      stream: 'Law' as const,
+    }));
+  });
+
+  const allCombinedContent = [...dynamicLmsLectures, ...content];
+
+  const filteredContent = allCombinedContent.filter((item) => {
     if (selectedCategory !== 'All' && item.category !== selectedCategory) return false;
     if (selectedCourseFilter !== 'All' && item.courseCode !== selectedCourseFilter) return false;
     return true;
@@ -60,11 +83,17 @@ export default function TeacherContentTab({
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => alert('Add Content Dialog: Upload MP4 Lecture, PDF Digest, or PYQ Solutions...')}
-              className="px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 shadow-md shadow-[#89190E]/20 transition-all"
+              onClick={() => {
+                if (lmsCourses.length > 0 && onOpenLectureModal) {
+                  onOpenLectureModal(lmsCourses[0]);
+                } else {
+                  alert('Please select an assigned course to upload lecture materials.');
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 shadow-md shadow-[#89190E]/20 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Upload New Material</span>
+              <span>+ Add Video Lecture / Material</span>
             </button>
           </div>
         </div>

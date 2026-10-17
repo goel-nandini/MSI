@@ -42,6 +42,7 @@ interface UdemyPlayerModalProps {
   onClose: () => void;
   studentId?: string;
   studentName?: string;
+  initialLectureIndex?: number;
 }
 
 interface PersonalNote {
@@ -67,6 +68,7 @@ export default function UdemyPlayerModal({
   onClose,
   studentId = 'msi-stu-001',
   studentName = 'MSI Student',
+  initialLectureIndex = 0,
 }: UdemyPlayerModalProps) {
   // Flatten lectures for easy navigation
   const allLectures: { lecture: UdemyLecture; sectionTitle: string }[] = [];
@@ -78,7 +80,14 @@ export default function UdemyPlayerModal({
     });
   }
 
-  const [currentLectureIndex, setCurrentLectureIndex] = useState(0);
+  const [currentLectureIndex, setCurrentLectureIndex] = useState(initialLectureIndex || 0);
+
+  useEffect(() => {
+    if (typeof initialLectureIndex === 'number' && initialLectureIndex >= 0) {
+      setCurrentLectureIndex(initialLectureIndex);
+    }
+  }, [initialLectureIndex, course?.id]);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'qa' | 'resources'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);

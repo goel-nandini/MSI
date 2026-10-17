@@ -47,7 +47,7 @@ interface StudentLearningTabProps {
   studentPhone?: string;
   onPlayVideo: (video: RecordedVideo) => void;
   onSubmitAssignment: (assignment: AssignmentItem) => void;
-  onOpenUdemyCourse?: (course: UdemyCourse) => void;
+  onOpenUdemyCourse?: (course: UdemyCourse, lectureIndex?: number) => void;
 }
 
 export default function StudentLearningTab({
@@ -93,6 +93,32 @@ export default function StudentLearningTab({
         return { course: found, enrollment: enr };
       })
       .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
+
+    // Ensure all registered students under Dr. Ekta Gahlawat / Ekta Gehlot or free MSI courses have access
+    allCourses.forEach((crs) => {
+      const alreadyIn = merged.some((m) => m.course.id === crs.id);
+      const isEktaCourse =
+        crs.instructorId === 'fac-law-ekta' ||
+        crs.instructorName.toLowerCase().includes('ekta') ||
+        crs.instructorName.toLowerCase().includes('gehlot') ||
+        crs.instructorName.toLowerCase().includes('gahlawat');
+
+      if (!alreadyIn && (isEktaCourse || crs.isFreeForMsiStudents)) {
+        const autoEnrollment: CourseEnrollment = {
+          studentId: studentId || (cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : 'msi-stu-001'),
+          studentPhone: cleanPhone,
+          courseId: crs.id,
+          enrolledAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+          progressPercentage: 0,
+          completedLectureIds: [],
+          assignedBy: 'super-admin',
+          assignedByName: crs.instructorName,
+          assignedNote: `Assigned under ${crs.instructorName} curriculum.`,
+          certificateIssued: false,
+        };
+        merged.push({ course: crs, enrollment: autoEnrollment });
+      }
+    });
 
     setEnrolledUdemy(merged);
   };
@@ -301,26 +327,59 @@ export default function StudentLearningTab({
                     </div>
                   </div>
 
-                  {/* Modules Preview List */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {course.sections.slice(0, 3).map((sec) => (
-                      <div
-                        key={sec.id}
-                        onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course)}
-                        className="p-3.5 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] transition-colors cursor-pointer group"
+                  {/* Sequential Lectures Roster */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-serif font-bold text-[#10233F] flex items-center space-x-1.5">
+                        <Video className="w-3.5 h-3.5 text-[#89190E]" />
+                        <span>Curriculum Lectures Sequence ({course.sections ? course.sections.flatMap((s) => s.lectures).length : 0} Lectures):</span>
+                      </span>
+                      <button
+                        onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course, 0)}
+                        className="text-[11px] font-bold text-[#89190E] hover:underline cursor-pointer"
                       >
-                        <span className="text-[10px] font-mono text-[#89190E] font-bold uppercase block">
-                          {sec.lectures.length} Lectures • {sec.duration}
-                        </span>
-                        <h5 className="font-serif font-bold text-xs text-[#10233F] group-hover:text-[#89190E] transition-colors mt-1 line-clamp-1">
-                          {sec.title}
-                        </h5>
-                        <div className="mt-2 flex items-center justify-between text-[11px] text-[#526174]">
-                          <span>Click to launch</span>
-                          <Play className="w-3 h-3 text-[#89190E]" />
-                        </div>
-                      </div>
-                    ))}
+                        Play All Sequential Lectures →
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {(course.sections ? course.sections.flatMap((s) => s.lectures) : []).map((lec, idx) => {
+                        const isDone = enrollment.completedLectureIds.includes(lec.id);
+                        return (
+                          <div
+                            key={lec.id}
+                            onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course, idx)}
+                            className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] transition-all cursor-pointer group flex items-start justify-between gap-2 shadow-2xs"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center space-x-1.5 mb-1">
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-[#FFF3DD] text-[#89190E]">
+                                  {/^lecture\s*\d+/i.test(lec.title) ? lec.title.split(':')[0] : `Lecture ${idx + 1}`}
+                                </span>
+                                {isDone && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
+                                    Done
+                                  </span>
+                                )}
+                              </div>
+                              <h5 className="font-serif font-bold text-xs text-[#10233F] group-hover:text-[#89190E] transition-colors line-clamp-1">
+                                {lec.title}
+                              </h5>
+                              <span className="text-[10px] text-gray-500 font-mono mt-0.5 block">
+                                ⏱ {lec.duration}
+                              </span>
+                            </div>
+
+                            <button
+                              className="p-1.5 rounded-xl bg-[#89190E]/10 group-hover:bg-[#89190E] group-hover:text-white text-[#89190E] transition-colors mt-0.5 shrink-0"
+                              title="Play Video Lecture"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               );

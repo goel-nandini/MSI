@@ -192,6 +192,7 @@ export default function StudentDashboardPage() {
   const [activeReceipt, setActiveReceipt] = useState<FeeTransaction | null>(null);
   const [activeAssignmentSubmit, setActiveAssignmentSubmit] = useState<AssignmentItem | null>(null);
   const [activeUdemyCourse, setActiveUdemyCourse] = useState<UdemyCourse | null>(null);
+  const [activeLectureIndex, setActiveLectureIndex] = useState<number>(0);
 
   // Logout
   const handleLogout = () => {
@@ -342,7 +343,10 @@ export default function StudentDashboardPage() {
               tests={tests}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onStartTest={(test) => setActiveTimedTest(test)}
-              onOpenUdemyCourse={(course) => setActiveUdemyCourse(course)}
+              onOpenUdemyCourse={(course, lectureIndex = 0) => {
+                setActiveUdemyCourse(course);
+                setActiveLectureIndex(lectureIndex);
+              }}
             />
           )}
 
@@ -363,7 +367,10 @@ export default function StudentDashboardPage() {
               assignments={assignments}
               onPlayVideo={(v) => setActiveVideo(v)}
               onSubmitAssignment={(a) => setActiveAssignmentSubmit(a)}
-              onOpenUdemyCourse={(course) => setActiveUdemyCourse(course)}
+              onOpenUdemyCourse={(course, lectureIndex = 0) => {
+                setActiveUdemyCourse(course);
+                setActiveLectureIndex(lectureIndex);
+              }}
             />
           )}
 
@@ -437,6 +444,7 @@ export default function StudentDashboardPage() {
           onClose={() => setActiveUdemyCourse(null)}
           studentId={student.id}
           studentName={student.name}
+          initialLectureIndex={activeLectureIndex}
         />
       )}
     </div>

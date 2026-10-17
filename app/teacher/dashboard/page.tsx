@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherHeader from '@/components/teacher/TeacherHeader';
 import TeacherSidebar, { TeacherModuleTab } from '@/components/teacher/TeacherSidebar';
@@ -14,6 +14,13 @@ import CreateTestModal from '@/components/teacher/CreateTestModal';
 import ScheduleClassModal from '@/components/teacher/ScheduleClassModal';
 import MarkAttendanceModal from '@/components/teacher/MarkAttendanceModal';
 import ScheduleOneToOneModal from '@/components/teacher/ScheduleOneToOneModal';
+import TeacherLectureModal from '@/components/teacher/TeacherLectureModal';
+import {
+  getStoredCourses,
+  getStoredTeachers,
+  UdemyCourse,
+  LMS_SYNC_EVENT,
+} from '@/lib/lmsStore';
 import {
   TEACHER_PROFILES,
   ALL_TEACHER_COURSES,
@@ -36,10 +43,14 @@ import {
 export default function TeacherDashboardPage() {
   const router = useRouter();
 
-  // Active Teacher Profile (Defaults to Law Faculty Dr. Vikramaditya Sharma)
+  // Active Teacher Profile (Defaults to Law Faculty Dr. Ekta Gahlawat)
   const [activeTeacher, setActiveTeacher] = useState<TeacherProfile>(TEACHER_PROFILES[0]);
   const [activeTab, setActiveTab] = useState<TeacherModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Real LMS dynamic courses assigned by Super Admin
+  const [lmsCourses, setLmsCourses] = useState<UdemyCourse[]>([]);
+  const [selectedCourseForLectures, setSelectedCourseForLectures] = useState<UdemyCourse | null>(null);
 
   // Dynamic state repositories
   const [contentList, setContentList] = useState<TeacherContentItem[]>(ALL_TEACHER_CONTENT);
@@ -53,6 +64,77 @@ export default function TeacherDashboardPage() {
   const [isScheduleClassOpen, setIsScheduleClassOpen] = useState(false);
   const [activeAttendanceSession, setActiveAttendanceSession] = useState<TeacherClassSchedule | null>(null);
   const [isScheduleOneToOneOpen, setIsScheduleOneToOneOpen] = useState(false);
+
+  // Synchronize active teacher from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase();
+      const storedName = (localStorage.getItem('msi_active_teacher_name') || '').toLowerCase();
+      const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '');
+
+      const matched = TEACHER_PROFILES.find((t) => {
+        if (storedEmail && t.email.toLowerCase() === storedEmail) return true;
+        if (storedName && t.name.toLowerCase().includes(storedName)) return true;
+        if (storedPhone && t.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
+        if (
+          storedEmail.includes('ekta') ||
+          storedName.includes('ekta') ||
+          storedPhone === '9792303434'
+        ) {
+          return t.id.includes('ekta') || t.name.toLowerCase().includes('ekta');
+        }
+        return false;
+      });
+
+      if (matched) {
+        setActiveTeacher(matched);
+      }
+    }
+  }, []);
+
+  // Synchronize LMS Courses assigned to this teacher from central store
+  const loadLmsCourses = () => {
+    const all = getStoredCourses();
+    const storedTeachers = getStoredTeachers();
+    const teacherRec = storedTeachers.find(
+      (t) =>
+        t.id === activeTeacher.id ||
+        t.email.toLowerCase() === activeTeacher.email.toLowerCase() ||
+        (t.name.toLowerCase().includes('ekta') && activeTeacher.name.toLowerCase().includes('ekta'))
+    );
+    const assignedIds = teacherRec?.assignedCourseIds || [];
+
+    const assigned = all.filter((c) => {
+      if (assignedIds.includes(c.id)) return true;
+      if (c.instructorId === activeTeacher.id) return true;
+      if (c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
+      if (activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
+      if (
+        (c.instructorName.toLowerCase().includes('ekta') ||
+          c.instructorName.toLowerCase().includes('gahlawat') ||
+          c.instructorName.toLowerCase().includes('gehlot')) &&
+        (activeTeacher.name.toLowerCase().includes('ekta') ||
+          activeTeacher.name.toLowerCase().includes('gahlawat') ||
+          activeTeacher.name.toLowerCase().includes('gehlot'))
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    setLmsCourses(assigned);
+  };
+
+  useEffect(() => {
+    loadLmsCourses();
+    const handleSync = () => loadLmsCourses();
+    window.addEventListener(LMS_SYNC_EVENT, handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener(LMS_SYNC_EVENT, handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [activeTeacher.id, activeTeacher.name]);
 
   // --------------------------------------------------------------------------
   // ROLE-BASED DATA ISOLATION ENFORCEMENT:
@@ -158,11 +240,13 @@ export default function TeacherDashboardPage() {
             <TeacherDashboardTab
               teacher={activeTeacher}
               courses={filteredCourses}
+              lmsCourses={lmsCourses}
               schedules={filteredSchedules}
               assessments={filteredAssessments}
               totalStudents={filteredStudents.length}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onLaunchAttendance={(session) => setActiveAttendanceSession(session)}
+              onOpenLectureModal={(crs) => setSelectedCourseForLectures(crs)}
             />
           )}
 
@@ -170,8 +254,10 @@ export default function TeacherDashboardPage() {
             <TeacherContentTab
               content={filteredContent}
               courses={filteredCourses}
+              lmsCourses={lmsCourses}
               stream={activeTeacher.stream}
               onTogglePublish={handleTogglePublish}
+              onOpenLectureModal={(crs) => setSelectedCourseForLectures(crs)}
             />
           )}
 
@@ -218,6 +304,21 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* 3. Interactive Modals */}
+      {/* Teacher Lecture Studio Modal (Lecture 1, Lecture 2, etc.) */}
+      {selectedCourseForLectures && (
+        <TeacherLectureModal
+          course={selectedCourseForLectures}
+          isOpen={!!selectedCourseForLectures}
+          onClose={() => setSelectedCourseForLectures(null)}
+          onLectureSaved={() => {
+            loadLmsCourses();
+            const refreshed = getStoredCourses().find((c) => c.id === selectedCourseForLectures.id);
+            if (refreshed) setSelectedCourseForLectures(refreshed);
+          }}
+          facultyName={activeTeacher.name}
+        />
+      )}
+
       {/* Create Test Modal */}
       {isCreateTestOpen && (
         <CreateTestModal

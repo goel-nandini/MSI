@@ -72,6 +72,8 @@ import {
   approveTeacherAction,
   rejectTeacherAction,
   assignCoursesToTeacherAction,
+  assignCourseToFacultyAction,
+  findTeacherByIdOrName,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
@@ -220,6 +222,13 @@ export default function SuperAdminMasterDashboard() {
   const [newLectureDuration, setNewLectureDuration] = useState('45 mins');
   const [newLectureSummary, setNewLectureSummary] = useState('');
   const [isSubmittingLecture, setIsSubmittingLecture] = useState(false);
+
+  // 10b. Assign Faculty to Course Modal State
+  const [selectedCourseForFacultyAssign, setSelectedCourseForFacultyAssign] = useState<UdemyCourse | null>(null);
+  const [assignFacultyTargetTeacherId, setAssignFacultyTargetTeacherId] = useState('');
+  const [assignFacultyCustomName, setAssignFacultyCustomName] = useState('');
+  const [assignFacultyAutoEnroll, setAssignFacultyAutoEnroll] = useState(true);
+  const [isSubmittingFacultyAssign, setIsSubmittingFacultyAssign] = useState(false);
 
   // 11. Payment Gateway Diagnostics & Process State
   const [isTestingGateway, setIsTestingGateway] = useState(false);
@@ -997,6 +1006,44 @@ export default function SuperAdminMasterDashboard() {
       showToast('Error adding recorded lecture.');
     } finally {
       setIsSubmittingLecture(false);
+    }
+  };
+
+  // 8b. Assign Faculty to Course
+  const handleAssignCourseToFaculty = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCourseForFacultyAssign) return;
+
+    const identifier = assignFacultyCustomName.trim() || assignFacultyTargetTeacherId;
+    if (!identifier) {
+      showToast('Please select or specify a faculty member.');
+      return;
+    }
+
+    setIsSubmittingFacultyAssign(true);
+    try {
+      const res = assignCourseToFacultyAction(
+        selectedCourseForFacultyAssign.id,
+        identifier,
+        assignFacultyAutoEnroll
+      );
+
+      if (res) {
+        setCourses(getStoredCourses());
+        setTeachers(getStoredTeachers());
+        showToast(
+          `Course "${selectedCourseForFacultyAssign.title}" successfully assigned to ${res.teacher.name}! Enrolled students now have immediate access.`
+        );
+        setSelectedCourseForFacultyAssign(null);
+        setAssignFacultyCustomName('');
+      } else {
+        showToast(`Faculty member "${identifier}" not found in roster.`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error assigning course to faculty.');
+    } finally {
+      setIsSubmittingFacultyAssign(false);
     }
   };
 
@@ -2415,29 +2462,69 @@ export default function SuperAdminMasterDashboard() {
                       </p>
                       <div className="p-3 rounded-xl bg-[#F0F3FF] text-[11px] space-y-1 text-[#58413D]">
                         <div>
-                          <strong>Instructor:</strong> {crs.instructorName}
+                          <strong>Assigned Faculty:</strong> <span className="text-[#89190E] font-bold">{crs.instructorName}</span>
                         </div>
                         <div>
-                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules • {crs.totalDuration}
+                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules • {crs.totalDuration} • {crs.totalLectures || 0} Lectures
                         </div>
                         <div>
                           <strong>Rating:</strong> ⭐ {crs.rating} ({crs.reviewCount} reviews)
                         </div>
+
+                        {/* Recent Sequential Lectures Preview */}
+                        {crs.sections && crs.sections[0]?.lectures?.length > 0 && (
+                          <div className="pt-2 border-t border-[#E8EEFF]/80 mt-2 space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase text-[#071B37] block">
+                              Lectures Published ({crs.sections[0].lectures.length}):
+                            </span>
+                            <div className="space-y-0.5">
+                              {crs.sections[0].lectures.slice(0, 3).map((lec) => (
+                                <div key={lec.id} className="flex items-center justify-between text-[10px] text-gray-600 truncate">
+                                  <span className="truncate pr-1">
+                                    • {lec.title}
+                                  </span>
+                                  <span className="font-mono text-[9px] text-gray-400 shrink-0">{lec.duration}</span>
+                                </div>
+                              ))}
+                              {crs.sections[0].lectures.length > 3 && (
+                                <span className="text-[9px] text-[#89190E] font-semibold block">
+                                  +{crs.sections[0].lectures.length - 3} more lectures
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-gray-100 mt-4 flex items-center justify-between text-xs gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedCourseForLecture(crs);
-                          setNewLectureTitle('');
-                          setNewLectureVideoUrl('');
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>+ Add Lecture</span>
-                      </button>
+                    <div className="pt-3 border-t border-gray-100 mt-4 flex flex-wrap items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setSelectedCourseForFacultyAssign(crs);
+                            setAssignFacultyTargetTeacherId(crs.instructorId || teachers[0]?.id || '');
+                            setAssignFacultyCustomName('');
+                            setAssignFacultyAutoEnroll(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#F0F3FF] hover:bg-[#E8EEFF] text-[#071B37] font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                          title="Assign this course to a specific faculty member by name"
+                        >
+                          <UserCheck className="w-3.5 h-3.5 text-[#89190E]" />
+                          <span>Assign Faculty</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedCourseForLecture(crs);
+                            setNewLectureTitle('');
+                            setNewLectureVideoUrl('');
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Add Lecture</span>
+                        </button>
+                      </div>
 
                       <Link
                         href={`/courses`}
@@ -4037,6 +4124,112 @@ export default function SuperAdminMasterDashboard() {
                 <span>Save Course Assignments</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7b. Assign Faculty to Course Modal */}
+      {selectedCourseForFacultyAssign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+            <button
+              onClick={() => setSelectedCourseForFacultyAssign(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Assign Course to Faculty Member
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Select faculty by name to lead this curriculum program.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAssignCourseToFaculty} className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-[#FFF9EF] border border-[#EFC988] text-[#89190E] space-y-1">
+                <div className="font-bold text-xs">{selectedCourseForFacultyAssign.title}</div>
+                <div className="text-[11px] text-[#526174]">
+                  Current Instructor: <strong>{selectedCourseForFacultyAssign.instructorName}</strong>
+                </div>
+              </div>
+
+              {/* Faculty Select Dropdown */}
+              <div>
+                <label className="block font-bold uppercase text-[10px] text-gray-600 mb-1">
+                  Select Faculty Instructor *
+                </label>
+                <select
+                  value={assignFacultyTargetTeacherId}
+                  onChange={(e) => setAssignFacultyTargetTeacherId(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-gray-200 bg-white font-semibold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                >
+                  <option value="">-- Choose from Approved Faculty --</option>
+                  {teachers.map((tc) => (
+                    <option key={tc.id} value={tc.id}>
+                      {tc.name} ({tc.department || tc.stream})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Or Specify Faculty by Name */}
+              <div>
+                <label className="block font-bold uppercase text-[10px] text-gray-600 mb-1">
+                  Or Type Faculty Name (e.g. Dr. Ekta Gehlot / Dr. Ekta Gahlawat)
+                </label>
+                <input
+                  type="text"
+                  value={assignFacultyCustomName}
+                  onChange={(e) => setAssignFacultyCustomName(e.target.value)}
+                  placeholder="e.g. Dr. Ekta Gahlawat"
+                  className="w-full p-2.5 rounded-xl border border-gray-200 bg-white text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              {/* Auto-enroll Registered Students */}
+              <div className="p-3 rounded-xl bg-[#F0F3FF] border border-[#E8EEFF]">
+                <label className="flex items-start space-x-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignFacultyAutoEnroll}
+                    onChange={(e) => setAssignFacultyAutoEnroll(e.target.checked)}
+                    className="rounded accent-[#89190E] mt-0.5"
+                  />
+                  <div className="text-[11px] text-[#071B37]">
+                    <strong className="block font-bold">Auto-enroll Registered Students</strong>
+                    <span className="text-gray-500 text-[10px]">
+                      Registered scholars (Harshit, Ankit, Aarav, Meera, etc.) under this faculty will immediately see this course and all uploaded video lectures.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourseForFacultyAssign(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingFacultyAssign}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isSubmittingFacultyAssign ? 'Assigning...' : 'Confirm Assignment'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

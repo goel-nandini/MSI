@@ -100,6 +100,32 @@ export default function StudentDashboardTab({
       })
       .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
 
+    // Ensure all registered students under Dr. Ekta Gahlawat / Ekta Gehlot or free MSI courses have access
+    allCourses.forEach((crs) => {
+      const alreadyIn = merged.some((m) => m.course.id === crs.id);
+      const isEktaCourse =
+        crs.instructorId === 'fac-law-ekta' ||
+        crs.instructorName.toLowerCase().includes('ekta') ||
+        crs.instructorName.toLowerCase().includes('gehlot') ||
+        crs.instructorName.toLowerCase().includes('gahlawat');
+
+      if (!alreadyIn && (isEktaCourse || crs.isFreeForMsiStudents)) {
+        const autoEnrollment: CourseEnrollment = {
+          studentId: student.id || (cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : 'msi-stu-001'),
+          studentPhone: cleanPhone,
+          courseId: crs.id,
+          enrolledAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+          progressPercentage: 0,
+          completedLectureIds: [],
+          assignedBy: 'super-admin',
+          assignedByName: crs.instructorName,
+          assignedNote: `Assigned under ${crs.instructorName} curriculum.`,
+          certificateIssued: false,
+        };
+        merged.push({ course: crs, enrollment: autoEnrollment });
+      }
+    });
+
     setEnrolledUdemyData(merged);
   };
 

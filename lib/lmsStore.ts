@@ -1241,8 +1241,46 @@ export function assignCoursesToTeacherAction(teacherId: string, courseIds: strin
       return c;
     });
     saveStoredCourses(updatedCourses);
+
+    // Auto-enroll registered students under this faculty's assigned courses
+    const targetStudents = [
+      { id: 'msi-stu-001', name: 'Aarav Sharma', phone: '9811234567' },
+      { id: 'msi-stu-002', name: 'Meera Sen', phone: '9814423001' },
+      { id: 'staff-harshit', name: 'Harshit', phone: '9792303434' },
+      { id: 'msi-stu-ankit', name: 'Ankit Sir', phone: '9876543210' }
+    ];
+
+    if (typeof window !== 'undefined') {
+      const activePhone = localStorage.getItem('msi_active_student_phone');
+      const activeName = localStorage.getItem('msi_active_student_name');
+      if (activePhone) {
+        const clean = activePhone.replace(/\D/g, '').slice(-10);
+        if (!targetStudents.some((s) => s.phone === clean)) {
+          targetStudents.push({
+            id: `msi-stu-${clean.slice(-4)}`,
+            name: activeName || `Student ${clean.slice(-4)}`,
+            phone: clean
+          });
+        }
+      }
+    }
+
+    courseIds.forEach((cid) => {
+      targetStudents.forEach((stu) => {
+        enrollStudentAction(
+          stu.id,
+          cid,
+          'super-admin',
+          teacher.name,
+          `Assigned under faculty ${teacher.name} curriculum.`,
+          stu.phone,
+          stu.name
+        );
+      });
+    });
   }
 
+  notifyLmsStoreChange();
   return updatedTeachers;
 }
 
@@ -1334,3 +1372,225 @@ export function toggleLectureCompletionAction(
   saveStoredEnrollments(updated);
   return updated;
 }
+
+/**
+ * Helper to match teacher by ID, email, or partial name (e.g. "Ekta Gehlot", "Ekta Gahlawat", "vikram", etc.)
+ */
+export function findTeacherByIdOrName(teachers: TeacherApprovalRecord[], query: string): TeacherApprovalRecord | undefined {
+  if (!query) return undefined;
+  const q = query.trim().toLowerCase();
+  return teachers.find((t) => {
+    const name = t.name.toLowerCase();
+    const email = t.email.toLowerCase();
+    const id = t.id.toLowerCase();
+    if (id === q || email === q || name === q) return true;
+    if (name.includes(q) || q.includes(name)) return true;
+    // Specific aliases (e.g., user said "Ekta Gehlot" or "Ekta Gahlawat")
+    if (
+      (q.includes('ekta') || q.includes('gehlot') || q.includes('gahlawat')) &&
+      (name.includes('ekta') || name.includes('gahlawat') || email.includes('ekta'))
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
+
+/**
+ * Super Admin assigns a specific course to a faculty by name or ID,
+ * and auto-enrolls registered students so it immediately reflects in both portals.
+ */
+export function assignCourseToFacultyAction(
+  courseId: string,
+  facultyIdentifier: string,
+  autoEnrollStudents: boolean = true
+) {
+  const teachers = getStoredTeachers();
+  const teacher = findTeacherByIdOrName(teachers, facultyIdentifier);
+  if (!teacher) {
+    console.warn(`[LMS] Teacher not found for identifier: ${facultyIdentifier}`);
+    return null;
+  }
+
+  // 1. Update teacher's assignedCourseIds
+  const updatedTeachers = teachers.map((t) => {
+    if (t.id === teacher.id) {
+      const existing = t.assignedCourseIds || [];
+      const assigned = existing.includes(courseId) ? existing : [...existing, courseId];
+      return {
+        ...t,
+        assignedCourseIds: assigned
+      };
+    }
+    return t;
+  });
+  saveStoredTeachers(updatedTeachers);
+
+  // 2. Update course instructor details
+  const courses = getStoredCourses();
+  const updatedCourses = courses.map((c) => {
+    if (c.id === courseId) {
+      return {
+        ...c,
+        instructorId: teacher.id,
+        instructorName: teacher.name,
+        instructorTitle: teacher.designation || teacher.department,
+        instructorAvatar: teacher.avatarUrl || '/images/avatars/avatar-2.webp'
+      };
+    }
+    return c;
+  });
+  saveStoredCourses(updatedCourses);
+
+  // 3. Auto-enroll registered students under this faculty
+  if (autoEnrollStudents) {
+    const targetStudents = [
+      { id: 'msi-stu-001', name: 'Aarav Sharma', phone: '9811234567' },
+      { id: 'msi-stu-002', name: 'Meera Sen', phone: '9814423001' },
+      { id: 'staff-harshit', name: 'Harshit', phone: '9792303434' },
+      { id: 'msi-stu-ankit', name: 'Ankit Sir', phone: '9876543210' }
+    ];
+
+    if (typeof window !== 'undefined') {
+      const activePhone = localStorage.getItem('msi_active_student_phone');
+      const activeName = localStorage.getItem('msi_active_student_name');
+      if (activePhone) {
+        const clean = activePhone.replace(/\D/g, '').slice(-10);
+        if (!targetStudents.some((s) => s.phone === clean)) {
+          targetStudents.push({
+            id: `msi-stu-${clean.slice(-4)}`,
+            name: activeName || `Student ${clean.slice(-4)}`,
+            phone: clean
+          });
+        }
+      }
+    }
+
+    targetStudents.forEach((stu) => {
+      enrollStudentAction(
+        stu.id,
+        courseId,
+        'super-admin',
+        teacher.name,
+        `Assigned under faculty ${teacher.name} curriculum.`,
+        stu.phone,
+        stu.name
+      );
+    });
+  }
+
+  notifyLmsStoreChange();
+  return { teacher, updatedCourses };
+}
+
+/**
+ * Add a lecture (Lecture 1, Lecture 2, etc.) to a course
+ */
+export function addLectureToCourseAction(
+  courseId: string,
+  lectureData: {
+    title: string;
+    duration?: string;
+    videoUrl?: string;
+    summary?: string;
+    preview?: boolean;
+    sectionTitle?: string;
+    resources?: {
+      title: string;
+      type: 'pdf' | 'doc' | 'notes';
+      size: string;
+      downloadUrl: string;
+    }[];
+  }
+) {
+  const courses = getStoredCourses();
+  let addedLecture: UdemyLecture | null = null;
+
+  const updatedCourses = courses.map((course) => {
+    if (course.id === courseId) {
+      const sections = course.sections && course.sections.length > 0
+        ? course.sections.map((s) => ({ ...s, lectures: [...s.lectures] }))
+        : [
+            {
+              id: `sec-${Date.now()}-1`,
+              title: lectureData.sectionTitle || 'Module 1: Core Curriculum & Lectures',
+              duration: '1 hour',
+              lectures: []
+            }
+          ];
+
+      const targetSection = sections[0];
+      const lectureIndex = targetSection.lectures.length + 1;
+
+      // Ensure title has "Lecture X:" if not provided
+      let finalTitle = lectureData.title.trim();
+      if (!/^lecture\s*\d+/i.test(finalTitle)) {
+        finalTitle = `Lecture ${lectureIndex}: ${finalTitle}`;
+      }
+
+      addedLecture = {
+        id: `lec-${courseId}-${Date.now()}`,
+        title: finalTitle,
+        duration: lectureData.duration?.trim() || '45 mins',
+        durationSeconds: 2700,
+        videoUrl: lectureData.videoUrl?.trim() || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        preview: lectureData.preview ?? true,
+        summary: lectureData.summary?.trim() || 'Classroom recording with landmark case law briefs.',
+        resources: lectureData.resources && lectureData.resources.length > 0
+          ? lectureData.resources
+          : [
+              {
+                title: `${finalTitle} Handout & Bare Act Notes`,
+                type: 'pdf' as const,
+                size: '2.4 MB',
+                downloadUrl: '#'
+              }
+            ]
+      };
+
+      targetSection.lectures.push(addedLecture);
+
+      const totalLecs = sections.reduce((acc, s) => acc + s.lectures.length, 0);
+
+      return {
+        ...course,
+        sections,
+        totalLectures: totalLecs,
+        updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      };
+    }
+    return course;
+  });
+
+  saveStoredCourses(updatedCourses);
+  notifyLmsStoreChange();
+  return { updatedCourses, addedLecture };
+}
+
+/**
+ * Delete a lecture from a course
+ */
+export function deleteLectureFromCourseAction(courseId: string, lectureId: string) {
+  const courses = getStoredCourses();
+  const updatedCourses = courses.map((course) => {
+    if (course.id === courseId) {
+      const sections = course.sections.map((sec) => ({
+        ...sec,
+        lectures: sec.lectures.filter((l) => l.id !== lectureId)
+      }));
+      const totalLecs = sections.reduce((acc, s) => acc + s.lectures.length, 0);
+      return {
+        ...course,
+        sections,
+        totalLectures: totalLecs,
+        updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      };
+    }
+    return course;
+  });
+
+  saveStoredCourses(updatedCourses);
+  notifyLmsStoreChange();
+  return updatedCourses;
+}
+

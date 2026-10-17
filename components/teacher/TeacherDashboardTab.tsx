@@ -22,26 +22,31 @@ import {
   AssessmentItem,
 } from './data/teacherMockData';
 import { TeacherModuleTab } from './TeacherSidebar';
-import { getStoredTeachers, LMS_SYNC_EVENT } from '@/lib/lmsStore';
+import { getStoredTeachers, LMS_SYNC_EVENT, UdemyCourse } from '@/lib/lmsStore';
+import { Plus, Play } from 'lucide-react';
 
 interface TeacherDashboardTabProps {
   teacher: TeacherProfile;
   courses: TeacherCourse[];
+  lmsCourses?: UdemyCourse[];
   schedules: TeacherClassSchedule[];
   assessments: AssessmentItem[];
   totalStudents: number;
   onNavigateTab: (tab: TeacherModuleTab) => void;
   onLaunchAttendance: (session: TeacherClassSchedule) => void;
+  onOpenLectureModal?: (course: UdemyCourse) => void;
 }
 
 export default function TeacherDashboardTab({
   teacher,
   courses,
+  lmsCourses = [],
   schedules,
   assessments,
   totalStudents,
   onNavigateTab,
   onLaunchAttendance,
+  onOpenLectureModal,
 }: TeacherDashboardTabProps) {
   const upcomingClasses = schedules.filter((s) => s.day === 'Today');
 
@@ -282,50 +287,179 @@ export default function TeacherDashboardTab({
               </button>
             </div>
 
-            <div className="divide-y divide-[#E8DCCB]/60 mt-2 space-y-4">
-              {courses.map((course) => (
-                <div key={course.id} className="pt-4 first:pt-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#FFF3DD] text-[#89190E]">
-                          {course.code}
-                        </span>
-                        <span className="text-xs font-semibold text-[#526174]">
-                          {course.batch}
-                        </span>
-                      </div>
-                      <h4 className="font-serif font-bold text-base text-[#10233F] mt-1">
-                        {course.title}
-                      </h4>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <span className="text-xs font-bold text-[#10233F]">
-                        {course.totalStudents} Students Enrolled
-                      </span>
-                      <p className="text-[11px] text-[#526174]">
-                        Next lecture: {course.nextLectureTime}
-                      </p>
-                    </div>
-                  </div>
+            <div className="divide-y divide-[#E8DCCB]/60 mt-2 space-y-6">
+              {lmsCourses.length > 0 ? (
+                lmsCourses.map((course) => {
+                  const allLectures = course.sections ? course.sections.flatMap((s) => s.lectures) : [];
+                  const progressPct = Math.min(
+                    100,
+                    Math.round((allLectures.length / Math.max(1, course.totalLectures || 10)) * 100)
+                  );
 
-                  {/* Syllabus Progress Bar */}
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-[#526174] mb-1">
-                      <span>
-                        Lectures Delivered: <strong>{course.lecturesCompleted} / {course.totalLectures}</strong>
-                      </span>
-                      <span className="font-bold text-[#89190E]">{course.progress}% Completed</span>
+                  return (
+                    <div key={course.id} className="pt-5 first:pt-2 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#FFF3DD] text-[#89190E] uppercase">
+                              {course.category}
+                            </span>
+                            {course.badge && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                                {course.badge}
+                              </span>
+                            )}
+                            <span className="text-[11px] text-[#526174]">
+                              Faculty: <strong>{course.instructorName}</strong>
+                            </span>
+                          </div>
+                          <h4 className="font-serif font-bold text-base text-[#10233F] leading-snug">
+                            {course.title}
+                          </h4>
+                          <p className="text-xs text-[#526174] line-clamp-1">
+                            {course.headline}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0 self-start sm:self-center">
+                          <button
+                            onClick={() => onOpenLectureModal?.(course)}
+                            className="px-3 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Add Lecture {allLectures.length + 1}</span>
+                          </button>
+
+                          <button
+                            onClick={() => onOpenLectureModal?.(course)}
+                            className="px-3 py-1.5 rounded-xl border border-[#E8DCCB] hover:border-[#10233F] bg-white text-xs font-bold text-[#10233F] transition-all cursor-pointer"
+                          >
+                            <span>Manage ({allLectures.length})</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Lectures Delivered Roster (Lecture-wise display) */}
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-[#10233F] flex items-center space-x-1.5">
+                            <Video className="w-3.5 h-3.5 text-[#89190E]" />
+                            <span>Lecture Sequence ({allLectures.length} Delivered):</span>
+                          </span>
+                          <span className="text-[11px] text-[#526174] font-mono">
+                            Total: {course.totalDuration}
+                          </span>
+                        </div>
+
+                        {allLectures.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {allLectures.map((lec, idx) => (
+                              <div
+                                key={lec.id}
+                                onClick={() => onOpenLectureModal?.(course)}
+                                className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] transition-all cursor-pointer flex items-start justify-between gap-2 group"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center space-x-1.5 mb-0.5">
+                                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-[#FFF3DD] text-[#89190E]">
+                                      {/^lecture\s*\d+/i.test(lec.title)
+                                        ? lec.title.split(':')[0]
+                                        : `Lecture ${idx + 1}`}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 font-mono">
+                                      ⏱ {lec.duration}
+                                    </span>
+                                  </div>
+                                  <h5 className="font-serif font-bold text-xs text-[#10233F] group-hover:text-[#89190E] transition-colors truncate">
+                                    {lec.title}
+                                  </h5>
+                                  <p className="text-[10px] text-[#526174] truncate mt-0.5">
+                                    {lec.summary || 'Classroom recording with case law briefs.'}
+                                  </p>
+                                </div>
+
+                                <div className="p-1 rounded-lg bg-[#89190E]/10 group-hover:bg-[#89190E] group-hover:text-white text-[#89190E] transition-colors mt-0.5 shrink-0">
+                                  <Play className="w-3 h-3 fill-current" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span>No lectures uploaded yet for this course. Click below to add Lecture 1!</span>
+                            <button
+                              onClick={() => onOpenLectureModal?.(course)}
+                              className="px-3 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-[11px] font-bold self-start sm:self-auto"
+                            >
+                              + Add Lecture 1
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Syllabus Progress Bar */}
+                      <div className="pt-1">
+                        <div className="flex items-center justify-between text-xs text-[#526174] mb-1">
+                          <span>
+                            Lectures Delivered: <strong>{allLectures.length} of {course.totalLectures || 20} Target</strong>
+                          </span>
+                          <span className="font-bold text-[#89190E]">{progressPct}% Complete</span>
+                        </div>
+                        <div className="w-full h-2 bg-[#FFF3DD] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#89190E] rounded-full transition-all"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-[#FFF3DD] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#89190E] rounded-full transition-all"
-                        style={{ width: `${course.progress}%` }}
-                      />
+                  );
+                })
+              ) : (
+                courses.map((course) => (
+                  <div key={course.id} className="pt-4 first:pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#FFF3DD] text-[#89190E]">
+                            {course.code}
+                          </span>
+                          <span className="text-xs font-semibold text-[#526174]">
+                            {course.batch}
+                          </span>
+                        </div>
+                        <h4 className="font-serif font-bold text-base text-[#10233F] mt-1">
+                          {course.title}
+                        </h4>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <span className="text-xs font-bold text-[#10233F]">
+                          {course.totalStudents} Students Enrolled
+                        </span>
+                        <p className="text-[11px] text-[#526174]">
+                          Next lecture: {course.nextLectureTime}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Syllabus Progress Bar */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs text-[#526174] mb-1">
+                        <span>
+                          Lectures Delivered: <strong>{course.lecturesCompleted} / {course.totalLectures}</strong>
+                        </span>
+                        <span className="font-bold text-[#89190E]">{course.progress}% Completed</span>
+                      </div>
+                      <div className="w-full h-2 bg-[#FFF3DD] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#89190E] rounded-full transition-all"
+                          style={{ width: `${course.progress}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
