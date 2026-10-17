@@ -157,12 +157,12 @@ export const INITIAL_UDEMY_COURSES: UdemyCourse[] = [
         lectures: [
           {
             id: 'lec-leg-1-1',
-            title: '01. Basics of Legal Reasoning: Principle-Fact Application & Deductive vs Inductive Logic',
+            title: '01. Basics of Legal Reasoning: Principle-Fact Application & Ratio Decidendi (Bunny Stream HD)',
             duration: '45:10',
             durationSeconds: 2710,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            videoUrl: 'https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc',
             preview: true,
-            summary: 'Understanding the mechanics of applying legal principles to factual matrixes without outside bias.',
+            summary: 'Official recorded lecture delivered over Bunny Stream High-Definition CDN.',
             resources: [
               { title: 'Principle_Fact_Methodology_Guide.pdf', type: 'pdf', size: '2.8 MB', downloadUrl: '#' },
               { title: 'Ratio_vs_Obiter_Compendium.pdf', type: 'notes', size: '1.4 MB', downloadUrl: '#' }
@@ -721,12 +721,12 @@ export const INITIAL_UDEMY_COURSES: UdemyCourse[] = [
         lectures: [
           {
             id: 'lec-pcsj-1-1',
-            title: '01. Preamble Jurisprudence & Basic Structure Doctrine Masterclass',
+            title: '01. Preamble Jurisprudence & Basic Structure Doctrine Masterclass (Bunny Stream HD)',
             duration: '42:15',
             durationSeconds: 2535,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            videoUrl: 'https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc',
             preview: true,
-            summary: 'Evolution of Basic Structure doctrine from Shankari Prasad, Golaknath to Kesavananda Bharati and Minerva Mills.',
+            summary: 'Official judicial lecture delivered over Bunny Stream High-Definition CDN.',
             resources: [
               { title: 'Constitutional_Basic_Structure_Digest.pdf', type: 'pdf', size: '2.4 MB', downloadUrl: '#' },
               { title: 'Kesavananda_Bharati_Ratio_Analysis.pdf', type: 'notes', size: '1.1 MB', downloadUrl: '#' }
@@ -1069,11 +1069,36 @@ export function getStoredCourses(): UdemyCourse[] {
     let changed = false;
     const updated = courses.map((course) => {
       const seed = INITIAL_UDEMY_COURSES.find((s) => s.id === course.id);
+      let courseModified = false;
+      let newSections = course.sections;
+
+      if (course.sections && course.sections.length > 0) {
+        newSections = course.sections.map((sec) => {
+          const newLectures = sec.lectures.map((lec) => {
+            if (
+              (lec.id === 'lec-leg-1-1' || lec.id === 'lec-pcsj-1-1') &&
+              (!lec.videoUrl || lec.videoUrl.includes('BigBuckBunny'))
+            ) {
+              changed = true;
+              courseModified = true;
+              return {
+                ...lec,
+                title: `${lec.title} (Bunny Stream HD)`,
+                videoUrl: 'https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc',
+              };
+            }
+            return lec;
+          });
+          return { ...sec, lectures: newLectures };
+        });
+      }
+
       if (seed && (!course.thumbnail || course.thumbnail.trim() === '')) {
         changed = true;
-        return { ...course, thumbnail: seed.thumbnail };
+        courseModified = true;
+        return { ...course, thumbnail: seed.thumbnail, sections: newSections };
       }
-      return course;
+      return courseModified ? { ...course, sections: newSections } : course;
     });
     if (changed) {
       localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(updated));

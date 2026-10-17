@@ -55,14 +55,63 @@ export const BUNNY_STREAM_BASE_URL = 'https://video.bunnycdn.com';
 export const BUNNY_PLAYER_BASE_URL = 'https://player.mediadelivery.net';
 export const BUNNY_CONFIG_STORAGE_KEY = 'msi_bunny_stream_config_v1';
 
+export const DEFAULT_BUNNY_LIBRARY_ID = '782652';
+export const DEFAULT_BUNNY_API_KEY = 'ff916df2-e4c8-45fd-ac66fa18ebdc-0408-456e';
+export const DEFAULT_BUNNY_CDN_HOSTNAME = 'vz-f4316755-219.b-cdn.net';
+export const DEFAULT_BUNNY_SAMPLE_VIDEO_ID = '175638d1-0e6d-4d8c-beaa-23f879ef5afc';
+export const DEFAULT_BUNNY_EMBED_URL = 'https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc';
+
+/**
+ * Convert any direct play or embed Bunny URL into the standard iframe embed URL
+ * e.g. https://player.mediadelivery.net/play/782652/175638d1... -> https://player.mediadelivery.net/embed/782652/175638d1...
+ */
+export function toBunnyEmbedUrl(url: string): string {
+  if (!url) return DEFAULT_BUNNY_EMBED_URL;
+  const trimmed = url.trim();
+  if (trimmed.includes('player.mediadelivery.net/play/')) {
+    return trimmed.replace('/play/', '/embed/');
+  }
+  if (trimmed.startsWith('bunny://')) {
+    const parts = trimmed.replace('bunny://', '').split('/');
+    if (parts.length >= 2) {
+      return `https://player.mediadelivery.net/embed/${parts[0]}/${parts[1]}`;
+    }
+    return `https://player.mediadelivery.net/embed/${DEFAULT_BUNNY_LIBRARY_ID}/${parts[0]}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Check if a URL or identifier points to Bunny Stream
+ */
+export function isBunnyVideoUrl(url: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('mediadelivery.net') ||
+    url.includes('.b-cdn.net') ||
+    url.startsWith('bunny://') ||
+    url.includes('782652') ||
+    url.includes('175638d1-0e6d-4d8c-beaa-23f879ef5afc')
+  );
+}
+
 /**
  * Resolve active Bunny Stream configuration:
  * Checks process.env first, then browser localStorage if in client.
  */
 export function getBunnyStreamConfig(override?: Partial<BunnyStreamConfig>): BunnyStreamConfig {
-  let libraryId = override?.libraryId || process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || process.env.BUNNY_STREAM_LIBRARY_ID || '';
+  let libraryId =
+    override?.libraryId ||
+    process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID ||
+    process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID ||
+    process.env.BUNNY_STREAM_LIBRARY_ID ||
+    '';
   let apiKey = override?.apiKey || process.env.BUNNY_STREAM_API_KEY || '';
-  let cdnHostname = override?.cdnHostname || process.env.NEXT_PUBLIC_BUNNY_STREAM_CDN_HOSTNAME || process.env.BUNNY_STREAM_CDN_HOSTNAME || '';
+  let cdnHostname =
+    override?.cdnHostname ||
+    process.env.NEXT_PUBLIC_BUNNY_STREAM_CDN_HOSTNAME ||
+    process.env.BUNNY_STREAM_CDN_HOSTNAME ||
+    '';
 
   if (typeof window !== 'undefined' && (!libraryId || !apiKey)) {
     try {
@@ -78,9 +127,10 @@ export function getBunnyStreamConfig(override?: Partial<BunnyStreamConfig>): Bun
     }
   }
 
-  // Provide sensible defaults for demonstration if not configured
-  if (!libraryId) libraryId = '389201';
-  if (!cdnHostname) cdnHostname = `vz-${libraryId}.b-cdn.net`;
+  // Provide authentic credentials provided for MSI LMS
+  if (!libraryId) libraryId = DEFAULT_BUNNY_LIBRARY_ID;
+  if (!apiKey) apiKey = DEFAULT_BUNNY_API_KEY;
+  if (!cdnHostname) cdnHostname = DEFAULT_BUNNY_CDN_HOSTNAME;
 
   return {
     libraryId: String(libraryId),

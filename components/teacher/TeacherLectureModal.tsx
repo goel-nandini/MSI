@@ -22,6 +22,7 @@ import {
   deleteLectureFromCourseAction,
 } from '@/lib/lmsStore';
 import { getSavedRecordedLectures } from '@/lib/liveStreamPeer';
+import { toBunnyEmbedUrl } from '@/lib/bunnyStream';
 
 interface TeacherLectureModalProps {
   course: UdemyCourse | null;
@@ -54,7 +55,7 @@ export default function TeacherLectureModal({
   const [lectureTitle, setLectureTitle] = useState(`Lecture ${nextLectureNumber}: `);
   const [duration, setDuration] = useState('45 mins');
   const [videoUrl, setVideoUrl] = useState(
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+    'https://player.mediadelivery.net/play/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc'
   );
   const [summary, setSummary] = useState('');
   const [resourceTitle, setResourceTitle] = useState('');
@@ -276,6 +277,17 @@ export default function TeacherLectureModal({
                     type="button"
                     onClick={() =>
                       setVideoUrl(
+                        'https://player.mediadelivery.net/play/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc'
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-[#89190E] text-white text-[10px] font-bold shadow-xs hover:bg-[#65130D] flex items-center space-x-1"
+                  >
+                    <span>⭐ Bunny Stream HD (782652)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVideoUrl(
                         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
                       )
                     }
@@ -457,12 +469,24 @@ export default function TeacherLectureModal({
                 </button>
               </div>
               <div className="aspect-video w-full rounded-xl overflow-hidden bg-neutral-900">
-                <video
-                  src={previewVideoUrl}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
-                />
+                {previewVideoUrl.includes('mediadelivery.net') || previewVideoUrl.includes('.b-cdn.net') || previewVideoUrl.startsWith('bunny://') ? (
+                  <iframe
+                    src={toBunnyEmbedUrl(previewVideoUrl)}
+                    title="Lecture Video Preview"
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="w-full h-full border-0"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    src={previewVideoUrl}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain"
+                  />
+                )}
               </div>
             </div>
           )}

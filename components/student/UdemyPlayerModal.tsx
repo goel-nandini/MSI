@@ -28,6 +28,7 @@ import {
   Share2,
 } from 'lucide-react';
 import BunnyPlayer from '@/components/stream/BunnyPlayer';
+import { toBunnyEmbedUrl } from '@/lib/bunnyStream';
 import {
   UdemyCourse,
   UdemyLecture,
@@ -301,12 +302,15 @@ export default function UdemyPlayerModal({
           
           {/* Responsive Video Shell */}
           <div className="bg-black relative aspect-video max-h-[60vh] w-full flex items-center justify-center border-b border-white/10 group">
-            {currentLecture.videoUrl.includes('mediadelivery.net') || currentLecture.videoUrl.startsWith('bunny://') ? (
-              <BunnyPlayer
-                videoUrl={currentLecture.videoUrl}
+            {currentLecture.videoUrl.includes('mediadelivery.net') || currentLecture.videoUrl.includes('.b-cdn.net') || currentLecture.videoUrl.startsWith('bunny://') ? (
+              <iframe
+                src={toBunnyEmbedUrl(currentLecture.videoUrl)}
                 title={currentLecture.title}
-                autoplay={true}
-                className="h-full border-0 rounded-none"
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                className="w-full h-full border-0 absolute inset-0"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
               />
             ) : (
               <video

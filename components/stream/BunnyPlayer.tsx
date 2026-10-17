@@ -18,7 +18,13 @@ import {
   ShieldCheck,
   Video as VideoIcon,
 } from 'lucide-react';
-import { getBunnyPlayerEmbedUrl, getBunnyStreamConfig } from '@/lib/bunnyStream';
+import {
+  getBunnyPlayerEmbedUrl,
+  getBunnyStreamConfig,
+  toBunnyEmbedUrl,
+  isBunnyVideoUrl,
+  DEFAULT_BUNNY_LIBRARY_ID,
+} from '@/lib/bunnyStream';
 
 export interface BunnyPlayerProps {
   videoId?: string;
@@ -68,19 +74,26 @@ export default function BunnyPlayer({
   const [liveDuration, setLiveDuration] = useState('00:18:42');
 
   const cfg = getBunnyStreamConfig();
-  const effectiveLibId = libraryId || cfg.libraryId || '389201';
+  const effectiveLibId = libraryId || cfg.libraryId || DEFAULT_BUNNY_LIBRARY_ID;
 
   // Determine if we should use Bunny iframe or native live video
-  const hasValidBunnyGuid = videoId && videoId.length > 20 && !videoId.startsWith('demo-') && cfg.apiKey;
-  const embedUrl = hasValidBunnyGuid && !iframeError
-    ? getBunnyPlayerEmbedUrl(effectiveLibId, videoId, {
+  const isDirectBunnyUrl = videoUrl && isBunnyVideoUrl(videoUrl);
+  const hasValidBunnyGuid = videoId && videoId.length > 20 && !videoId.startsWith('demo-');
+
+  let embedUrl: string | null = null;
+  if (!iframeError) {
+    if (isDirectBunnyUrl && videoUrl) {
+      embedUrl = toBunnyEmbedUrl(videoUrl);
+    } else if (hasValidBunnyGuid && videoId) {
+      embedUrl = getBunnyPlayerEmbedUrl(effectiveLibId, videoId, {
         autoplay,
         muted: isMuted,
         loop,
         preload: true,
         responsive: true,
-      })
-    : null;
+      });
+    }
+  }
 
   // Real fallback live video source for smooth 1080p stream
   const fallbackLiveUrl = videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
@@ -224,6 +237,7 @@ export default function BunnyPlayer({
             src={embedUrl}
             title={title}
             loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
             className="w-full h-full border-0 absolute inset-0 z-10"
             allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen

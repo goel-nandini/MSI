@@ -186,6 +186,8 @@ export default function SuperAdminMasterDashboard() {
   // 7. Teacher Assignment / Approval Modal
   const [assigningTeacher, setAssigningTeacher] = useState<TeacherApprovalRecord | null>(null);
   const [teacherSelectedCourseIds, setTeacherSelectedCourseIds] = useState<string[]>([]);
+  const [teacherToDelete, setTeacherToDelete] = useState<TeacherApprovalRecord | null>(null);
+  const [isDeletingTeacher, setIsDeletingTeacher] = useState(false);
 
   // 8. Add Faculty Modal
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
@@ -215,13 +217,13 @@ export default function SuperAdminMasterDashboard() {
   const [newCourseLevel, setNewCourseLevel] = useState<'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced'>('All Levels');
   const [newCourseDesc, setNewCourseDesc] = useState('');
   const [newCourseLectureTitle, setNewCourseLectureTitle] = useState('Orientation & Landmark Constitutional Doctrines');
-  const [newCourseLectureVideo, setNewCourseLectureVideo] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+  const [newCourseLectureVideo, setNewCourseLectureVideo] = useState('https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc');
   const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
 
   // 10. Add Recorded Lecture Modal to existing Course
   const [selectedCourseForLecture, setSelectedCourseForLecture] = useState<UdemyCourse | null>(null);
   const [newLectureTitle, setNewLectureTitle] = useState('');
-  const [newLectureVideoUrl, setNewLectureVideoUrl] = useState('');
+  const [newLectureVideoUrl, setNewLectureVideoUrl] = useState('https://player.mediadelivery.net/play/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc');
   const [newLectureDuration, setNewLectureDuration] = useState('45 mins');
   const [newLectureSummary, setNewLectureSummary] = useState('');
   const [isSubmittingLecture, setIsSubmittingLecture] = useState(false);
@@ -871,6 +873,34 @@ export default function SuperAdminMasterDashboard() {
       showToast(`Faculty member ${savedTeacher.name} created! Authorized for immediate login.`);
     } catch (err) {
       showToast('Error saving faculty member.');
+    }
+  };
+
+  const handleDeleteTeacher = async () => {
+    if (!teacherToDelete) return;
+    setIsDeletingTeacher(true);
+    try {
+      const res = await fetch(`/api/admin/faculty?id=${encodeURIComponent(teacherToDelete.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        const updated = teachers.filter((t) => t.id !== teacherToDelete.id);
+        setTeachers(updated);
+        saveStoredTeachers(updated);
+        showToast(`Faculty member (${teacherToDelete.name}) permanently removed from disk.`);
+        setTeacherToDelete(null);
+        try {
+          window.dispatchEvent(new Event(LMS_SYNC_EVENT));
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
+      } else {
+        showToast(data.message || 'Failed to delete faculty member.');
+      }
+    } catch (err) {
+      showToast('Network error while deleting faculty member.');
+    } finally {
+      setIsDeletingTeacher(false);
     }
   };
 
@@ -2444,6 +2474,15 @@ export default function SuperAdminMasterDashboard() {
                           </button>
                         </>
                       )}
+
+                      <button
+                        onClick={() => setTeacherToDelete(tc)}
+                        className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 transition-colors cursor-pointer"
+                        title={`Delete ${tc.name}`}
+                        aria-label={`Delete ${tc.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -4174,6 +4213,51 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
+      {/* 7c. Delete Faculty Member Confirmation Modal */}
+      {teacherToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-red-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="font-serif text-lg font-bold text-[#10233F] mb-1">
+              Delete Faculty Member?
+            </h3>
+            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              Are you sure you want to permanently delete <strong>{teacherToDelete.name}</strong> ({teacherToDelete.email})? This will remove their record from server disk (<code>data/teachers.json</code>), terminate portal access, and unassign courses.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setTeacherToDelete(null)}
+                disabled={isDeletingTeacher}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeacher}
+                disabled={isDeletingTeacher}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingTeacher ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 7b. Assign Faculty to Course Modal */}
       {selectedCourseForFacultyAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
@@ -4775,14 +4859,27 @@ export default function SuperAdminMasterDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Video Stream / Cloud URL
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase text-[#10233F]">
+                      Video Stream / Cloud URL
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewLectureVideoUrl(
+                          'https://player.mediadelivery.net/play/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc'
+                        )
+                      }
+                      className="text-[10px] text-[#89190E] font-bold hover:underline cursor-pointer"
+                    >
+                      ⭐ Bunny Stream Preset
+                    </button>
+                  </div>
                   <input
                     type="url"
                     value={newLectureVideoUrl}
                     onChange={(e) => setNewLectureVideoUrl(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="https://player.mediadelivery.net/play/782652/..."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                   />
                 </div>

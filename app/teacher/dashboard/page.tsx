@@ -69,68 +69,76 @@ export default function TeacherDashboardPage() {
 
   // Synchronize active teacher from localStorage & server store on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
-      const storedName = (localStorage.getItem('msi_active_teacher_name') || '').trim();
-      const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '');
-      const storedId = localStorage.getItem('msi_active_teacher_id') || '';
+    const initTeacher = async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          await syncTeachersFromServer();
+        } catch (_) {}
 
-      // First check stored teachers (includes newly created faculty from Super Admin / disk)
-      const storedRecs = getStoredTeachers();
-      const recMatched = storedRecs.find((r) => {
-        if (storedId && r.id === storedId) return true;
-        if (storedEmail && r.email.toLowerCase().trim() === storedEmail) return true;
-        if (storedName && r.name.toLowerCase().trim() === storedName.toLowerCase()) return true;
-        if (storedPhone && r.phone && r.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
-        if (
-          storedEmail.includes('ekta') ||
-          storedName.toLowerCase().includes('ekta') ||
-          storedPhone === '9792303434'
-        ) {
-          return r.id.includes('ekta') || r.name.toLowerCase().includes('ekta');
-        }
-        return false;
-      });
+        const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
+        const storedName = (localStorage.getItem('msi_active_teacher_name') || '').trim();
+        const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '');
+        const storedId = localStorage.getItem('msi_active_teacher_id') || '';
 
-      if (recMatched) {
-        setActiveTeacher(buildTeacherProfileFromRecord(recMatched));
-        return;
-      }
-
-      // Second check static mock profiles
-      const matched = TEACHER_PROFILES.find((t) => {
-        if (storedEmail && t.email.toLowerCase() === storedEmail) return true;
-        if (storedName && t.name.toLowerCase().includes(storedName.toLowerCase())) return true;
-        if (storedPhone && t.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
-        if (
-          storedEmail.includes('ekta') ||
-          storedName.toLowerCase().includes('ekta') ||
-          storedPhone === '9792303434'
-        ) {
-          return t.id.includes('ekta') || t.name.toLowerCase().includes('ekta');
-        }
-        return false;
-      });
-
-      if (matched) {
-        setActiveTeacher(matched);
-      } else if (storedName || storedEmail) {
-        // Dynamic profile for custom authenticated faculty
-        setActiveTeacher({
-          id: storedId || `fac-${Date.now()}`,
-          name: storedName || 'Faculty Professor',
-          title: 'Professor of Law & Faculty Jurist',
-          department: 'School of Law & Judicial Studies',
-          email: storedEmail || 'faculty@msi-institutes.edu.in',
-          phone: storedPhone || '+91 98000 00000',
-          avatarUrl: '/images/avatars/avatar-2.webp',
-          stream: 'Law',
-          cabin: 'Academic Block A, Jurists Chamber #104',
-          assignedCourseCodes: ['crs-udemy-pcsj'],
-          assignedSubjects: ['Jurisprudence & Procedural Law'],
+        // First check stored teachers (includes newly created faculty from Super Admin / disk)
+        const storedRecs = getStoredTeachers();
+        const recMatched = storedRecs.find((r) => {
+          if (storedId && r.id === storedId) return true;
+          if (storedEmail && r.email.toLowerCase().trim() === storedEmail) return true;
+          if (storedName && r.name.toLowerCase().trim() === storedName.toLowerCase()) return true;
+          if (storedPhone && r.phone && r.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
+          if (
+            storedEmail.includes('ekta') ||
+            storedName.toLowerCase().includes('ekta') ||
+            storedPhone === '9792303434'
+          ) {
+            return r.id.includes('ekta') || r.name.toLowerCase().includes('ekta');
+          }
+          return false;
         });
+
+        if (recMatched) {
+          setActiveTeacher(buildTeacherProfileFromRecord(recMatched));
+          return;
+        }
+
+        // Second check static mock profiles
+        const matched = TEACHER_PROFILES.find((t) => {
+          if (storedEmail && t.email.toLowerCase() === storedEmail) return true;
+          if (storedName && t.name.toLowerCase().includes(storedName.toLowerCase())) return true;
+          if (storedPhone && t.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
+          if (
+            storedEmail.includes('ekta') ||
+            storedName.toLowerCase().includes('ekta') ||
+            storedPhone === '9792303434'
+          ) {
+            return t.id.includes('ekta') || t.name.toLowerCase().includes('ekta');
+          }
+          return false;
+        });
+
+        if (matched) {
+          setActiveTeacher(matched);
+        } else if (storedName || storedEmail) {
+          // Dynamic profile for custom authenticated faculty
+          setActiveTeacher({
+            id: storedId || `fac-${Date.now()}`,
+            name: storedName || 'Faculty Professor',
+            title: 'Professor of Law & Faculty Jurist',
+            department: 'School of Law & Judicial Studies',
+            email: storedEmail || 'faculty@msi-institutes.edu.in',
+            phone: storedPhone || '+91 98000 00000',
+            avatarUrl: '/images/avatars/avatar-2.webp',
+            stream: 'Law',
+            cabin: 'Academic Block A, Jurists Chamber #104',
+            assignedCourseCodes: ['crs-udemy-pcsj'],
+            assignedSubjects: ['Jurisprudence & Procedural Law'],
+          });
+        }
       }
-    }
+    };
+
+    initTeacher();
   }, []);
 
   // Synchronize LMS Courses assigned to this teacher from central store
@@ -140,7 +148,8 @@ export default function TeacherDashboardPage() {
     const teacherRec = storedTeachers.find(
       (t) =>
         t.id === activeTeacher.id ||
-        t.email.toLowerCase() === activeTeacher.email.toLowerCase() ||
+        (t.email && activeTeacher.email && t.email.toLowerCase() === activeTeacher.email.toLowerCase()) ||
+        (t.name && activeTeacher.name && t.name.toLowerCase().includes(activeTeacher.name.toLowerCase())) ||
         (t.name.toLowerCase().includes('ekta') && activeTeacher.name.toLowerCase().includes('ekta'))
     );
     const assignedIds = teacherRec?.assignedCourseIds || [];
@@ -148,8 +157,8 @@ export default function TeacherDashboardPage() {
     const assigned = all.filter((c) => {
       if (assignedIds.includes(c.id)) return true;
       if (c.instructorId === activeTeacher.id) return true;
-      if (c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
-      if (activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
+      if (activeTeacher.name && c.instructorName && c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
+      if (activeTeacher.name && c.instructorName && activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
       if (
         (c.instructorName.toLowerCase().includes('ekta') ||
           c.instructorName.toLowerCase().includes('gahlawat') ||
@@ -175,7 +184,7 @@ export default function TeacherDashboardPage() {
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
     };
-  }, [activeTeacher.id, activeTeacher.name]);
+  }, [activeTeacher.id, activeTeacher.name, activeTeacher.email]);
 
   // --------------------------------------------------------------------------
   // ROLE-BASED DATA ISOLATION ENFORCEMENT:
