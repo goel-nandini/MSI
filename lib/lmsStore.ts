@@ -812,6 +812,33 @@ export const LEGACY_COURSE_ID_MAP: Record<string, string> = {
 // ----------------------------------------------------------------------------
 
 export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
+  // 0. Harshit Singh (Constitutional Law & Faculty Jurist)
+  {
+    id: 'fac-harshit-01',
+    name: 'Harshit Singh',
+    email: 'harshit@gmail.com',
+    phone: '+91 97923 03434',
+    avatarUrl: '/images/avatars/avatar-1.webp',
+    department: 'School of Law & Judicial Studies',
+    designation: 'Professor of Law & Faculty Jurist',
+    qualifications: 'LL.M. (Constitutional Law & Jurisprudence)',
+    experienceYears: 10,
+    stream: 'Law',
+    bio: 'Senior Faculty Member & Jurist at MSI Group of Institutes specializing in Judicial Examination & Legal Studies.',
+    specialization: 'Constitutional Law & Judicial Services',
+    sampleLectureTitle: 'Landmark Doctrine of Basic Structure & Judicial Review',
+    sampleLectureDuration: '45 mins',
+    status: 'approved',
+    applicationDate: '2026-10-18T03:00:00.000Z',
+    approvedAt: '2026-10-18T03:00:00.000Z',
+    approvedBy: 'MSI Super Admin',
+    assignedCourseIds: ['crs-udemy-pcsj', 'crs-udemy-clat', 'crs-msi-legstudies'],
+    rating: 5.0,
+    studentsCount: 180,
+    password: 'MSI@Faculty2026harshit',
+    temporaryPassword: 'MSI@Faculty2026harshit',
+    mustChangePassword: false,
+  },
   // 1. Dr. Ekta Gahlawat (Legal Reasoning)
   {
     id: 'fac-law-ekta',

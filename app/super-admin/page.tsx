@@ -2434,7 +2434,7 @@ export default function SuperAdminMasterDashboard() {
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-[#F0F3FF] text-xs space-y-1 mb-3">
+                      <div className="p-3 rounded-xl bg-[#F0F3FF] text-xs space-y-1.5 mb-3">
                         <div className="text-[11px] text-[#58413D]">
                           <strong>Specialization:</strong> {tc.specialization || tc.department}
                         </div>
@@ -2443,6 +2443,25 @@ export default function SuperAdminMasterDashboard() {
                         </div>
                         <div className="text-[11px] text-[#58413D]">
                           <strong>Assigned Courses:</strong> {tc.assignedCourseIds?.length || 0} Batches
+                        </div>
+                        <div className="pt-1.5 border-t border-[#E0E7FF] flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500 font-mono">Password:</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-[#89190E] bg-white px-1.5 py-0.5 rounded border border-[#E0E7FF]">
+                              {tc.password || tc.temporaryPassword || 'Faculty@MSI2026'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(tc.password || tc.temporaryPassword || 'Faculty@MSI2026');
+                                showToast(`Password for ${tc.name} copied!`);
+                              }}
+                              className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                              title="Copy Password"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2457,6 +2476,16 @@ export default function SuperAdminMasterDashboard() {
                       >
                         Assign Courses
                       </button>
+
+                      <Link
+                        href="/teacher/login"
+                        target="_blank"
+                        className="px-2.5 py-1.5 rounded-lg border border-[#E8EEFF] hover:border-[#89190E] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer text-center flex items-center gap-1"
+                        title="Open Teacher Login Portal"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Login</span>
+                      </Link>
 
                       {tc.status === 'pending' && (
                         <>
