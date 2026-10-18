@@ -403,10 +403,18 @@ export default function CoursesPage() {
           {/* Quick Jump Bar */}
           <div className="flex items-center flex-wrap gap-2">
             <a
-              href="#classroom-batches"
+              href="#udemy-catalog"
               className="px-4 py-2 rounded-xl text-xs font-bold bg-[#EFC988] text-[#10233F] hover:bg-[#ffe0a3] transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer"
             >
-              <Landmark className="w-4 h-4 text-[#89190E]" />
+              <PlayCircle className="w-4 h-4 text-[#89190E]" />
+              <span>Online Handbook Masterclasses</span>
+            </a>
+
+            <a
+              href="#classroom-batches"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Landmark className="w-4 h-4 text-[#EFC988]" />
               <span>9 Flagship Batches</span>
             </a>
 
@@ -425,21 +433,268 @@ export default function CoursesPage() {
               <BookOpen className="w-4 h-4 text-[#EFC988]" />
               <span>MSI Master Books & Kits</span>
             </a>
-
-            <a
-              href="#udemy-catalog"
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all flex items-center space-x-1.5 cursor-pointer"
-            >
-              <PlayCircle className="w-4 h-4 text-[#EFC988]" />
-              <span>Online Handbook Masterclasses</span>
-            </a>
           </div>
         </PageHero>
 
         {/* ------------------------------------------------------------------
-            1. OFFLINE & CLASSROOM 9 FLAGSHIP BATCHES (Horizontal Slider)
+            1. HANDBOOK-ALIGNED ONLINE VIDEO COURSES (UDEMY LMS)
             ------------------------------------------------------------------ */}
-        <section id="classroom-batches" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-16 pb-12">
+        <section id="udemy-catalog" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-16 pb-12">
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="flex items-center space-x-2 text-xs font-mono font-bold tracking-wider text-[#89190E] uppercase mb-1">
+                <Sparkles className="w-4 h-4 text-[#89190E]" />
+                <span>Handbook Syllabus Masterclasses</span>
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#10233F]">
+                Handbook-Aligned Online Video Courses
+              </h2>
+              <p className="text-xs sm:text-sm text-[#526174] mt-1 max-w-2xl">
+                Directly synchronized with the official MSI Course Handouts by Dr. Ekta Gahlawat, Mr. Anurag Dwivedi, Ms. Riya Hooda, Ms. Shikha Singh, and Dr. Vikramaditya Sharma.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2 self-start md:self-end">
+              <Link
+                href="/student/dashboard"
+                className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-[#10233F] hover:bg-[#1a345c] text-white text-xs font-bold transition-all shadow-sm cursor-pointer mr-2"
+              >
+                <UserCheck className="w-4 h-4 text-[#EFC988]" />
+                <span className="hidden sm:inline">My Courses</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => scrollSlider(udemySliderRef, 'left')}
+                className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                aria-label="Previous Online Courses"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollSlider(udemySliderRef, 'right')}
+                className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                aria-label="Next Online Courses"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Category Filter Bar */}
+          <div className="p-4 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Category Pills */}
+            <div className="flex items-center flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedUdemyCategory(cat.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedUdemyCategory === cat.id
+                      ? 'bg-[#89190E] text-white shadow-sm'
+                      : 'bg-[#FFF9EF] text-[#526174] hover:text-[#10233F] border border-[#E8DCCB]'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative min-w-[260px]">
+              <Search className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search judicial topics, CPC, BNSS, CLAT..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/50 text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+              />
+            </div>
+          </div>
+
+          {/* Horizontal Sliding Row (1 Layer, 3-4 visible at once) */}
+          <div
+            ref={udemySliderRef}
+            className="flex items-stretch gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-6 scrollbar-none"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {filteredUdemyCourses.map((course) => (
+              <div
+                key={course.id}
+                className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0 snap-start"
+              >
+                <div
+                  onClick={() => setActiveUdemyModalCourse(course)}
+                  className="bg-white rounded-3xl border border-[#E8DCCB] overflow-hidden shadow-xs hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group cursor-pointer h-full"
+                >
+                  <div>
+                    {/* Thumbnail Container */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-black/10">
+                      <Image
+                        src={course.thumbnail || '/images/courses/clat.jpg'}
+                        alt={course.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (target && !target.src.includes('clat.jpg')) {
+                            target.srcset = '';
+                            target.src = '/images/courses/clat.jpg';
+                          }
+                        }}
+                      />
+                      
+                      {course.badge && (
+                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider bg-[#EFC988] text-[#10233F] px-2.5 py-0.5 rounded-md shadow-xs">
+                          {course.badge}
+                        </span>
+                      )}
+
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-12 h-12 rounded-full bg-white/90 text-[#89190E] flex items-center justify-center shadow-lg">
+                          <PlayCircle className="w-7 h-7 fill-[#89190E] text-white" />
+                        </div>
+                      </div>
+
+                      <span className="absolute bottom-2 right-2 text-[10px] font-mono font-bold text-white bg-black/75 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                        {course.totalDuration}
+                      </span>
+                    </div>
+
+                    {/* Course Card Body */}
+                    <div className="p-5 space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] text-[#526174]">
+                        <span className="font-mono text-[#89190E] font-bold uppercase">
+                          {course.category}
+                        </span>
+                        <span>{course.level}</span>
+                      </div>
+
+                      <h3 className="font-serif text-base font-bold text-[#10233F] line-clamp-2 group-hover:text-[#89190E] transition-colors leading-snug">
+                        {course.title}
+                      </h3>
+
+                      <p className="text-xs text-[#526174] line-clamp-2 leading-relaxed">
+                        {course.headline}
+                      </p>
+
+                      <div className="flex items-center space-x-2 pt-1 text-xs text-[#10233F]">
+                        <div className="relative w-6 h-6 rounded-full overflow-hidden border border-[#E8DCCB] flex-shrink-0">
+                          <Image
+                            src={course.instructorAvatar}
+                            alt={course.instructorName}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <span className="font-medium truncate">{course.instructorName}</span>
+                      </div>
+
+                      <div className="flex items-center space-x-2 text-xs pt-1">
+                        <div className="flex items-center text-amber-500 font-bold">
+                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 mr-1" />
+                          <span>{course.rating.toFixed(1)}</span>
+                        </div>
+                        <span className="text-[#526174]">({course.reviewCount.toLocaleString()})</span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-[#526174]">{course.totalLectures} lectures</span>
+                      </div>
+
+                      <div className="flex items-baseline space-x-2 pt-1">
+                        <span className="text-base font-bold text-[#10233F]">
+                          ₹{course.price.toLocaleString()}
+                        </span>
+                        <span className="text-xs line-through text-[#526174]">
+                          ₹{course.originalPrice.toLocaleString()}
+                        </span>
+                        {course.isFreeForMsiStudents && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            Free for MSI Students
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Footer Actions */}
+                  <div className="p-5 pt-0 border-t border-[#E8DCCB]/60 mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveUdemyModalCourse(course);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#FFF3DD] text-[#10233F] border border-[#E8DCCB] text-xs font-bold transition-all text-center cursor-pointer"
+                    >
+                      Curriculum
+                    </button>
+
+                    {isCourseEnrolled(course.id) ? (
+                      <Link
+                        href="/student/dashboard"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Enrolled</span>
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isStudentLoggedIn()) {
+                            setLoginModalCourse(course);
+                            return;
+                          }
+                          setDirectCheckoutCourse(course);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer active:scale-98"
+                      >
+                        <span>Enroll Now</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Next/Prev Pagination Bar */}
+          <div className="flex items-center justify-between pt-2 border-t border-[#E8DCCB]/60">
+            <span className="text-xs text-[#526174]">
+              {filteredUdemyCourses.length} video masterclasses in 1 horizontal sliding track
+            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => scrollSlider(udemySliderRef, 'left')}
+                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-xs font-bold text-[#10233F] transition-all flex items-center space-x-1 cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Previous</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollSlider(udemySliderRef, 'right')}
+                className="px-3.5 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-sm"
+              >
+                <span>Next Masterclasses</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        {/* ------------------------------------------------------------------
+            2. OFFLINE & CLASSROOM 9 FLAGSHIP BATCHES (Horizontal Slider)
+            ------------------------------------------------------------------ */}
+        <section id="classroom-batches" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-16 pb-12 border-t border-[#E8DCCB]">
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
@@ -1142,260 +1397,7 @@ export default function CoursesPage() {
 
         </section>
 
-        {/* ------------------------------------------------------------------
-            4. UDEMY-STYLE ONLINE VIDEO COURSES SECTION (Horizontal Slider)
-            ------------------------------------------------------------------ */}
-        <section id="udemy-catalog" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-6 pb-12 border-t border-[#E8DCCB]">
-          
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center space-x-2 text-xs font-mono font-bold tracking-wider text-[#89190E] uppercase mb-1">
-                <Sparkles className="w-4 h-4 text-[#89190E]" />
-                <span>Handbook Syllabus Masterclasses</span>
-              </div>
-              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#10233F]">
-                Handbook-Aligned Online Video Courses
-              </h2>
-              <p className="text-xs sm:text-sm text-[#526174] mt-1 max-w-2xl">
-                Directly synchronized with the official MSI Course Handouts by Dr. Ekta Gahlawat, Mr. Anurag Dwivedi, Ms. Riya Hooda, Ms. Shikha Singh, and Dr. Vikramaditya Sharma.
-              </p>
-            </div>
 
-            <div className="flex items-center space-x-2 self-start md:self-end">
-              <Link
-                href="/student/dashboard"
-                className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-[#10233F] hover:bg-[#1a345c] text-white text-xs font-bold transition-all shadow-sm cursor-pointer mr-2"
-              >
-                <UserCheck className="w-4 h-4 text-[#EFC988]" />
-                <span className="hidden sm:inline">My Courses</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'left')}
-                className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
-                aria-label="Previous Online Courses"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'right')}
-                className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
-                aria-label="Next Online Courses"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Search & Category Filter Bar */}
-          <div className="p-4 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Category Pills */}
-            <div className="flex items-center flex-wrap gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedUdemyCategory(cat.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    selectedUdemyCategory === cat.id
-                      ? 'bg-[#89190E] text-white shadow-sm'
-                      : 'bg-[#FFF9EF] text-[#526174] hover:text-[#10233F] border border-[#E8DCCB]'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <div className="relative min-w-[260px]">
-              <Search className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search judicial topics, CPC, BNSS, CLAT..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/50 text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
-              />
-            </div>
-          </div>
-
-          {/* Horizontal Sliding Row (1 Layer, 3-4 visible at once) */}
-          <div
-            ref={udemySliderRef}
-            className="flex items-stretch gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-6 scrollbar-none"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {filteredUdemyCourses.map((course) => (
-              <div
-                key={course.id}
-                className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0 snap-start"
-              >
-                <div
-                  onClick={() => setActiveUdemyModalCourse(course)}
-                  className="bg-white rounded-3xl border border-[#E8DCCB] overflow-hidden shadow-xs hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group cursor-pointer h-full"
-                >
-                  <div>
-                    {/* Thumbnail Container */}
-                    <div className="relative aspect-video w-full overflow-hidden bg-black/10">
-                      <Image
-                        src={course.thumbnail || '/images/courses/clat.jpg'}
-                        alt={course.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          if (target && !target.src.includes('clat.jpg')) {
-                            target.srcset = '';
-                            target.src = '/images/courses/clat.jpg';
-                          }
-                        }}
-                      />
-                      
-                      {course.badge && (
-                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider bg-[#EFC988] text-[#10233F] px-2.5 py-0.5 rounded-md shadow-xs">
-                          {course.badge}
-                        </span>
-                      )}
-
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-12 h-12 rounded-full bg-white/90 text-[#89190E] flex items-center justify-center shadow-lg">
-                          <PlayCircle className="w-7 h-7 fill-[#89190E] text-white" />
-                        </div>
-                      </div>
-
-                      <span className="absolute bottom-2 right-2 text-[10px] font-mono font-bold text-white bg-black/75 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                        {course.totalDuration}
-                      </span>
-                    </div>
-
-                    {/* Course Card Body */}
-                    <div className="p-5 space-y-2.5">
-                      <div className="flex items-center justify-between text-[11px] text-[#526174]">
-                        <span className="font-mono text-[#89190E] font-bold uppercase">
-                          {course.category}
-                        </span>
-                        <span>{course.level}</span>
-                      </div>
-
-                      <h3 className="font-serif text-base font-bold text-[#10233F] line-clamp-2 group-hover:text-[#89190E] transition-colors leading-snug">
-                        {course.title}
-                      </h3>
-
-                      <p className="text-xs text-[#526174] line-clamp-2 leading-relaxed">
-                        {course.headline}
-                      </p>
-
-                      <div className="flex items-center space-x-2 pt-1 text-xs text-[#10233F]">
-                        <div className="relative w-6 h-6 rounded-full overflow-hidden border border-[#E8DCCB] flex-shrink-0">
-                          <Image
-                            src={course.instructorAvatar}
-                            alt={course.instructorName}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <span className="font-medium truncate">{course.instructorName}</span>
-                      </div>
-
-                      <div className="flex items-center space-x-2 text-xs pt-1">
-                        <div className="flex items-center text-amber-500 font-bold">
-                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 mr-1" />
-                          <span>{course.rating.toFixed(1)}</span>
-                        </div>
-                        <span className="text-[#526174]">({course.reviewCount.toLocaleString()})</span>
-                        <span className="text-gray-300">•</span>
-                        <span className="text-[#526174]">{course.totalLectures} lectures</span>
-                      </div>
-
-                      <div className="flex items-baseline space-x-2 pt-1">
-                        <span className="text-base font-bold text-[#10233F]">
-                          ₹{course.price.toLocaleString()}
-                        </span>
-                        <span className="text-xs line-through text-[#526174]">
-                          ₹{course.originalPrice.toLocaleString()}
-                        </span>
-                        {course.isFreeForMsiStudents && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                            Free for MSI Students
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Footer Actions */}
-                  <div className="p-5 pt-0 border-t border-[#E8DCCB]/60 mt-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveUdemyModalCourse(course);
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#FFF3DD] text-[#10233F] border border-[#E8DCCB] text-xs font-bold transition-all text-center cursor-pointer"
-                    >
-                      Curriculum
-                    </button>
-
-                    {isCourseEnrolled(course.id) ? (
-                      <Link
-                        href="/student/dashboard"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Enrolled</span>
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isStudentLoggedIn()) {
-                            setLoginModalCourse(course);
-                            return;
-                          }
-                          setDirectCheckoutCourse(course);
-                        }}
-                        className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer active:scale-98"
-                      >
-                        <span>Enroll Now</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom Next/Prev Pagination Bar */}
-          <div className="flex items-center justify-between pt-2 border-t border-[#E8DCCB]/60">
-            <span className="text-xs text-[#526174]">
-              {filteredUdemyCourses.length} video masterclasses in 1 horizontal sliding track
-            </span>
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'left')}
-                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-xs font-bold text-[#10233F] transition-all flex items-center space-x-1 cursor-pointer"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span>Previous</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'right')}
-                className="px-3.5 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-sm"
-              >
-                <span>Next Masterclasses</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-        </section>
 
         {/* ------------------------------------------------------------------
             5. ADMISSION PROCESS & HELPLINE STRIP
