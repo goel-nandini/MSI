@@ -21,50 +21,7 @@ export interface AdminTransaction {
   razorpayOrderId?: string;
 }
 
-const INITIAL_TRANSACTIONS: AdminTransaction[] = [
-  {
-    id: '#TXN-88491',
-    orderId: 'order_msi_init_01',
-    studentName: 'Harshit',
-    studentPhone: '+91 97923 03434',
-    courseId: 'crs-msi-legstudies',
-    courseTitle: 'Legal Reasoning for CLAT: Foundational Principles & Passage-Based Deduction',
-    amount: 4999,
-    paymentMethod: 'Razorpay UPI (Test Gateway)',
-    status: 'Captured (Test Mode)',
-    timestamp: 'Today, 02:45 PM',
-    razorpayPaymentId: 'pay_test_892101',
-    receiptNumber: 'INV-MSI-2026-084',
-  },
-  {
-    id: '#TXN-88490',
-    orderId: 'order_msi_init_02',
-    studentName: 'Ananya Sharma',
-    studentPhone: '+91 98765 43210',
-    courseId: 'crs-udemy-pcsj',
-    courseTitle: 'PCS J Comprehensive Foundation & Procedural Law',
-    amount: 6999,
-    paymentMethod: 'Razorpay Netbanking (HDFC Test)',
-    status: 'Captured (Test Mode)',
-    timestamp: 'Yesterday, 05:12 PM',
-    razorpayPaymentId: 'pay_test_892095',
-    receiptNumber: 'INV-MSI-2026-083',
-  },
-  {
-    id: '#TXN-88489',
-    orderId: 'order_msi_init_03',
-    studentName: 'Priyanshu Kashyap',
-    studentPhone: '+91 98111 22334',
-    courseId: 'crs-udemy-clat',
-    courseTitle: 'Judiciary Mains Answer Writing & Speed Drafting Drills',
-    amount: 3499,
-    paymentMethod: 'Razorpay Cards (Visa Test)',
-    status: 'Captured (Test Mode)',
-    timestamp: '14 Oct 2026, 11:30 AM',
-    razorpayPaymentId: 'pay_test_892080',
-    receiptNumber: 'INV-MSI-2026-082',
-  },
-];
+const INITIAL_TRANSACTIONS: AdminTransaction[] = [];
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const TXN_FILE = path.join(DATA_DIR, 'transactions.json');

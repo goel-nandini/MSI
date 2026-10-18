@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
 import { authenticateWithPassword, getStudentProfile } from '@/lib/studentUserStore';
+import { verifyFacultyCredentials } from '@/lib/teacherUserStore';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { phone, password } = body;
+    const identifier = (body.phoneOrEmail || body.phone || body.email || body.identifier || '').trim();
+    const password = (body.password || '').trim();
 
-    if (!phone) {
+    if (!identifier) {
       return NextResponse.json(
-        { success: false, message: 'Please enter your mobile number.' },
+        { success: false, message: 'Please enter your registered mobile number or official email.' },
         { status: 400 }
       );
     }
@@ -21,19 +25,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPhone = sanitizeIndianPhone(phone);
-    if (!isValidIndianPhone(cleanPhone)) {
-      return NextResponse.json(
-        { success: false, message: 'Please enter a valid 10-digit Indian mobile number.' },
-        { status: 400 }
-      );
-    }
+    const cleanPhone = sanitizeIndianPhone(identifier);
 
-    // Dedicated Authentication for 9792303434 (Super Admin or Reception Desk)
-    if (cleanPhone === '9792303434') {
+    // 1. Dedicated Authentication for Super Admin & Reception Desk (9792303434)
+    if (cleanPhone === '9792303434' || identifier.toLowerCase() === 'admin@msi-institutes.edu.in') {
       const isSuperAdminPassword =
-        password.trim() === 'MSI@superadmin' ||
-        password.trim().toLowerCase() === 'msi@superadmin';
+        password === 'MSI@superadmin' ||
+        password.toLowerCase() === 'msi@superadmin';
 
       if (isSuperAdminPassword) {
         return NextResponse.json({
@@ -55,74 +53,105 @@ export async function POST(req: NextRequest) {
       }
 
       const isHarshitPassword =
-        password.trim() === 'Harshit@reception' ||
-        password.trim().toLowerCase() === 'harshit@reception';
+        password === 'Harshit@reception' ||
+        password.toLowerCase() === 'harshit@reception';
 
-      if (!isHarshitPassword) {
-        return NextResponse.json(
-          {
-            success: false,
-            code: 'INVALID_PASSWORD',
-            message: 'Invalid password. Please try again.',
-          },
-          { status: 401 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Welcome Harshit! Access granted to Reception Desk.',
-        role: 'reception',
-        redirectTo: '/reception/dashboard',
-        user: {
-          id: 'staff-harshit',
-          phone: '+91 97923 03434',
-          cleanPhone: '9792303434',
-          name: 'Harshit',
-          email: 'harshit.reception@msi-institutes.edu.in',
-          stream: 'Reception Desk & Visitor Management',
+      if (isHarshitPassword) {
+        return NextResponse.json({
+          success: true,
+          message: 'Welcome Harshit! Access granted to Reception Desk.',
           role: 'reception',
           redirectTo: '/reception/dashboard',
+          user: {
+            id: 'staff-harshit',
+            phone: '+91 97923 03434',
+            cleanPhone: '9792303434',
+            name: 'Harshit',
+            email: 'harshit.reception@msi-institutes.edu.in',
+            stream: 'Reception Desk & Visitor Management',
+            role: 'reception',
+            redirectTo: '/reception/dashboard',
+          },
+        });
+      }
+    }
+
+    // 2. Check Faculty Credentials
+    // As instructed: "फैकल्टी तो अपने से लॉगिन नहीं कर सकता, उसको जो असाइन करेगा सुपर एडमिन वही होगा... सुपर एडमिन में फैकल्टी ऐड किया, उनका पासवर्ड और क्रेडेंशियल दिया, तो उस क्रेडेंशियल का यूज़ करके लॉगिन पेज पे जाएंगे तो उनको फैकल्टी का डैशबोर्ड ओपन हो जाना चाहिए"
+    const facultyResult = verifyFacultyCredentials(identifier, password);
+    if (facultyResult.success && facultyResult.teacher) {
+      const teacher = facultyResult.teacher;
+      return NextResponse.json({
+        success: true,
+        message: `Welcome ${teacher.name}! Access granted to Faculty Dashboard.`,
+        role: 'teacher',
+        redirectTo: '/teacher/dashboard',
+        user: {
+          id: teacher.id,
+          name: teacher.name,
+          email: teacher.email,
+          phone: teacher.phone,
+          department: teacher.department,
+          designation: teacher.designation,
+          avatarUrl: teacher.avatarUrl,
+          stream: teacher.stream,
+          role: 'teacher',
+          redirectTo: '/teacher/dashboard',
         },
       });
     }
 
-    const authResult = authenticateWithPassword(cleanPhone, password);
+    // 3. Check Student Credentials
+    const authResult = authenticateWithPassword(identifier, password);
+    if (authResult.success && authResult.student) {
+      const student = authResult.student;
+      const profile = getStudentProfile(student.phone);
+      const resolvedName = profile?.name || student.name;
+      const resolvedStream = profile?.courseTitle || profile?.batch || student.stream;
+      const resolvedEmail =
+        profile?.email || student.email || `student.${student.phone.slice(-4)}@msi-institutes.edu.in`;
 
-    if (!authResult.success || !authResult.student) {
+      return NextResponse.json({
+        success: true,
+        message: `Welcome ${resolvedName}! Access granted to Student Learning Portal.`,
+        role: 'student',
+        redirectTo: '/student/dashboard',
+        user: {
+          id: student.id,
+          phone: profile?.phone || `+91 ${student.phone.slice(0, 5)} ${student.phone.slice(5)}`,
+          cleanPhone: student.phone,
+          name: resolvedName,
+          email: resolvedEmail,
+          stream: resolvedStream,
+          role: 'student',
+          profile,
+          redirectTo: '/student/dashboard',
+        },
+      });
+    }
+
+    // 4. If neither matched, provide helpful feedback
+    if (facultyResult.message?.toLowerCase().includes('password') || authResult.code === 'INVALID_PASSWORD') {
       return NextResponse.json(
         {
           success: false,
-          code: authResult.code,
-          message: authResult.message,
+          code: 'INVALID_PASSWORD',
+          message: 'Incorrect password for this account. Please check your credentials or reset via OTP.',
         },
         { status: 401 }
       );
     }
 
-    const student = authResult.student;
-    const profile = getStudentProfile(cleanPhone);
-    const resolvedName = profile?.name || student.name;
-    const resolvedStream = profile?.courseTitle || profile?.batch || student.stream;
-    const resolvedEmail =
-      profile?.email || student.email || `student.${student.phone.slice(-4)}@msi-institutes.edu.in`;
-
-    return NextResponse.json({
-      success: true,
-      message: 'Logged in successfully!',
-      user: {
-        id: student.id,
-        phone: profile?.phone || `+91 ${student.phone.slice(0, 5)} ${student.phone.slice(5)}`,
-        cleanPhone: student.phone,
-        name: resolvedName,
-        email: resolvedEmail,
-        stream: resolvedStream,
-        role: 'student',
-        profile,
+    return NextResponse.json(
+      {
+        success: false,
+        code: 'NOT_FOUND',
+        message: 'No account found with this mobile number or email. New students can register using OTP. Faculty accounts are provisioned exclusively by Super Admin.',
       },
-    });
+      { status: 404 }
+    );
   } catch (error: any) {
-    console.error('[API Student Login Error]', error);
+    console.error('[API Unified Login Error]', error);
     return NextResponse.json(
       {
         success: false,

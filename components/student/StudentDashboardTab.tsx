@@ -100,32 +100,6 @@ export default function StudentDashboardTab({
       })
       .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
 
-    // Ensure all registered students under Dr. Ekta Gahlawat / Ekta Gehlot or free MSI courses have access
-    allCourses.forEach((crs) => {
-      const alreadyIn = merged.some((m) => m.course.id === crs.id);
-      const isEktaCourse =
-        crs.instructorId === 'fac-law-ekta' ||
-        crs.instructorName.toLowerCase().includes('ekta') ||
-        crs.instructorName.toLowerCase().includes('gehlot') ||
-        crs.instructorName.toLowerCase().includes('gahlawat');
-
-      if (!alreadyIn && (isEktaCourse || crs.isFreeForMsiStudents)) {
-        const autoEnrollment: CourseEnrollment = {
-          studentId: student.id || (cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : 'msi-stu-001'),
-          studentPhone: cleanPhone,
-          courseId: crs.id,
-          enrolledAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
-          progressPercentage: 0,
-          completedLectureIds: [],
-          assignedBy: 'super-admin',
-          assignedByName: crs.instructorName,
-          assignedNote: `Assigned under ${crs.instructorName} curriculum.`,
-          certificateIssued: false,
-        };
-        merged.push({ course: crs, enrollment: autoEnrollment });
-      }
-    });
-
     setEnrolledUdemyData(merged);
   };
 
@@ -379,9 +353,11 @@ export default function StudentDashboardTab({
                 Batch Rank
               </span>
               <span className="font-serif text-lg sm:text-2xl font-bold text-white mt-0.5 block">
-                03 / 120
+                {tests.some((t) => t.status === 'Completed') ? 'Ranked' : 'N/A'}
               </span>
-              <span className="text-[9px] text-[#EFC988] font-semibold block truncate">94.2 Percentile</span>
+              <span className="text-[9px] text-[#EFC988] font-semibold block truncate">
+                {tests.some((t) => t.status === 'Completed') ? 'Evaluation Active' : 'Attempt mock test'}
+              </span>
             </div>
           </div>
         </div>
@@ -412,7 +388,24 @@ export default function StudentDashboardTab({
         </div>
 
         {/* Enrolled Courses Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {enrolledUdemyData.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-center space-y-3">
+            <GraduationCap className="w-10 h-10 text-[#89190E] mx-auto opacity-70" />
+            <h4 className="font-serif text-lg font-bold text-[#10233F]">No Enrolled Courses Yet</h4>
+            <p className="text-xs text-[#526174] max-w-md mx-auto">
+              You have no active course enrollments yet. Explore our premier judicial & law entrance programmes to get started.
+            </p>
+            <Link
+              href="/courses"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#89190E] text-white text-xs font-bold shadow-md hover:bg-[#65130D] transition-all cursor-pointer"
+            >
+              <BookOpen className="w-4 h-4 text-[#EFC988]" />
+              <span>Explore All Courses</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {enrolledUdemyData.map(({ course, enrollment }) => {
             const isAssignedByAdmin = enrollment.assignedBy === 'super-admin';
 
@@ -494,7 +487,8 @@ export default function StudentDashboardTab({
             );
           })}
         </div>
-      </div>
+      )}
+    </div>
 
       {/* 3. Key Metrics Row: Progress, Classes, Tests, Fee Status */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

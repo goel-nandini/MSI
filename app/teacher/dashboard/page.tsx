@@ -221,10 +221,15 @@ export default function TeacherDashboardPage() {
   const handleLogout = () => {
     try {
       localStorage.removeItem('msi_teacher_logged_in');
+      localStorage.removeItem('msi_active_teacher_id');
+      localStorage.removeItem('msi_active_teacher_name');
+      localStorage.removeItem('msi_active_teacher_email');
+      localStorage.removeItem('msi_active_teacher_phone');
+      localStorage.removeItem('msi_active_teacher_stream');
     } catch (err) {
       console.error(err);
     }
-    router.push('/teacher/login');
+    router.push('/login');
   };
 
   // Content Publish / Unpublish Toggle

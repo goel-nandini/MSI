@@ -17,7 +17,7 @@ export interface RegisteredStudentUser {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 
-// Default seeded student accounts: Harshit & Ankit (Real registered students)
+// Default seeded staff accounts: Harshit (Reception Desk)
 const SEED_STUDENTS: RegisteredStudentUser[] = [
   {
     id: 'staff-harshit',
@@ -27,15 +27,7 @@ const SEED_STUDENTS: RegisteredStudentUser[] = [
     password: 'Harshit@reception',
     email: 'harshit.reception@msi-institutes.edu.in',
     registeredAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'msi-stu-ankit',
-    phone: '9876543210',
-    name: 'Ankit Sir',
-    stream: 'Judiciary Comprehensive Foundation & Procedural Law',
-    password: 'Ankit@MSI2026',
-    email: 'ankit.sir@msi-institutes.edu.in',
-    registeredAt: '2026-01-10T10:00:00.000Z',
+    role: 'reception',
   },
 ];
 
@@ -328,8 +320,13 @@ export function authenticateWithPassword(
   message: string;
 } {
   const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  const cleanInput = rawPhone.trim().toLowerCase();
   const students = readStudentsFromDisk();
-  const student = students.find((s) => s.phone === cleanPhone);
+  const student = students.find(
+    (s) =>
+      (cleanPhone.length >= 10 && s.phone === cleanPhone) ||
+      (s.email && s.email.trim().toLowerCase() === cleanInput)
+  );
 
   if (!student) {
     return {

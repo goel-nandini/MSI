@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/navbar/Navbar';
 import HeroSlider from '@/components/home/HeroSlider';
 import FeatureStrip from '@/components/home/FeatureStrip';
@@ -36,11 +36,139 @@ import {
   Phone,
   Clock,
 } from 'lucide-react';
+import { UdemyCourse, getStoredCourses, LMS_SYNC_EVENT } from '@/lib/lmsStore';
+
+const DEFAULT_HOME_COURSES = [
+  {
+    id: 'pcs-j',
+    num: '01',
+    title: 'PCS J — Punjab & Haryana Judiciary',
+    level: 'Civil Judge (Junior Division) / JMFC',
+    badge: '#1 BESTSELLER',
+    badgeVariant: 'crimson' as const,
+    icon: Scale,
+    accent: '#89190E',
+    duration: '1-Year Regular / Weekend',
+    stat: '100+ Selections',
+    desc: 'Flagship judicial coaching with daily Bare Act deconstructions, procedural codes, and intensive evaluated Mains judgment drafting.',
+    features: [
+      'Comprehensive CPC, CrPC, BNSS 2023 & Evidence Mastery',
+      'Daily High Court Judgment Drafting & Answer Checking',
+      'Mock Interview Panels with Senior Advocates & Ex-Judges',
+    ],
+  },
+  {
+    id: 'clat-ailet',
+    num: '02',
+    title: 'CLAT & AILET — 5-Year Integrated Law',
+    level: 'Class 11, 12 & Droppers Cohort',
+    badge: 'TOP ENROLLED',
+    badgeVariant: 'gold' as const,
+    icon: GraduationCap,
+    accent: '#10233F',
+    duration: '1-Year / 2-Year / Crash',
+    stat: 'AIR Top 100 Ranks',
+    desc: 'Targeted preparation for all 24 National Law Universities with rigorous passage-based analytics, critical reasoning, and speed strategy.',
+    features: [
+      'Passage-First Speed Mapping & Logical Reasoning Drills',
+      'Weekly Legal GK, Constitutional Updates & Current Affairs',
+      '100+ Proctored All-India Simulated Mock Tests with AIR',
+    ],
+  },
+  {
+    id: 'pu-law',
+    num: '03',
+    title: 'PU Law Entrance — 3-Yr & 5-Yr LL.B',
+    level: 'Panjab University & Regional Wings',
+    badge: 'STATE RANKER CHOICE',
+    badgeVariant: 'navy' as const,
+    icon: Award,
+    accent: '#89190E',
+    duration: '3-Month Intensive & Crash',
+    stat: 'Rank 12 PU State Top Ranker',
+    desc: 'Specialized syllabus training for Department of Laws, Panjab University Chandigarh, UILS, and regional university centers.',
+    features: [
+      '15-Year Solved Sectional Previous Year Question Deconstructions',
+      'Legal Aptitude, Indian Polity & Current Affairs Focus',
+      'OMR Exam-Hall Simulation with High-Accuracy Elimination',
+    ],
+  },
+];
 
 export default function HomePage() {
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState('PCS J — Punjab Civil Judge Coaching');
+  const [dynamicCourses, setDynamicCourses] = useState<UdemyCourse[]>([]);
+
+  // Synchronize courses dynamically from local store & server disk
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const stored = getStoredCourses();
+        if (stored && stored.length > 0) {
+          setDynamicCourses(stored);
+        }
+        const res = await fetch('/api/courses');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
+            setDynamicCourses(data.courses);
+          }
+        }
+      } catch (err) {
+        console.warn('HomePage course sync skipped:', err);
+      }
+    };
+
+    loadCourses();
+
+    const handleSync = () => loadCourses();
+    window.addEventListener(LMS_SYNC_EVENT, handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener(LMS_SYNC_EVENT, handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+  // Format courses for home screen cards
+  const displayCourses = React.useMemo(() => {
+    if (!dynamicCourses || dynamicCourses.length === 0) {
+      return DEFAULT_HOME_COURSES;
+    }
+
+    return dynamicCourses.map((c, idx) => {
+      const badgeVariant: 'crimson' | 'gold' | 'navy' =
+        idx % 3 === 0 ? 'crimson' : idx % 3 === 1 ? 'gold' : 'navy';
+      const icon = idx % 2 === 0 ? Scale : GraduationCap;
+      const accent = idx % 2 === 0 ? '#89190E' : '#10233F';
+      const features =
+        c.whatYouWillLearn && c.whatYouWillLearn.length > 0
+          ? c.whatYouWillLearn.slice(0, 3)
+          : [
+              'Bare Act deconstruction & landmark ratio decidendi',
+              'Evaluated Mains answer drafting & problem solving',
+              'All-India simulated mock tests with rank analysis',
+            ];
+
+      return {
+        id: c.id,
+        num: String(idx + 1).padStart(2, '0'),
+        title: c.title,
+        level: `${c.level || 'All Levels'} • ${c.instructorName || 'MSI Faculty'}`,
+        badge: c.badge ? c.badge.toUpperCase() : idx === 0 ? '#1 BESTSELLER' : 'HOT & NEW',
+        badgeVariant,
+        icon,
+        accent,
+        duration: c.totalDuration || 'Comprehensive',
+        stat: `${c.totalLectures || 40}+ Lectures`,
+        desc: c.headline || c.description,
+        features,
+        slug: c.slug,
+      };
+    });
+  }, [dynamicCourses]);
 
   return (
     <div className="relative min-h-screen bg-[#FFF9EF] flex flex-col selection:bg-[#EFC988] selection:text-[#89190E]">
@@ -91,64 +219,9 @@ export default function HomePage() {
             </p>
           </Reveal>
 
-          {/* 3 Best Selling Course Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
-            {[
-              {
-                id: 'pcs-j',
-                num: '01',
-                title: 'PCS J — Punjab & Haryana Judiciary',
-                level: 'Civil Judge (Junior Division) / JMFC',
-                badge: '#1 BESTSELLER',
-                badgeVariant: 'crimson',
-                icon: Scale,
-                accent: '#89190E',
-                duration: '1-Year Regular / Weekend',
-                stat: '100+ Selections',
-                desc: 'Flagship judicial coaching with daily Bare Act deconstructions, procedural codes, and intensive evaluated Mains judgment drafting.',
-                features: [
-                  'Comprehensive CPC, CrPC, BNSS 2023 & Evidence Mastery',
-                  'Daily High Court Judgment Drafting & Answer Checking',
-                  'Mock Interview Panels with Senior Advocates & Ex-Judges',
-                ],
-              },
-              {
-                id: 'clat-ailet',
-                num: '02',
-                title: 'CLAT & AILET — 5-Year Integrated Law',
-                level: 'Class 11, 12 & Droppers Cohort',
-                badge: 'TOP ENROLLED',
-                badgeVariant: 'gold',
-                icon: GraduationCap,
-                accent: '#10233F',
-                duration: '1-Year / 2-Year / Crash',
-                stat: 'AIR Top 100 Ranks',
-                desc: 'Targeted preparation for all 24 National Law Universities with rigorous passage-based analytics, critical reasoning, and speed strategy.',
-                features: [
-                  'Passage-First Speed Mapping & Logical Reasoning Drills',
-                  'Weekly Legal GK, Constitutional Updates & Current Affairs',
-                  '100+ Proctored All-India Simulated Mock Tests with AIR',
-                ],
-              },
-              {
-                id: 'pu-law',
-                num: '03',
-                title: 'PU Law Entrance — 3-Yr & 5-Yr LL.B',
-                level: 'Panjab University & Regional Wings',
-                badge: 'STATE RANKER CHOICE',
-                badgeVariant: 'navy',
-                icon: Award,
-                accent: '#89190E',
-                duration: '3-Month Intensive & Crash',
-                stat: 'Rank 12 PU State Top Ranker',
-                desc: 'Specialized syllabus training for Department of Laws, Panjab University Chandigarh, UILS, and regional university centers.',
-                features: [
-                  '15-Year Solved Sectional Previous Year Question Deconstructions',
-                  'Legal Aptitude, Indian Polity & Current Affairs Focus',
-                  'OMR Exam-Hall Simulation with High-Accuracy Elimination',
-                ],
-              },
-            ].map((course, idx) => {
+          {/* Dynamic Best Selling Courses Grid (Synchronized with Super Admin additions) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
+            {displayCourses.slice(0, 6).map((course, idx) => {
               const Icon = course.icon;
               return (
                 <Reveal key={course.id} direction="up" delay={idx * 100} className="h-full">
@@ -272,6 +345,18 @@ export default function HomePage() {
                 </Reveal>
               );
             })}
+          </div>
+
+          {/* View All Programmes CTA */}
+          <div className="flex justify-center mb-12">
+            <Link
+              href="/courses"
+              className="inline-flex items-center space-x-2.5 px-7 py-3.5 rounded-2xl bg-[#89190E] hover:bg-[#65130D] text-white font-bold text-sm shadow-lg shadow-[#89190E]/20 transition-all hover:scale-102 cursor-pointer"
+            >
+              <BookOpen className="w-4 h-4 text-[#EFC988]" />
+              <span>Explore All Academic & Judicial Programmes</span>
+              <ArrowRight className="w-4 h-4 text-[#EFC988]" />
+            </Link>
           </div>
 
           {/* Under Courses Banner (Admissions Consultation) */}

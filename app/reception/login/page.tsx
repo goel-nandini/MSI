@@ -147,19 +147,11 @@ export default function ReceptionLoginPage() {
         {/* Portal navigation quick-links */}
         <div className="flex items-center space-x-2 sm:space-x-3">
           <Link
-            href="/student/login"
+            href="/login"
             className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl bg-white border border-[#E8DCCB] hover:border-[#10233F] text-xs font-semibold text-[#10233F] transition-all shadow-xs"
           >
             <UserCheck className="w-3.5 h-3.5 text-[#89190E]" />
-            <span className="hidden sm:inline">Student</span> Login
-          </Link>
-
-          <Link
-            href="/teacher/login"
-            className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl bg-white border border-[#E8DCCB] hover:border-[#10233F] text-xs font-semibold text-[#10233F] transition-all shadow-xs"
-          >
-            <GraduationCap className="w-3.5 h-3.5 text-[#89190E]" />
-            <span className="hidden sm:inline">Faculty</span> Login
+            <span className="hidden sm:inline">Student / Faculty</span> Login
           </Link>
 
           <Link

@@ -224,78 +224,7 @@ export const DEMO_STUDENTS: StudentProfile[] = [
 // Active & Locked Courses (Official MSI Handbooks)
 // --------------------------------------------------------------------------
 
-export const ACTIVE_COURSES: ActiveCourse[] = [
-  {
-    id: 'crs-01',
-    code: 'MSI/LEGSTUDIES-/01',
-    title: 'Legal Reasoning for CLAT (Common Law Admission Test)',
-    faculty: 'Dr. Ekta Gahlawat (Legal Studies Faculty)',
-    progress: 78,
-    totalLectures: 44,
-    attendedLectures: 35,
-    isEnrolled: true,
-    validUntil: '31 July 2027',
-    category: 'Legal Studies',
-    accentColor: '#89190E',
-    status: 'Active',
-  },
-  {
-    id: 'crs-02',
-    code: 'MSI/GKCA/01',
-    title: 'General Knowledge & Current Affairs (CLAT UG)',
-    faculty: 'Mr. Anurag Dwivedi (Faculty – GK & Current Affairs)',
-    progress: 84,
-    totalLectures: 180,
-    attendedLectures: 152,
-    isEnrolled: true,
-    validUntil: '31 July 2027',
-    category: 'Current Affairs & Static GK',
-    accentColor: '#10233F',
-    status: 'Active',
-  },
-  {
-    id: 'crs-03',
-    code: 'MSI/LR/01',
-    title: 'Logical Reasoning (CLAT & AILET)',
-    faculty: 'Ms. Riya Hooda (Faculty – Logical Reasoning)',
-    progress: 72,
-    totalLectures: 126,
-    attendedLectures: 91,
-    isEnrolled: true,
-    validUntil: '31 July 2027',
-    category: 'Logical Reasoning',
-    accentColor: '#89190E',
-    status: 'Active',
-  },
-  {
-    id: 'crs-04',
-    code: 'MSI/ENGCLAT-/01',
-    title: 'English for CLAT (Common Law Admission Test)',
-    faculty: 'Ms. Shikha Singh (English Faculty)',
-    progress: 80,
-    totalLectures: 44,
-    attendedLectures: 36,
-    isEnrolled: true,
-    validUntil: '31 July 2027',
-    category: 'English Language',
-    accentColor: '#10233F',
-    status: 'Active',
-  },
-  {
-    id: 'crs-05',
-    code: 'MSI/PCSJ/01',
-    title: 'PCS J (Punjab Judicial Services) Foundation & BNSS Masterclass',
-    faculty: 'Dr. Vikramaditya Sharma (Senior Professor of Law)',
-    progress: 0,
-    totalLectures: 60,
-    attendedLectures: 0,
-    isEnrolled: false, // Add-on judiciary elective
-    validUntil: 'N/A (Requires Add-on Enrollment)',
-    category: 'Judiciary Add-on',
-    accentColor: '#526174',
-    status: 'Locked',
-  },
-];
+export const ACTIVE_COURSES: ActiveCourse[] = [];
 
 // --------------------------------------------------------------------------
 // Timetable & Upcoming Classes (From Official Handbooks)
@@ -664,148 +593,15 @@ export const PYQS_LIST: PYQItem[] = [
 // Learning: Assignments (Real Handbook Tasks)
 // --------------------------------------------------------------------------
 
-export const ASSIGNMENTS_LIST: AssignmentItem[] = [
-  {
-    id: 'asg-01',
-    title: 'Assignment 1: Passage-Based Legal Critical Analysis (Landmark Judgment Deduction)',
-    subject: 'Legal Reasoning for CLAT',
-    assignedDate: '08 Sep 2025',
-    dueDate: '22 Sep 2025',
-    status: 'Pending',
-    maxMarks: 20,
-  },
-  {
-    id: 'asg-02',
-    title: 'Assignment 2: Weekly Current-Affairs Digest & Op-Ed Editorial Analysis',
-    subject: 'General Knowledge & Current Affairs',
-    assignedDate: '01 Sep 2025',
-    dueDate: '15 Sep 2025',
-    status: 'Submitted',
-    maxMarks: 25,
-    submittedFile: 'Aarav_Sharma_CurrentAffairs_Digest_Unit1.pdf',
-    facultyRemarks: 'Under faculty evaluation by Mr. Anurag Dwivedi.',
-  },
-  {
-    id: 'asg-03',
-    title: 'Assignment 3: Editorial Summary & Legal Vocabulary Journal (Norman Lewis & Latin Maxims)',
-    subject: 'English for CLAT',
-    assignedDate: '18 Aug 2025',
-    dueDate: '28 Aug 2025',
-    status: 'Graded',
-    maxMarks: 20,
-    scoredMarks: 19,
-    facultyRemarks: 'Flawless precision in Latin maxim usage and contextual sentence formation. Reviewed by Ms. Shikha Singh.',
-    submittedFile: 'Aarav_Sharma_Vocab_Journal.pdf',
-  },
-  {
-    id: 'asg-04',
-    title: 'Assignment 4: Logical Reasoning Puzzle-Grid & Syllogism Analysis',
-    subject: 'Logical Reasoning (CLAT & AILET)',
-    assignedDate: '15 Aug 2025',
-    dueDate: '25 Aug 2025',
-    status: 'Graded',
-    maxMarks: 20,
-    scoredMarks: 18.5,
-    facultyRemarks: 'Very clean argument decomposition and Venn diagram logic. Reviewed by Ms. Riya Hooda.',
-    submittedFile: 'Aarav_Sharma_Logic_Drill.pdf',
-  },
-];
+export const ASSIGNMENTS_LIST: AssignmentItem[] = [];
 
 // --------------------------------------------------------------------------
 // Attendance: Subject Breakdown & Logs (Official MSI Handbooks)
 // --------------------------------------------------------------------------
 
-export const ATTENDANCE_SUBJECTS: AttendanceSubject[] = [
-  {
-    subject: 'Legal Reasoning for CLAT',
-    code: 'MSI/LEGSTUDIES-/01',
-    total: 38,
-    attended: 34,
-    percentage: 89.4,
-    faculty: 'Dr. Ekta Gahlawat',
-  },
-  {
-    subject: 'General Knowledge & Current Affairs',
-    code: 'MSI/GKCA/01',
-    total: 46,
-    attended: 41,
-    percentage: 89.1,
-    faculty: 'Mr. Anurag Dwivedi',
-  },
-  {
-    subject: 'Logical Reasoning (CLAT & AILET)',
-    code: 'MSI/LR/01',
-    total: 36,
-    attended: 31,
-    percentage: 86.1,
-    faculty: 'Ms. Riya Hooda',
-  },
-  {
-    subject: 'English for CLAT',
-    code: 'MSI/ENGCLAT-/01',
-    total: 34,
-    attended: 30,
-    percentage: 88.2,
-    faculty: 'Ms. Shikha Singh',
-  },
-];
+export const ATTENDANCE_SUBJECTS: AttendanceSubject[] = [];
 
-export const ATTENDANCE_LOGS: AttendanceLogEntry[] = [
-  {
-    id: 'att-1',
-    date: '18 Sep 2025',
-    day: 'Thursday',
-    subject: 'Legal Reasoning (Dr. Ekta Gahlawat)',
-    time: '10:00 AM',
-    status: 'Present',
-    markedBy: 'Biometric RFID Portal',
-  },
-  {
-    id: 'att-2',
-    date: '17 Sep 2025',
-    day: 'Wednesday',
-    subject: 'GK & Current Affairs (Mr. Anurag Dwivedi)',
-    time: '11:30 AM',
-    status: 'Present',
-    markedBy: 'Faculty Sign-In',
-  },
-  {
-    id: 'att-3',
-    date: '16 Sep 2025',
-    day: 'Tuesday',
-    subject: 'Logical Reasoning (Ms. Riya Hooda)',
-    time: '02:00 PM',
-    status: 'Absent',
-    markedBy: 'Biometric RFID Portal',
-  },
-  {
-    id: 'att-4',
-    date: '15 Sep 2025',
-    day: 'Monday',
-    subject: 'English for CLAT (Ms. Shikha Singh)',
-    time: '03:45 PM',
-    status: 'Present',
-    markedBy: 'Faculty Sign-In',
-  },
-  {
-    id: 'att-5',
-    date: '12 Sep 2025',
-    day: 'Friday',
-    subject: 'Legal Reasoning: Law of Torts',
-    time: '10:00 AM',
-    status: 'Present',
-    markedBy: 'Dr. Ekta Gahlawat',
-  },
-  {
-    id: 'att-6',
-    date: '11 Sep 2025',
-    day: 'Thursday',
-    subject: 'GK & Current Affairs: Geopolitics',
-    time: '11:30 AM',
-    status: 'Excused',
-    markedBy: 'Academic Leave Cell',
-  },
-];
+export const ATTENDANCE_LOGS: AttendanceLogEntry[] = [];
 
 // --------------------------------------------------------------------------
 // Tests & Assessments Data
@@ -824,34 +620,6 @@ export const TESTS_LIST: TestItem[] = [
     status: 'Available',
   },
   {
-    id: 'test-02',
-    title: 'Mid-Programme Diagnostic Assessment (CLAT UG Full Length)',
-    subject: 'Legal Reasoning, Logical Reasoning, GK, English Language',
-    type: 'Formal',
-    durationMinutes: 120,
-    totalQuestions: 120,
-    totalMarks: 120,
-    scheduledDate: '02 Sep 2025',
-    status: 'Completed',
-    scoredMarks: 104,
-    percentile: 96.8,
-    rank: '2nd in MSI Institute Batch',
-  },
-  {
-    id: 'test-03',
-    title: 'Subject Mega-Quiz: Law of Torts, Contracts & Legal Maxims',
-    subject: 'Legal Studies (MSI/LEGSTUDIES-/01)',
-    type: 'Mock',
-    durationMinutes: 30,
-    totalQuestions: 30,
-    totalMarks: 30,
-    scheduledDate: '25 Aug 2025',
-    status: 'Completed',
-    scoredMarks: 28,
-    percentile: 94.0,
-    rank: '4th in Institute Batch',
-  },
-  {
     id: 'test-04',
     title: 'All-India Open CLAT UG Grand Mock #04 (National Law Universities)',
     subject: 'Full 5-Section CLAT Pattern (NLUs Format)',
@@ -859,7 +627,7 @@ export const TESTS_LIST: TestItem[] = [
     durationMinutes: 120,
     totalQuestions: 120,
     totalMarks: 120,
-    scheduledDate: 'Upcoming: 28 Sep 2025',
+    scheduledDate: 'Upcoming: 28 Sep 2026',
     status: 'Upcoming',
   },
   {
@@ -870,7 +638,7 @@ export const TESTS_LIST: TestItem[] = [
     durationMinutes: 120,
     totalQuestions: 150,
     totalMarks: 150,
-    scheduledDate: '15 Oct 2025',
+    scheduledDate: '15 Oct 2026',
     status: 'Upcoming',
     isLocked: true,
   },
@@ -949,41 +717,16 @@ export const TIMED_MOCK_QUESTIONS: TestQuestion[] = [
 // Fees & Accounts Data
 // --------------------------------------------------------------------------
 
-export const FEE_BREAKDOWN: FeeBreakdownItem[] = [
-  { category: 'CLAT UG Comprehensive Tuition & Faculty Handbooks (Annual)', amount: 75000, status: 'Paid' },
-  { category: 'National Level Mock Test Series & Diagnostic Portal Access', amount: 15000, status: 'Paid' },
-  { category: 'E-Library, Monthly Op-Ed Compendiums & Bare Acts Access', amount: 10000, status: 'Paid' },
-  { category: 'Moot Court Advocacy & Legal Reasoning Intensive Lab', amount: 15000, status: 'Pending', dueDate: '15 Oct 2025' },
-  { category: 'Consortium Registration & Sectional Evaluation Fee', amount: 10000, status: 'Pending', dueDate: '15 Oct 2025' },
-];
+export const FEE_BREAKDOWN: FeeBreakdownItem[] = [];
 
-export const FEE_TRANSACTIONS: FeeTransaction[] = [
-  {
-    id: 'tx-1',
-    receiptNo: 'MSI/2025/RC-8841',
-    date: '10 Jul 2025',
-    amount: 50000,
-    mode: 'UPI',
-    status: 'Successful',
-    remarks: 'Installment 1: Admission & CLAT Foundation Tuition Fee',
-  },
-  {
-    id: 'tx-2',
-    receiptNo: 'MSI/2025/RC-9214',
-    date: '14 Aug 2025',
-    amount: 35000,
-    mode: 'Net Banking',
-    status: 'Successful',
-    remarks: 'Installment 2: Test Series & E-Library Subscriptions',
-  },
-];
+export const FEE_TRANSACTIONS: FeeTransaction[] = [];
 
 export const FEE_SUMMARY = {
-  totalFee: 125000,
-  paidFee: 85000,
-  pendingFee: 40000,
-  nextDueDate: '15 Oct 2025',
-  academicYear: '2025 – 2026',
-  scholarshipApplied: 'MSI Merit Entrance Scholarship (₹10,000 concession)',
-  courseValidity: 'Valid until 31 July 2027',
+  totalFee: 0,
+  paidFee: 0,
+  pendingFee: 0,
+  nextDueDate: 'No pending dues',
+  academicYear: '2026 – 2027',
+  scholarshipApplied: 'None',
+  courseValidity: 'Active',
 };

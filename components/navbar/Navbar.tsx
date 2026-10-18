@@ -95,10 +95,19 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
       localStorage.removeItem('msi_teacher_logged_in');
       localStorage.removeItem('msi_student_logged_in');
       localStorage.removeItem('msi_reception_logged_in');
+      localStorage.removeItem('msi_super_admin_authenticated');
       localStorage.removeItem('msi_active_staff_id');
       localStorage.removeItem('msi_active_staff_name');
       localStorage.removeItem('msi_active_staff_phone');
       localStorage.removeItem('msi_active_staff_email');
+      localStorage.removeItem('msi_active_teacher_id');
+      localStorage.removeItem('msi_active_teacher_name');
+      localStorage.removeItem('msi_active_teacher_email');
+      localStorage.removeItem('msi_active_teacher_phone');
+      localStorage.removeItem('msi_active_student_phone');
+      localStorage.removeItem('msi_active_student_name');
+      localStorage.removeItem('msi_active_student_email');
+      localStorage.removeItem('msi_active_student_profile');
     } catch {}
     setCurrentUser(null);
     setLoginDropdownOpen(false);
@@ -323,7 +332,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
             ) : (
               /* Single direct Login Button */
               <Link
-                href="/student/login"
+                href="/login"
                 className={`font-semibold text-[#10233F] hover:text-[#89190E] bg-white hover:bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] rounded-xl transition-all duration-200 shadow-xs flex items-center space-x-1.5 cursor-pointer ${
                   scrolled ? 'h-[38px] px-3.5 text-xs' : 'h-[44px] px-4 text-xs'
                 }`}
@@ -367,7 +376,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
               </Link>
             ) : (
               <Link
-                href="/student/login"
+                href="/login"
                 className="inline-flex items-center space-x-1 text-xs font-bold text-[#10233F] bg-white border border-[#E8DCCB] px-2.5 py-1.5 rounded-xl shadow-xs cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5 text-[#89190E]" />
@@ -456,7 +465,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
               ) : (
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <Link
-                    href="/student/login"
+                    href="/login"
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-[#10233F] bg-white border border-[#E8DCCB] rounded-xl hover:bg-[#FFF9EF] transition-all"
                   >
@@ -464,7 +473,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                     <span>Login</span>
                   </Link>
                   <Link
-                    href="/student/login?tab=signup"
+                    href="/login?tab=otp"
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-full h-11 flex items-center justify-center space-x-1.5 font-bold text-xs sm:text-sm text-white bg-[#89190E] hover:bg-[#65130D] rounded-xl shadow-md transition-all"
                   >

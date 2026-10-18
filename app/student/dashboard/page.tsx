@@ -198,10 +198,15 @@ export default function StudentDashboardPage() {
   const handleLogout = () => {
     try {
       localStorage.removeItem('msi_student_logged_in');
+      localStorage.removeItem('msi_active_student_phone');
+      localStorage.removeItem('msi_active_student_name');
+      localStorage.removeItem('msi_active_student_email');
+      localStorage.removeItem('msi_active_student_stream');
+      localStorage.removeItem('msi_active_student_profile');
     } catch (err) {
       console.error(err);
     }
-    router.push('/student/login');
+    router.push('/login');
   };
 
   // Permanent profile update: updates React state, localStorage by phone, and server storage

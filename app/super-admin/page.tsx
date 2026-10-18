@@ -987,6 +987,15 @@ export default function SuperAdminMasterDashboard() {
       saveStoredCourses(updatedCourses);
       setCourses(updatedCourses);
 
+      // Persist permanently to server disk so it appears immediately on Home Screen & Courses page
+      try {
+        fetch('/api/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newCourse),
+        }).catch((err) => console.warn('Server course sync error:', err));
+      } catch (_) {}
+
       // Auto-assign to faculty
       if (assignedFaculty) {
         const currentTeachers = getStoredTeachers();
@@ -1179,10 +1188,10 @@ export default function SuperAdminMasterDashboard() {
             </div>
           </Link>
           <Link
-            href="/student/login"
+            href="/login"
             className="text-xs font-semibold text-[#89190E] hover:underline flex items-center gap-1"
           >
-            <span>Student & Reception Login</span>
+            <span>Student & Faculty Login</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </header>
@@ -2478,7 +2487,7 @@ export default function SuperAdminMasterDashboard() {
                       </button>
 
                       <Link
-                        href="/teacher/login"
+                        href="/login"
                         target="_blank"
                         className="px-2.5 py-1.5 rounded-lg border border-[#E8EEFF] hover:border-[#89190E] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer text-center flex items-center gap-1"
                         title="Open Teacher Login Portal"
@@ -4514,7 +4523,7 @@ export default function SuperAdminMasterDashboard() {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
                 <p className="text-[10px] text-gray-500 mt-1">
-                  This faculty member can log in directly using this password and their Gmail ID at /teacher/login.
+                  This faculty member can log in directly using this password and their mobile number or Gmail ID at /login.
                 </p>
               </div>
 
@@ -4567,7 +4576,7 @@ export default function SuperAdminMasterDashboard() {
             <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-left space-y-3 mb-5 font-mono text-xs">
               <div>
                 <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Portal URL:</span>
-                <span className="text-[#10233F] font-bold select-all">/teacher/login</span>
+                <span className="text-[#10233F] font-bold select-all">/login</span>
               </div>
               <div>
                 <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Official Email / Gmail:</span>
@@ -4592,7 +4601,7 @@ export default function SuperAdminMasterDashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/teacher/login\nEmail: ${createdFacultyCredentials.email}\nPassword: ${createdFacultyCredentials.pass}\nStatus: Active & Authorized`;
+                    const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/login\nEmail: ${createdFacultyCredentials.email}\nPassword: ${createdFacultyCredentials.pass}\nStatus: Active & Authorized`;
                     navigator.clipboard.writeText(msg);
                     showToast('Credentials copied to clipboard!');
                   }}
@@ -4602,7 +4611,7 @@ export default function SuperAdminMasterDashboard() {
                   <span>Copy Credentials</span>
                 </button>
                 <Link
-                  href="/teacher/login"
+                  href="/login"
                   target="_blank"
                   className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >

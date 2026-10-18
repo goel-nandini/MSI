@@ -31,7 +31,7 @@ export default function ReceptionDashboardPage() {
     try {
       const isLoggedIn = localStorage.getItem('msi_reception_logged_in') === 'true';
       if (!isLoggedIn) {
-        router.push('/student/login');
+        router.push('/reception/login');
         return;
       }
 
@@ -87,7 +87,7 @@ export default function ReceptionDashboardPage() {
     } catch (err) {
       console.warn(err);
     }
-    router.push('/student/login');
+    router.push('/reception/login');
   };
 
   // Register new visitor (Flow: Form -> Mobile Verify -> Webcam -> Save -> Pass)

@@ -10,13 +10,34 @@
     "role": "reception"
   },
   {
-    "id": "msi-stu-ankit",
+    "id": "msi-stu-3210",
     "phone": "9876543210",
-    "name": "Ankit Sir",
-    "stream": "Judiciary Comprehensive Foundation & Procedural Law",
-    "password": "Ankit@MSI2026",
-    "email": "ankit.sir@msi-institutes.edu.in",
-    "registeredAt": "2026-01-10T10:00:00.000Z",
-    "role": "student"
+    "name": "Priya Verma",
+    "stream": "CLAT Foundation",
+    "password": "Student@Pass2026",
+    "email": "priya.verma@example.com",
+    "registeredAt": "2026-10-18T16:14:51.452Z",
+    "profile": {
+      "id": "msi-stu-3210",
+      "name": "Priya Verma",
+      "email": "priya.verma@example.com",
+      "phone": "+91 98765 43210",
+      "dob": "2003-01-15",
+      "age": 22,
+      "gender": "Male",
+      "enrollmentNo": "MSI/2026/3210",
+      "rollNo": "26-MSI-3210",
+      "batch": "CLAT Foundation, 2026–2027",
+      "courseTitle": "CLAT Foundation",
+      "semester": "Academic Year 2026–2027",
+      "avatarUrl": "/images/avatars/avatar-1.webp",
+      "bloodGroup": "B+",
+      "address": "Kharar, Mohali, Punjab",
+      "guardianName": "Guardian",
+      "guardianContact": "+91 98765 00000",
+      "admissionDate": "01 July 2026",
+      "validUntil": "30 June 2028"
+    },
+    "lastLoginAt": "2026-10-18T16:14:51.474Z"
   }
 ]

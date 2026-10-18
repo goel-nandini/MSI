@@ -992,84 +992,15 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
 // Initial Student Enrollments
 // ----------------------------------------------------------------------------
 
-export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-legstudies',
-    enrolledAt: '10 July 2025',
-    progressPercentage: 82,
-    completedLectureIds: ['lec-leg-1-1', 'lec-leg-1-2', 'lec-leg-2-1', 'lec-leg-3-1'],
-    assignedBy: 'super-admin',
-    assignedByName: 'Dr. Ekta Gahlawat (Legal Studies)',
-    assignedNote: 'Assigned under CLAT Foundation Batch 2026–27 Section A.',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-leg-1-3'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-gkca',
-    enrolledAt: '15 July 2025',
-    progressPercentage: 68,
-    completedLectureIds: ['lec-gk-1-1', 'lec-gk-1-2', 'lec-gk-2-1'],
-    assignedBy: 'self',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-gk-1-2'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-lr',
-    enrolledAt: '20 July 2025',
-    progressPercentage: 74,
-    completedLectureIds: ['lec-lr-1-1', 'lec-lr-1-2', 'lec-lr-2-1'],
-    assignedBy: 'teacher',
-    assignedByName: 'Ms. Riya Hooda (Logical Reasoning)',
-    assignedNote: 'Critical Reasoning & Puzzle mastery sequence.',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-lr-1-2'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-engclat',
-    enrolledAt: '25 July 2025',
-    progressPercentage: 60,
-    completedLectureIds: ['lec-eng-1-1', 'lec-eng-2-1'],
-    assignedBy: 'teacher',
-    assignedByName: 'Ms. Shikha Singh (English Faculty)',
-    assignedNote: 'RC and Legal Vocabulary journal tracking.',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-eng-1-1'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-udemy-pcsj',
-    enrolledAt: '10 August 2025',
-    progressPercentage: 45,
-    completedLectureIds: ['lec-pcsj-1-1'],
-    assignedBy: 'self',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-pcsj-1-1'
-  },
-  {
-    studentId: 'msi-stu-002', // Meera Sen
-    courseId: 'crs-msi-legstudies',
-    enrolledAt: '20 June 2025',
-    progressPercentage: 92,
-    completedLectureIds: ['lec-leg-1-1', 'lec-leg-1-2', 'lec-leg-2-1', 'lec-leg-2-2', 'lec-leg-3-1'],
-    assignedBy: 'super-admin',
-    assignedByName: 'Super Admin Office',
-    assignedNote: 'Enrolled under MSI Merit Scholarship Cohort 2026–27.',
-    certificateIssued: true,
-    lastActiveLectureId: 'lec-leg-2-2'
-  }
-];
+export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [];
 
 // ----------------------------------------------------------------------------
-// LocalStorage Keys & Synchronization Event (v2 for fresh handbook data)
+// LocalStorage Keys & Synchronization Event (v3 for clean data)
 // ----------------------------------------------------------------------------
 
 const STORAGE_KEY_COURSES = 'msi_udemy_courses_v2';
 const STORAGE_KEY_TEACHERS = 'msi_udemy_teachers_v2';
-const STORAGE_KEY_ENROLLMENTS = 'msi_udemy_enrollments_v2';
+const STORAGE_KEY_ENROLLMENTS = 'msi_udemy_enrollments_v3';
 export const LMS_SYNC_EVENT = 'msi_lms_store_updated';
 
 // Trigger event when store changes
@@ -1144,6 +1075,25 @@ export function saveStoredCourses(courses: UdemyCourse[]) {
   } catch (err) {
     console.error(err);
   }
+}
+
+/**
+ * Synchronize courses from server data/courses.json
+ */
+export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
+  if (typeof window === 'undefined') return INITIAL_UDEMY_COURSES;
+  try {
+    const res = await fetch('/api/courses', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
+      localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(data.courses));
+      notifyLmsStoreChange();
+      return data.courses;
+    }
+  } catch (err) {
+    console.warn('Could not sync courses from server:', err);
+  }
+  return getStoredCourses();
 }
 
 // Teachers
