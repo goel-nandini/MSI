@@ -79,6 +79,17 @@ export async function POST(req: NextRequest) {
     // 2. Check Faculty Credentials
     // As instructed: "फैकल्टी तो अपने से लॉगिन नहीं कर सकता, उसको जो असाइन करेगा सुपर एडमिन वही होगा... सुपर एडमिन में फैकल्टी ऐड किया, उनका पासवर्ड और क्रेडेंशियल दिया, तो उस क्रेडेंशियल का यूज़ करके लॉगिन पेज पे जाएंगे तो उनको फैकल्टी का डैशबोर्ड ओपन हो जाना चाहिए"
     const facultyResult = verifyFacultyCredentials(identifier, password);
+    if (facultyResult.message?.includes('cancelled/terminated') || facultyResult.message?.includes('revoked')) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'TERMINATED',
+          message: facultyResult.message,
+        },
+        { status: 403 }
+      );
+    }
+
     if (facultyResult.success && facultyResult.teacher) {
       const teacher = facultyResult.teacher;
       return NextResponse.json({
@@ -103,6 +114,17 @@ export async function POST(req: NextRequest) {
 
     // 3. Check Student Credentials
     const authResult = authenticateWithPassword(identifier, password);
+    if (authResult.code === 'TERMINATED') {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'TERMINATED',
+          message: authResult.message,
+        },
+        { status: 403 }
+      );
+    }
+
     if (authResult.success && authResult.student) {
       const student = authResult.student;
       const profile = getStudentProfile(student.phone);

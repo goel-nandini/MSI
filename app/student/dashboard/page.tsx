@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertTriangle, LogOut } from 'lucide-react';
 import StudentHeader from '@/components/student/StudentHeader';
 import StudentSidebar, { StudentModuleTab } from '@/components/student/StudentSidebar';
 import StudentDashboardTab from '@/components/student/StudentDashboardTab';
@@ -98,6 +99,86 @@ export default function StudentDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<StudentModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [revocationModalOpen, setRevocationModalOpen] = useState(false);
+  const [revocationCountdown, setRevocationCountdown] = useState(4);
+
+  const triggerInstantRevocation = useCallback(() => {
+    setRevocationModalOpen(true);
+    try {
+      localStorage.removeItem('msi_student_logged_in');
+      localStorage.removeItem('msi_active_student_phone');
+      localStorage.removeItem('msi_active_student_name');
+      localStorage.removeItem('msi_active_student_email');
+      localStorage.removeItem('msi_active_student_stream');
+      localStorage.removeItem('msi_active_student_profile');
+    } catch (_) {}
+  }, []);
+
+  // Real-time revocation listener via BroadcastChannel
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'STUDENT_DELETED') {
+            const pPhone = (event.data.studentPhone || '').replace(/\D/g, '').slice(-10);
+            const pId = (event.data.studentId || '').toLowerCase().trim();
+            const storedPhone = (localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-10);
+            const currPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
+            const currId = (student.id || '').toLowerCase().trim();
+
+            if (
+              (pPhone && (pPhone === storedPhone || pPhone === currPhone)) ||
+              (pId && pId === currId)
+            ) {
+              triggerInstantRevocation();
+            }
+          }
+        };
+      }
+    } catch (_) {}
+
+    return () => {
+      if (bc) bc.close();
+    };
+  }, [student, triggerInstantRevocation]);
+
+  // Periodic heartbeat verification with server disk
+  useEffect(() => {
+    const checkActiveStatus = async () => {
+      const storedPhone = (localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-10);
+      if (!storedPhone) return;
+
+      try {
+        const res = await fetch(`/api/student/profile?phone=${storedPhone}`, { cache: 'no-store' });
+        if (res.status === 403 || res.status === 404) {
+          triggerInstantRevocation();
+          return;
+        }
+        const data = await res.json();
+        if (data.terminated || data.success === false) {
+          triggerInstantRevocation();
+        }
+      } catch (_) {}
+    };
+
+    const interval = setInterval(checkActiveStatus, 3500);
+    return () => clearInterval(interval);
+  }, [triggerInstantRevocation]);
+
+  // Countdown timer for automatic logout redirect
+  useEffect(() => {
+    if (!revocationModalOpen) return;
+    if (revocationCountdown <= 0) {
+      router.push('/login');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRevocationCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [revocationModalOpen, revocationCountdown, router]);
 
   // Sync active user details and permanent profile from localStorage & API on mount
   useEffect(() => {
@@ -123,8 +204,16 @@ export default function StudentDashboardPage() {
           // 2. Fetch fresh permanently saved profile from backend storage
           try {
             const res = await fetch(`/api/student/profile?phone=${cleanPhone}`);
+            if (res.status === 403 || res.status === 404) {
+              triggerInstantRevocation();
+              return;
+            }
             if (res.ok) {
               const data = await res.json();
+              if (data.terminated) {
+                triggerInstantRevocation();
+                return;
+              }
               if (data.success && data.profile) {
                 setStudent(data.profile);
                 localStorage.setItem(
@@ -541,6 +630,36 @@ export default function StudentDashboardPage() {
           studentPhone={student.phone}
           onPaymentSuccess={handleFeePaymentSuccess}
         />
+      )}
+
+      {/* Immediate Session Revocation Modal on Administration Account Deletion */}
+      {revocationModalOpen && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-red-500 text-center relative overflow-hidden">
+            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-200">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-[10px] font-extrabold uppercase tracking-wider rounded-full mb-3">
+              Access Revoked by Administration
+            </span>
+            <h3 className="font-serif text-xl font-bold text-[#10233F] mb-2">
+              We are sorry, unable to access portal
+            </h3>
+            <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+              Your student account access has been cancelled or deactivated by Administration. Active session has been terminated immediately.
+            </p>
+            <div className="bg-red-50 rounded-2xl p-3 border border-red-100 text-xs text-red-700 font-medium mb-5">
+              Redirecting to Portal Login in <strong className="font-mono text-sm">{revocationCountdown}s</strong>...
+            </div>
+            <button
+              onClick={() => router.push('/login')}
+              className="w-full py-3 rounded-xl bg-[#89190E] hover:bg-[#68130B] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Return to Login Gateway</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "test-dummy",
+    "deletedAt": "2026-10-23T18:12:57.631Z"
+  },
+  {
+    "id": "fac-1792779313911",
+    "email": "deleteme@msi.edu.in",
+    "phone": "9999911111",
+    "name": "DeleteMe Test",
+    "deletedAt": "2026-10-23T18:15:13.972Z"
+  },
+  {
+    "id": "fac-law-shikha",
+    "email": "Ss7487320@gmail.com",
+    "phone": "+91 98144 23004",
+    "name": "Ms. Shikha Singh",
+    "deletedAt": "2026-10-23T18:20:01.343Z"
+  }
+]

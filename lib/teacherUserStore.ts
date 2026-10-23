@@ -480,7 +480,7 @@ export function verifyFacultyCredentials(
   if (isTeacherDeleted(cleanInput) || (cleanPhone.length >= 10 && isTeacherDeleted(cleanPhone))) {
     return {
       success: false,
-      message: 'This faculty account has been removed/deactivated by Administration. Login access is permanently revoked.',
+      message: 'We are sorry, unable to login. Your faculty account access has been cancelled/terminated by Administration.',
     };
   }
 

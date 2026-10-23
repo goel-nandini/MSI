@@ -16,6 +16,7 @@ export interface RegisteredStudentUser {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
+const DELETED_STUDENTS_FILE = path.join(DATA_DIR, 'deleted_students.json');
 
 // Default seeded staff accounts: Harshit (Reception Desk)
 const SEED_STUDENTS: RegisteredStudentUser[] = [
@@ -31,30 +32,141 @@ const SEED_STUDENTS: RegisteredStudentUser[] = [
   },
 ];
 
+export interface DeletedStudentRecord {
+  id?: string;
+  phone?: string;
+  email?: string;
+  name?: string;
+  deletedAt: string;
+}
+
 /**
- * Reads all students directly from data/students.json with fallback to seeds.
- * Direct disk reads guarantee workers and multi-process server environments never get stale caches.
+ * Reads all permanently deleted student accounts from data/deleted_students.json
+ */
+export function readDeletedStudentsFromDisk(): DeletedStudentRecord[] {
+  try {
+    if (fs.existsSync(DELETED_STUDENTS_FILE)) {
+      const raw = fs.readFileSync(DELETED_STUDENTS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return [];
+  } catch (err) {
+    console.warn('[StudentStore] Error reading deleted students list:', err);
+    return [];
+  }
+}
+
+/**
+ * Marks a student permanently deleted on disk so they never reappear
+ */
+export function markStudentDeletedOnDisk(record: {
+  id?: string;
+  phone?: string;
+  email?: string;
+  name?: string;
+}): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const current = readDeletedStudentsFromDisk();
+    const cleanId = (record.id || '').trim().toLowerCase();
+    const cleanEmail = (record.email || '').trim().toLowerCase();
+    const cleanPhone = (record.phone || '').replace(/\D/g, '').slice(-10);
+
+    const exists = current.some((d) => {
+      const dId = (d.id || '').trim().toLowerCase();
+      const dEmail = (d.email || '').trim().toLowerCase();
+      const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+      return (
+        (cleanId && dId === cleanId) ||
+        (cleanEmail && dEmail === cleanEmail) ||
+        (cleanPhone.length >= 10 && dPhone === cleanPhone)
+      );
+    });
+
+    if (!exists) {
+      current.push({
+        id: record.id,
+        phone: record.phone,
+        email: record.email,
+        name: record.name,
+        deletedAt: new Date().toISOString(),
+      });
+      fs.writeFileSync(DELETED_STUDENTS_FILE, JSON.stringify(current, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[StudentStore] Error writing deleted student record:', err);
+  }
+}
+
+/**
+ * Checks whether an identifier (phone, email, ID) belongs to a deleted student
+ */
+export function isStudentDeleted(identifier: string): boolean {
+  if (!identifier) return false;
+  const clean = identifier.trim().toLowerCase();
+  const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
+  const deleted = readDeletedStudentsFromDisk();
+
+  return deleted.some((d) => {
+    const dId = (d.id || '').trim().toLowerCase();
+    const dEmail = (d.email || '').trim().toLowerCase();
+    const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+    const dName = (d.name || '').trim().toLowerCase();
+
+    if (clean && (dId === clean || dEmail === clean || dName === clean)) return true;
+    if (cleanPhone.length >= 10 && dPhone === cleanPhone) return true;
+    return false;
+  });
+}
+
+/**
+ * Reads all students directly from data/students.json, strictly filtering out any deleted students.
  */
 export function readStudentsFromDisk(): RegisteredStudentUser[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
+    const deletedList = readDeletedStudentsFromDisk();
+    const isDeleted = (s: RegisteredStudentUser) => {
+      const sId = (s.id || '').toLowerCase().trim();
+      const sEmail = (s.email || '').toLowerCase().trim();
+      const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+      return deletedList.some((d) => {
+        const dId = (d.id || '').toLowerCase().trim();
+        const dEmail = (d.email || '').toLowerCase().trim();
+        const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+        return (
+          (sId && dId && sId === dId) ||
+          (sEmail && dEmail && sEmail === dEmail) ||
+          (sPhone.length >= 10 && dPhone.length >= 10 && sPhone === dPhone)
+        );
+      });
+    };
+
     if (fs.existsSync(STUDENTS_FILE)) {
       const raw = fs.readFileSync(STUDENTS_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((s) => !isDeleted(s));
         }
       }
     }
-    // File missing or empty: write seed students
-    fs.writeFileSync(STUDENTS_FILE, JSON.stringify(SEED_STUDENTS, null, 2), 'utf-8');
-    return [...SEED_STUDENTS];
+    // File missing or empty: write seed students excluding deleted
+    const initialFiltered = SEED_STUDENTS.filter((s) => !isDeleted(s));
+    fs.writeFileSync(STUDENTS_FILE, JSON.stringify(initialFiltered, null, 2), 'utf-8');
+    return initialFiltered;
   } catch (err) {
     console.warn('[StudentStore] Error reading students from disk:', err);
-    return [...SEED_STUDENTS];
+    return [];
   }
 }
 
@@ -232,8 +344,14 @@ export function buildDefaultStudentProfile(
 /**
  * Retrieves the permanently saved student profile for a given phone number
  */
-export function getStudentProfile(rawPhone: string): Record<string, any> {
+export function getStudentProfile(rawPhone: string): Record<string, any> | null {
   const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+  // If student is permanently deleted, do NOT resurrect or return profile
+  if (isStudentDeleted(cleanPhone)) {
+    return null;
+  }
+
   const students = readStudentsFromDisk();
   let student = students.find((s) => s.phone === cleanPhone);
 
@@ -257,21 +375,8 @@ export function getStudentProfile(rawPhone: string): Record<string, any> {
     return defaultProfile;
   }
 
-  // If student record does not exist yet on disk, create one for this phone number
-  const defaultProfile = buildDefaultStudentProfile(cleanPhone);
-  const newStudent: RegisteredStudentUser = {
-    id: `msi-stu-${cleanPhone.slice(-4)}`,
-    phone: cleanPhone,
-    name: defaultProfile.name,
-    stream: defaultProfile.courseTitle,
-    password: 'Student@MSI2026',
-    email: defaultProfile.email,
-    registeredAt: new Date().toISOString(),
-    profile: defaultProfile,
-  };
-  students.push(newStudent);
-  writeStudentsToDisk(students);
-  return defaultProfile;
+  // If student record does not exist yet on disk, return null rather than silently writing a phantom account
+  return null;
 }
 
 /**
@@ -364,11 +469,21 @@ export function authenticateWithPassword(
 ): {
   success: boolean;
   student?: RegisteredStudentUser;
-  code?: 'NOT_FOUND' | 'INVALID_PASSWORD' | 'SUCCESS';
+  code?: 'NOT_FOUND' | 'INVALID_PASSWORD' | 'SUCCESS' | 'TERMINATED';
   message: string;
 } {
   const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
   const cleanInput = rawPhone.trim().toLowerCase();
+
+  // If student was deleted by administration, strictly reject with termination message
+  if (isStudentDeleted(cleanPhone) || isStudentDeleted(cleanInput)) {
+    return {
+      success: false,
+      code: 'TERMINATED',
+      message: 'We are sorry, unable to login. Your student account access has been cancelled/terminated by Administration.',
+    };
+  }
+
   const students = readStudentsFromDisk();
   const student = students.find(
     (s) =>
@@ -426,18 +541,48 @@ export function updateStudentAccount(
 }
 
 /**
- * Deletes a student account by phone number or ID directly from disk
+ * Deletes a student account by phone number or ID directly from disk and registers in deleted registry
  */
-export function deleteStudentFromDisk(rawPhoneOrId: string): boolean {
+export function deleteStudentFromDisk(rawPhoneOrId: string, additionalId?: string): boolean {
   const cleanPhone = rawPhoneOrId.replace(/\D/g, '').slice(-10);
+  const cleanId = rawPhoneOrId.trim().toLowerCase();
+  const addId = (additionalId || '').trim().toLowerCase();
+
   const students = readStudentsFromDisk();
-  const initialLength = students.length;
-  const filtered = students.filter(
-    (s) => s.phone !== cleanPhone && s.id !== rawPhoneOrId
-  );
-  if (filtered.length !== initialLength) {
-    writeStudentsToDisk(filtered);
-    return true;
+
+  // Find target before filtering to register full record in deleted_students.json
+  const target = students.find((s) => {
+    const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+    const sId = (s.id || '').trim().toLowerCase();
+    return (
+      (cleanPhone.length >= 10 && sPhone === cleanPhone) ||
+      sId === cleanId ||
+      (addId && sId === addId)
+    );
+  });
+
+  if (target) {
+    markStudentDeletedOnDisk({
+      id: target.id,
+      phone: target.phone,
+      email: target.email,
+      name: target.name,
+    });
+  } else {
+    markStudentDeletedOnDisk({
+      id: rawPhoneOrId,
+      phone: cleanPhone.length >= 10 ? cleanPhone : undefined,
+    });
   }
-  return false;
+
+  const filtered = students.filter((s) => {
+    const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+    const sId = (s.id || '').trim().toLowerCase();
+    const matchPhone = cleanPhone.length >= 10 && sPhone === cleanPhone;
+    const matchId = sId === cleanId || (addId && sId === addId);
+    return !matchPhone && !matchId;
+  });
+
+  writeStudentsToDisk(filtered);
+  return true;
 }

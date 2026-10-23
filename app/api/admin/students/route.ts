@@ -101,8 +101,16 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const phone = searchParams.get('phone');
-    const id = searchParams.get('id');
+    let phone = searchParams.get('phone');
+    let id = searchParams.get('id');
+
+    if (!phone && !id) {
+      try {
+        const body = await req.json().catch(() => ({}));
+        phone = body?.phone;
+        id = body?.id;
+      } catch (_) {}
+    }
 
     const target = phone || id;
     if (!target) {
@@ -112,13 +120,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const deleted = deleteStudentFromDisk(target);
-    if (!deleted) {
-      return NextResponse.json(
-        { success: false, message: 'Student not found on disk.' },
-        { status: 404 }
-      );
-    }
+    const deleted = deleteStudentFromDisk(target, id && phone ? id : undefined);
 
     const updatedStudents = readStudentsFromDisk();
 

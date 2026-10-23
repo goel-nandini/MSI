@@ -4,6 +4,7 @@ import {
   getStudentProfile,
   saveStudentProfile,
   buildDefaultStudentProfile,
+  isStudentDeleted,
 } from '@/lib/studentUserStore';
 
 export async function GET(req: NextRequest) {
@@ -26,9 +27,28 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    if (isStudentDeleted(cleanPhone)) {
+      return NextResponse.json(
+        {
+          success: false,
+          terminated: true,
+          code: 'TERMINATED',
+          message: 'Student account access has been cancelled or terminated by Administration.',
+        },
+        { status: 403 }
+      );
+    }
+
     let profile = getStudentProfile(cleanPhone);
     if (!profile) {
-      profile = buildDefaultStudentProfile(cleanPhone);
+      return NextResponse.json(
+        {
+          success: false,
+          terminated: true,
+          message: 'Student record not found.',
+        },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({

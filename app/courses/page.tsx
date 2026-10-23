@@ -111,8 +111,6 @@ export default function CoursesPage() {
   const booksSliderRef = useRef<HTMLDivElement>(null);
   const udemySliderRef = useRef<HTMLDivElement>(null);
 
-  const activeStudentId = 'msi-stu-001'; // Default student Aarav Sharma
-
   const loadLmsData = async () => {
     try {
       const serverCourses = await syncCoursesFromServer();
@@ -122,15 +120,26 @@ export default function CoursesPage() {
       setUdemyCourses(courses);
     }
 
+    const isUserLoggedIn =
+      typeof window !== 'undefined' &&
+      localStorage.getItem('msi_student_logged_in') === 'true';
     const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
     const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
-    const enrollments = getStoredEnrollments();
 
+    // If student is NOT actively logged in, unlogged public visitors must NEVER see courses marked as Enrolled
+    if (!isUserLoggedIn || !cleanPhone) {
+      setEnrolledCourseIds([]);
+      return;
+    }
+
+    const enrollments = getStoredEnrollments();
     const enrolled = enrollments
       .filter((e) => {
-        if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
-        if (!cleanPhone && (e.studentId === activeStudentId || e.studentId === 'msi-stu-001')) return true;
-        return false;
+        return (
+          e.studentPhone === cleanPhone ||
+          e.studentId.includes(cleanPhone) ||
+          e.studentId === `msi-stu-${cleanPhone.slice(-4)}`
+        );
       })
       .map((e) => e.courseId);
     setEnrolledCourseIds(enrolled);
@@ -253,14 +262,18 @@ export default function CoursesPage() {
   };
 
   const isCourseEnrolled = (courseId: string) => {
+    if (!isStudentLoggedIn()) return false;
     const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
     const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+    if (!cleanPhone) return false;
     const enrollments = getStoredEnrollments();
     return enrollments.some((e) => {
       if (e.courseId !== courseId) return false;
-      if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
-      if (!cleanPhone && e.studentId === activeStudentId) return true;
-      return false;
+      return (
+        e.studentPhone === cleanPhone ||
+        e.studentId.includes(cleanPhone) ||
+        e.studentId === `msi-stu-${cleanPhone.slice(-4)}`
+      );
     });
   };
 
@@ -1624,7 +1637,11 @@ export default function CoursesPage() {
         course={activeUdemyModalCourse}
         isOpen={!!activeUdemyModalCourse}
         onClose={() => setActiveUdemyModalCourse(null)}
-        activeStudentId={activeStudentId}
+        activeStudentId={
+          typeof window !== 'undefined' && localStorage.getItem('msi_active_student_phone')
+            ? `msi-stu-${(localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-4)}`
+            : undefined
+        }
         onEnrollSuccess={(c) => {
           loadLmsData();
           showToast(`✓ Enrolled in ${c.title}!`);
@@ -1667,7 +1684,7 @@ export default function CoursesPage() {
             const studentPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
             const studentName = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_name') || 'Student' : 'Student';
             const cleanPhone = studentPhone.replace(/\D/g, '').slice(-10);
-            const stuId = cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : activeStudentId;
+            const stuId = cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : 'msi-stu-guest';
 
             if (directCheckoutCourse.id.startsWith('kit-') || directCheckoutCourse.id.startsWith('book-')) {
               // Record Book / Kit Purchase

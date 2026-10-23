@@ -116,34 +116,6 @@
     "mustChangePassword": false
   },
   {
-    "id": "fac-law-shikha",
-    "name": "Ms. Shikha Singh",
-    "email": "Ss7487320@gmail.com",
-    "phone": "+91 98144 23004",
-    "avatarUrl": "/images/avatars/avatar-5.webp",
-    "department": "English Language & Verbal Studies",
-    "designation": "English Faculty, MSI Group of Institutes",
-    "qualifications": "M.A. English Literature (Delhi University), UGC-NET Qualified",
-    "experienceYears": 9,
-    "stream": "Law",
-    "bio": "Faculty for English for CLAT (MSI/ENGCLAT-/01, 44 Sessions). Specializes in editorial passage mapping, etymology-based vocabulary building, literary devices, and grammar error-spotting drills.",
-    "specialization": "Reading Comprehension, Contextual Vocabulary, Figures of Speech, Legal Vocabulary",
-    "sampleLectureTitle": "Passage Mapping for Legal Editorials & Rhetorical Devices",
-    "sampleLectureDuration": "42 mins",
-    "status": "approved",
-    "applicationDate": "18 Jan 2025",
-    "approvedAt": "20 Jan 2025",
-    "approvedBy": "Governing Academic Directorate",
-    "assignedCourseIds": [
-      "crs-msi-engclat"
-    ],
-    "rating": 4.8,
-    "studentsCount": 1290,
-    "password": "Faculty@MSI2026",
-    "temporaryPassword": "Faculty@MSI2026",
-    "mustChangePassword": false
-  },
-  {
     "id": "fac-law-vikram",
     "name": "Dr. Vikramaditya Sharma",
     "email": "dr.vikramaditya@msi-institutes.edu.in",

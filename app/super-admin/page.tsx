@@ -78,6 +78,7 @@ import {
   assignCoursesToTeacherAction,
   assignCourseToFacultyAction,
   findTeacherByIdOrName,
+  markCourseDeletedLocally,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
@@ -495,6 +496,19 @@ export default function SuperAdminMasterDashboard() {
     }
   }, []);
 
+  const fetchCourses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/courses', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.courses)) {
+        setCourses(data.courses);
+        saveStoredCourses(data.courses);
+      }
+    } catch (err) {
+      console.warn('Could not fetch courses from disk:', err);
+    }
+  }, []);
+
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -504,14 +518,14 @@ export default function SuperAdminMasterDashboard() {
       fetchGallery(),
       fetchTransactions(),
       fetchFaculty(),
+      fetchCourses(),
       new Promise<void>((resolve) => {
-        setCourses(getStoredCourses());
         setEnrollments(getStoredEnrollments());
         resolve();
       }),
     ]);
     setIsRefreshing(false);
-  }, [fetchStudents, fetchLeads, fetchReceptionists, fetchGallery, fetchTransactions, fetchFaculty]);
+  }, [fetchStudents, fetchLeads, fetchReceptionists, fetchGallery, fetchTransactions, fetchFaculty, fetchCourses]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -522,6 +536,7 @@ export default function SuperAdminMasterDashboard() {
         fetchLeads();
         fetchReceptionists();
         fetchFaculty();
+        fetchCourses();
         fetchTransactions();
       }, 5000);
 
@@ -532,6 +547,7 @@ export default function SuperAdminMasterDashboard() {
       window.addEventListener(LMS_SYNC_EVENT, handleSync);
       window.addEventListener('msi_leads_sync', handleSync);
       window.addEventListener('msi_gallery_sync', handleSync);
+      window.addEventListener('msi_courses_sync', handleSync);
       window.addEventListener('storage', handleSync);
 
       return () => {
@@ -539,10 +555,11 @@ export default function SuperAdminMasterDashboard() {
         window.removeEventListener(LMS_SYNC_EVENT, handleSync);
         window.removeEventListener('msi_leads_sync', handleSync);
         window.removeEventListener('msi_gallery_sync', handleSync);
+        window.removeEventListener('msi_courses_sync', handleSync);
         window.removeEventListener('storage', handleSync);
       };
     }
-  }, [isAuthenticated, refreshAllData, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchTransactions]);
+  }, [isAuthenticated, refreshAllData, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchCourses, fetchTransactions]);
 
   // Immediate data fetch on tab switch
   useEffect(() => {
@@ -554,11 +571,13 @@ export default function SuperAdminMasterDashboard() {
         fetchReceptionists();
       } else if (activeTab === 'teachers') {
         fetchFaculty();
+      } else if (activeTab === 'courses') {
+        fetchCourses();
       } else if (activeTab === 'transactions') {
         fetchTransactions();
       }
     }
-  }, [activeTab, isAuthenticated, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchTransactions]);
+  }, [activeTab, isAuthenticated, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchCourses, fetchTransactions]);
 
   // ── Action Handlers ────────────────────────────────────────────────────────
   // 1. Add Student
@@ -616,12 +635,40 @@ export default function SuperAdminMasterDashboard() {
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return;
     try {
-      const res = await fetch(`/api/admin/students?phone=${studentToDelete.phone}`, {
+      const phoneParam = encodeURIComponent(studentToDelete.phone || '');
+      const idParam = encodeURIComponent(studentToDelete.id || '');
+      const res = await fetch(`/api/admin/students?phone=${phoneParam}&id=${idParam}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
         showToast(`Student account (${studentToDelete.name}) permanently removed from disk.`);
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({
+            type: 'STUDENT_DELETED',
+            studentId: studentToDelete.id,
+            studentPhone: studentToDelete.phone,
+            studentName: studentToDelete.name,
+          });
+          bc.close();
+        }
+
+        // Revoke active session if active student is the one deleted
+        if (typeof window !== 'undefined') {
+          const activePhone = (localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-10);
+          const targetPhone = (studentToDelete.phone || '').replace(/\D/g, '').slice(-10);
+          if (activePhone && activePhone === targetPhone) {
+            localStorage.removeItem('msi_student_logged_in');
+            localStorage.removeItem('msi_active_student_phone');
+            localStorage.removeItem('msi_active_student_name');
+            localStorage.removeItem('msi_active_student_email');
+            localStorage.removeItem('msi_active_student_stream');
+            localStorage.removeItem('msi_active_student_profile');
+          }
+        }
+
         setStudentToDelete(null);
         fetchStudents();
         try {
@@ -1393,8 +1440,10 @@ export default function SuperAdminMasterDashboard() {
       });
       const data = await res.json();
       if (data.success) {
+        markCourseDeletedLocally(courseToDelete.id);
+        if (courseToDelete.slug) markCourseDeletedLocally(courseToDelete.slug);
         const remaining = deleteCourseAction(courseToDelete.id);
-        setCourses(remaining);
+        setCourses(data.courses || remaining);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
@@ -1407,6 +1456,7 @@ export default function SuperAdminMasterDashboard() {
         }
         window.dispatchEvent(new Event('msi_courses_sync'));
         window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event(LMS_SYNC_EVENT));
 
         showToast(`Course "${courseToDelete.title}" removed permanently from public website and server disk.`);
         setCourseToDelete(null);
