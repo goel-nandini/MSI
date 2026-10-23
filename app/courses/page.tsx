@@ -195,7 +195,9 @@ export default function CoursesPage() {
         bc.onmessage = (event) => {
           if (
             event.data?.type === 'COURSE_CREATED' ||
+            event.data?.type === 'COURSE_PUBLISHED' ||
             event.data?.type === 'COURSE_DELETED' ||
+            event.data?.type === 'COURSE_ASSIGNED' ||
             event.data?.type === 'FACULTY_DELETED' ||
             event.data?.type === 'STUDENT_ENROLLED'
           ) {
@@ -211,11 +213,19 @@ export default function CoursesPage() {
 
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_courses_sync', handleSync);
     window.addEventListener('msi_kits_sync', handleSync);
+
+    const interval = setInterval(() => {
+      loadLmsData();
+    }, 3500);
+
     return () => {
       if (bc) bc.close();
+      clearInterval(interval);
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_courses_sync', handleSync);
       window.removeEventListener('msi_kits_sync', handleSync);
     };
   }, []);

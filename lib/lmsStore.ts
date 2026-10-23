@@ -1043,6 +1043,8 @@ export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [
 const STORAGE_KEY_COURSES = 'msi_udemy_courses_v2';
 const STORAGE_KEY_TEACHERS = 'msi_udemy_teachers_v2';
 const STORAGE_KEY_ENROLLMENTS = 'msi_udemy_enrollments_v2';
+const STORAGE_KEY_DELETED_COURSES = 'msi_deleted_course_ids';
+const STORAGE_KEY_DELETED_TEACHERS = 'msi_deleted_teacher_ids';
 export const LMS_SYNC_EVENT = 'msi_lms_store_updated';
 
 // Trigger event when store changes
@@ -1050,6 +1052,61 @@ export function notifyLmsStoreChange() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(LMS_SYNC_EVENT));
   }
+}
+
+export function getDeletedCourseIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_COURSES);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markCourseDeletedLocally(courseId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getDeletedCourseIds();
+    const clean = courseId.trim().toLowerCase();
+    if (!list.includes(clean)) {
+      list.push(clean);
+      localStorage.setItem(STORAGE_KEY_DELETED_COURSES, JSON.stringify(list));
+    }
+  } catch (_) {}
+}
+
+export function getDeletedTeacherIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_TEACHERS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markTeacherDeletedLocally(teacherId: string, email?: string, phone?: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getDeletedTeacherIds();
+    const toAdd = [
+      teacherId.trim().toLowerCase(),
+      ...(email ? [email.trim().toLowerCase()] : []),
+      ...(phone ? [phone.replace(/\D/g, '').slice(-10)] : []),
+    ].filter(Boolean);
+
+    let changed = false;
+    for (const item of toAdd) {
+      if (!list.includes(item)) {
+        list.push(item);
+        changed = true;
+      }
+    }
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY_DELETED_TEACHERS, JSON.stringify(list));
+    }
+  } catch (_) {}
 }
 
 // ----------------------------------------------------------------------------
@@ -1060,14 +1117,25 @@ export function notifyLmsStoreChange() {
 export function getStoredCourses(): UdemyCourse[] {
   if (typeof window === 'undefined') return INITIAL_UDEMY_COURSES;
   try {
+    const deleted = getDeletedCourseIds();
+    const isDeleted = (c: UdemyCourse) =>
+      deleted.includes(c.id.toLowerCase().trim()) ||
+      (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
+
     const raw = localStorage.getItem(STORAGE_KEY_COURSES);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(INITIAL_UDEMY_COURSES));
-      return INITIAL_UDEMY_COURSES;
+      const initial = INITIAL_UDEMY_COURSES.filter((c) => !isDeleted(c));
+      localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(initial));
+      return initial;
     }
     const courses: UdemyCourse[] = JSON.parse(raw);
     let changed = false;
-    const updated = courses.map((course) => {
+    const activeCourses = courses.filter((c) => !isDeleted(c));
+    if (activeCourses.length !== courses.length) {
+      changed = true;
+    }
+
+    const updated = activeCourses.map((course) => {
       const seed = INITIAL_UDEMY_COURSES.find((s) => s.id === course.id);
       let courseModified = false;
       let newSections = course.sections;
@@ -1112,7 +1180,12 @@ export function getStoredCourses(): UdemyCourse[] {
 export function saveStoredCourses(courses: UdemyCourse[]) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(courses));
+    const deleted = getDeletedCourseIds();
+    const isDeleted = (c: UdemyCourse) =>
+      deleted.includes(c.id.toLowerCase().trim()) ||
+      (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
+    const valid = courses.filter((c) => !isDeleted(c));
+    localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(valid));
     notifyLmsStoreChange();
   } catch (err) {
     console.error(err);
@@ -1127,10 +1200,15 @@ export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
   try {
     const res = await fetch('/api/courses', { cache: 'no-store' });
     const data = await res.json();
-    if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
-      saveStoredCourses(data.courses);
+    if (data.success && Array.isArray(data.courses)) {
+      const deleted = getDeletedCourseIds();
+      const isDeleted = (c: UdemyCourse) =>
+        deleted.includes(c.id.toLowerCase().trim()) ||
+        (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
+      const validCourses = data.courses.filter((c: UdemyCourse) => !isDeleted(c));
+      saveStoredCourses(validCourses);
       notifyLmsStoreChange();
-      return data.courses;
+      return validCourses;
     }
   } catch (err) {
     console.warn('Could not sync courses from server:', err);
@@ -1142,16 +1220,34 @@ export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
 export function getStoredTeachers(): TeacherApprovalRecord[] {
   if (typeof window === 'undefined') return INITIAL_TEACHERS;
   try {
+    const deleted = getDeletedTeacherIds();
+    const isDeleted = (t: TeacherApprovalRecord) => {
+      const tId = (t.id || '').toLowerCase().trim();
+      const tEmail = (t.email || '').toLowerCase().trim();
+      const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+      return (
+        deleted.includes(tId) ||
+        deleted.includes(tEmail) ||
+        (tPhone.length >= 10 && deleted.includes(tPhone))
+      );
+    };
+
     const raw = localStorage.getItem(STORAGE_KEY_TEACHERS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(INITIAL_TEACHERS));
+      const initial = INITIAL_TEACHERS.filter((t) => !isDeleted(t));
+      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(initial));
       // Trigger background sync from server
       syncTeachersFromServer().catch(() => {});
-      return INITIAL_TEACHERS;
+      return initial;
     }
     const teachers: TeacherApprovalRecord[] = JSON.parse(raw);
     let changed = false;
-    const updated = teachers.map((t) => {
+    const active = teachers.filter((t) => !isDeleted(t));
+    if (active.length !== teachers.length) {
+      changed = true;
+    }
+
+    const updated = active.map((t) => {
       const isEkta = t.id === 'fac-law-ekta' || t.email.toLowerCase().includes('ekta');
       const needsPhone = isEkta && (!t.phone || !t.phone.includes('9792303434'));
       const needsPass = !t.password;
@@ -1178,7 +1274,19 @@ export function getStoredTeachers(): TeacherApprovalRecord[] {
 export function saveStoredTeachers(teachers: TeacherApprovalRecord[]) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(teachers));
+    const deleted = getDeletedTeacherIds();
+    const isDeleted = (t: TeacherApprovalRecord) => {
+      const tId = (t.id || '').toLowerCase().trim();
+      const tEmail = (t.email || '').toLowerCase().trim();
+      const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+      return (
+        deleted.includes(tId) ||
+        deleted.includes(tEmail) ||
+        (tPhone.length >= 10 && deleted.includes(tPhone))
+      );
+    };
+    const valid = teachers.filter((t) => !isDeleted(t));
+    localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(valid));
     notifyLmsStoreChange();
   } catch (err) {
     console.error(err);
@@ -1186,7 +1294,8 @@ export function saveStoredTeachers(teachers: TeacherApprovalRecord[]) {
 }
 
 /**
- * Synchronize local storage teachers with server data/teachers.json
+ * Synchronize local storage teachers with server data/teachers.json.
+ * The server disk is the single source of truth; deleted records on server are permanently purged.
  */
 export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]> {
   if (typeof window === 'undefined') return INITIAL_TEACHERS;
@@ -1194,22 +1303,21 @@ export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]>
     const res = await fetch('/api/admin/faculty', { cache: 'no-store' });
     const data = await res.json();
     if (data.success && Array.isArray(data.teachers)) {
-      const local = getStoredTeachers();
-      const map = new Map<string, TeacherApprovalRecord>();
-      // Put server teachers first
-      data.teachers.forEach((t: TeacherApprovalRecord) => map.set(t.id, t));
-      // Overlay any local updates
-      local.forEach((t) => {
-        if (!map.has(t.id)) {
-          map.set(t.id, t);
-        } else {
-          map.set(t.id, { ...map.get(t.id)!, ...t });
-        }
-      });
-      const merged = Array.from(map.values());
-      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(merged));
+      const deleted = getDeletedTeacherIds();
+      const isDeleted = (t: TeacherApprovalRecord) => {
+        const tId = (t.id || '').toLowerCase().trim();
+        const tEmail = (t.email || '').toLowerCase().trim();
+        const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+        return (
+          deleted.includes(tId) ||
+          deleted.includes(tEmail) ||
+          (tPhone.length >= 10 && deleted.includes(tPhone))
+        );
+      };
+      const authoritativeTeachers = data.teachers.filter((t: TeacherApprovalRecord) => !isDeleted(t));
+      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(authoritativeTeachers));
       notifyLmsStoreChange();
-      return merged;
+      return authoritativeTeachers;
     }
   } catch (err) {
     console.warn('Could not sync teachers from server:', err);
@@ -1694,9 +1802,58 @@ export function deleteLectureFromCourseAction(courseId: string, lectureId: strin
  * Permanently delete a course from local store
  */
 export function deleteCourseAction(courseId: string) {
+  markCourseDeletedLocally(courseId);
+  const clean = courseId.trim().toLowerCase();
   const courses = getStoredCourses();
-  const updatedCourses = courses.filter((c) => c.id !== courseId);
+  const updatedCourses = courses.filter(
+    (c) => c.id !== courseId && c.id.toLowerCase() !== clean && (!c.slug || c.slug.toLowerCase() !== clean)
+  );
   saveStoredCourses(updatedCourses);
   notifyLmsStoreChange();
   return updatedCourses;
+}
+
+/**
+ * Permanently delete a teacher from local store and clear active session if matching
+ */
+export function deleteTeacherAction(teacherId: string, email?: string, phone?: string) {
+  markTeacherDeletedLocally(teacherId, email, phone);
+  const cleanId = teacherId.trim().toLowerCase();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+
+  const teachers = getStoredTeachers();
+  const updatedTeachers = teachers.filter((t) => {
+    const tId = (t.id || '').toLowerCase().trim();
+    const tEmail = (t.email || '').toLowerCase().trim();
+    const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+    return (
+      tId !== cleanId &&
+      (!cleanEmail || tEmail !== cleanEmail) &&
+      (cleanPhone.length < 10 || tPhone !== cleanPhone)
+    );
+  });
+  saveStoredTeachers(updatedTeachers);
+
+  // If currently active teacher matches, clear session immediately
+  if (typeof window !== 'undefined') {
+    const storedId = (localStorage.getItem('msi_active_teacher_id') || '').toLowerCase().trim();
+    const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
+    const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '').slice(-10);
+    if (
+      (storedId && storedId === cleanId) ||
+      (cleanEmail && storedEmail === cleanEmail) ||
+      (cleanPhone.length >= 10 && storedPhone === cleanPhone)
+    ) {
+      localStorage.removeItem('msi_teacher_user');
+      localStorage.removeItem('msi_teacher_logged_in');
+      localStorage.removeItem('msi_active_teacher_id');
+      localStorage.removeItem('msi_active_teacher_name');
+      localStorage.removeItem('msi_active_teacher_email');
+      localStorage.removeItem('msi_active_teacher_phone');
+    }
+  }
+
+  notifyLmsStoreChange();
+  return updatedTeachers;
 }

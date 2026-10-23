@@ -4,6 +4,7 @@ import { TeacherApprovalRecord } from './lmsStore';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const TEACHERS_FILE = path.join(DATA_DIR, 'teachers.json');
+const DELETED_TEACHERS_FILE = path.join(DATA_DIR, 'deleted_teachers.json');
 
 // Default seeded faculty accounts: authentic MSI handbooks
 const SEED_TEACHERS: TeacherApprovalRecord[] = [
@@ -165,29 +166,137 @@ const SEED_TEACHERS: TeacherApprovalRecord[] = [
   },
 ];
 
+export interface DeletedTeacherRecord {
+  id?: string;
+  email?: string;
+  phone?: string;
+  name?: string;
+  deletedAt: string;
+}
+
 /**
- * Reads all faculty members directly from data/teachers.json with fallback to seeds.
+ * Reads all permanently deleted teachers from data/deleted_teachers.json
+ */
+export function readDeletedTeachersFromDisk(): DeletedTeacherRecord[] {
+  try {
+    if (fs.existsSync(DELETED_TEACHERS_FILE)) {
+      const raw = fs.readFileSync(DELETED_TEACHERS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return [];
+  } catch (err) {
+    console.warn('[TeacherStore] Error reading deleted teachers list:', err);
+    return [];
+  }
+}
+
+/**
+ * Marks a teacher permanently deleted on disk
+ */
+export function markTeacherDeletedOnDisk(record: { id?: string; email?: string; phone?: string; name?: string }): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const current = readDeletedTeachersFromDisk();
+    const cleanId = (record.id || '').trim().toLowerCase();
+    const cleanEmail = (record.email || '').trim().toLowerCase();
+    const cleanPhone = (record.phone || '').replace(/\D/g, '').slice(-10);
+
+    const exists = current.some((d) => {
+      const dId = (d.id || '').trim().toLowerCase();
+      const dEmail = (d.email || '').trim().toLowerCase();
+      const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+      return (
+        (cleanId && dId === cleanId) ||
+        (cleanEmail && dEmail === cleanEmail) ||
+        (cleanPhone.length >= 10 && dPhone === cleanPhone)
+      );
+    });
+
+    if (!exists) {
+      current.push({
+        id: record.id,
+        email: record.email,
+        phone: record.phone,
+        name: record.name,
+        deletedAt: new Date().toISOString(),
+      });
+      fs.writeFileSync(DELETED_TEACHERS_FILE, JSON.stringify(current, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[TeacherStore] Error writing deleted teacher record:', err);
+  }
+}
+
+/**
+ * Tests if an identifier corresponds to a deleted teacher
+ */
+export function isTeacherDeleted(identifier: string): boolean {
+  if (!identifier) return false;
+  const clean = identifier.trim().toLowerCase();
+  const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
+  const deleted = readDeletedTeachersFromDisk();
+
+  return deleted.some((d) => {
+    const dId = (d.id || '').trim().toLowerCase();
+    const dEmail = (d.email || '').trim().toLowerCase();
+    const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+    const dName = (d.name || '').trim().toLowerCase();
+
+    if (clean && (dId === clean || dEmail === clean || dName === clean)) return true;
+    if (cleanPhone.length >= 10 && dPhone === cleanPhone) return true;
+    return false;
+  });
+}
+
+/**
+ * Reads all faculty members directly from data/teachers.json with fallback to seeds,
+ * strictly excluding any permanently deleted teachers.
  */
 export function readTeachersFromDisk(): TeacherApprovalRecord[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
+    const deletedList = readDeletedTeachersFromDisk();
+    const isDeleted = (t: TeacherApprovalRecord) => {
+      const tId = (t.id || '').trim().toLowerCase();
+      const tEmail = (t.email || '').trim().toLowerCase();
+      const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+      return deletedList.some((d) => {
+        const dId = (d.id || '').trim().toLowerCase();
+        const dEmail = (d.email || '').trim().toLowerCase();
+        const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+        return (
+          (tId && dId && tId === dId) ||
+          (tEmail && dEmail && tEmail === dEmail) ||
+          (tPhone.length >= 10 && dPhone.length >= 10 && tPhone === dPhone)
+        );
+      });
+    };
+
     if (fs.existsSync(TEACHERS_FILE)) {
       const raw = fs.readFileSync(TEACHERS_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t) => !isDeleted(t));
         }
       }
     }
-    // File missing or empty: write seed teachers
-    fs.writeFileSync(TEACHERS_FILE, JSON.stringify(SEED_TEACHERS, null, 2), 'utf-8');
-    return [...SEED_TEACHERS];
+    // File missing: write seed teachers, excluding deleted
+    const initialFiltered = SEED_TEACHERS.filter((t) => !isDeleted(t));
+    fs.writeFileSync(TEACHERS_FILE, JSON.stringify(initialFiltered, null, 2), 'utf-8');
+    return initialFiltered;
   } catch (err) {
     console.warn('[TeacherStore] Error reading teachers from disk:', err);
-    return [...SEED_TEACHERS];
+    return SEED_TEACHERS;
   }
 }
 
@@ -210,6 +319,8 @@ export function writeTeachersToDisk(teachers: TeacherApprovalRecord[]): void {
  */
 export function getTeacherByIdentifier(rawIdentifier: string): TeacherApprovalRecord | undefined {
   if (!rawIdentifier) return undefined;
+  if (isTeacherDeleted(rawIdentifier)) return undefined;
+
   const clean = rawIdentifier.trim().toLowerCase();
   const cleanPhone = rawIdentifier.replace(/\D/g, '').slice(-10);
   const teachers = readTeachersFromDisk();
@@ -240,12 +351,31 @@ export function getTeacherByIdentifier(rawIdentifier: string): TeacherApprovalRe
 export function addOrUpdateTeacherOnDisk(
   data: Partial<TeacherApprovalRecord> & { name: string; email: string }
 ): { success: boolean; teacher: TeacherApprovalRecord } {
-  const teachers = readTeachersFromDisk();
   const cleanEmail = data.email.trim().toLowerCase();
   const cleanPhone = (data.phone || '').replace(/\D/g, '').slice(-10);
 
+  // If this teacher was previously in deleted list, remove them from deleted list
+  try {
+    const deletedList = readDeletedTeachersFromDisk();
+    const filteredDeleted = deletedList.filter((d) => {
+      const dEmail = (d.email || '').trim().toLowerCase();
+      const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+      const dId = (d.id || '').trim().toLowerCase();
+      if (data.id && dId === data.id.toLowerCase()) return false;
+      if (dEmail === cleanEmail) return false;
+      if (cleanPhone.length >= 10 && dPhone === cleanPhone) return false;
+      return true;
+    });
+    if (filteredDeleted.length !== deletedList.length) {
+      fs.writeFileSync(DELETED_TEACHERS_FILE, JSON.stringify(filteredDeleted, null, 2), 'utf-8');
+    }
+  } catch (_) {}
+
+  const teachers = readTeachersFromDisk();
+
   const existingIndex = teachers.findIndex(
     (t) =>
+      (data.id && t.id === data.id) ||
       t.email.trim().toLowerCase() === cleanEmail ||
       (cleanPhone.length >= 10 && t.phone && t.phone.replace(/\D/g, '').slice(-10) === cleanPhone)
   );
@@ -291,25 +421,47 @@ export function addOrUpdateTeacherOnDisk(
 }
 
 /**
- * Delete teacher from disk
+ * Permanently delete teacher from disk and register in deleted registry
  */
 export function deleteTeacherFromDisk(id: string): { success: boolean; remainingTeachers: TeacherApprovalRecord[]; deletedCount: number } {
   const teachers = readTeachersFromDisk();
   const cleanId = id.trim().toLowerCase();
   const cleanPhone = id.replace(/\D/g, '').slice(-10);
+
+  // Find target teacher before filtering to capture all identifiers
+  const target = teachers.find((t) => {
+    const tId = (t.id || '').trim().toLowerCase();
+    const tEmail = (t.email || '').trim().toLowerCase();
+    const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+    return tId === cleanId || tEmail === cleanId || (cleanPhone.length >= 10 && tPhone === cleanPhone);
+  });
+
+  if (target) {
+    markTeacherDeletedOnDisk({
+      id: target.id,
+      email: target.email,
+      phone: target.phone,
+      name: target.name,
+    });
+  } else {
+    markTeacherDeletedOnDisk({ id });
+  }
+
   const filtered = teachers.filter((t) => {
     const tId = (t.id || '').trim().toLowerCase();
     const tEmail = (t.email || '').trim().toLowerCase();
     const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
-    return tId !== cleanId && tEmail !== cleanId && (!cleanPhone || tPhone !== cleanPhone);
+    return tId !== cleanId && tEmail !== cleanId && (cleanPhone.length < 10 || tPhone !== cleanPhone);
   });
+
   const deletedCount = teachers.length - filtered.length;
   writeTeachersToDisk(filtered);
   return { success: true, remainingTeachers: filtered, deletedCount };
 }
 
 /**
- * Universal credential verification for faculty
+ * Universal credential verification for faculty.
+ * Strictly verifies against active records in data/teachers.json and blocks deleted accounts.
  */
 export function verifyFacultyCredentials(
   identifier: string,
@@ -323,6 +475,14 @@ export function verifyFacultyCredentials(
   const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
   const cleanPass = pass.trim();
   const cleanPassLower = cleanPass.toLowerCase();
+
+  // 1. Check if teacher was permanently deleted by administration
+  if (isTeacherDeleted(cleanInput) || (cleanPhone.length >= 10 && isTeacherDeleted(cleanPhone))) {
+    return {
+      success: false,
+      message: 'This faculty account has been removed/deactivated by Administration. Login access is permanently revoked.',
+    };
+  }
 
   const isAcceptedFacultyPassword =
     cleanPassLower === 'faculty@msi2026' ||
@@ -340,18 +500,25 @@ export function verifyFacultyCredentials(
 
   const teachers = readTeachersFromDisk();
 
-  // Find matching teacher
+  // Find matching active teacher strictly from disk
   const matched = teachers.find((t) => {
     const tEmail = (t.email || '').trim().toLowerCase();
     const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+    const tId = (t.id || '').trim().toLowerCase();
 
-    // Exact email match (e.g. gmail ID)
-    if (cleanInput.includes('@') && (tEmail === cleanInput || (cleanInput.includes('harshit') && tEmail.includes('harshit')))) return true;
+    // Exact email match
+    if (cleanInput.includes('@') && tEmail === cleanInput) return true;
 
     // Exact 10-digit phone match
     if (cleanPhone.length >= 10 && tPhone === cleanPhone) return true;
 
-    // Fuzzy matching for Ekta
+    // Exact ID match
+    if (tId === cleanInput) return true;
+
+    // Name match
+    if (t.name.trim().toLowerCase() === cleanInput) return true;
+
+    // Fuzzy match for Dr. Ekta ONLY IF active in teachers list
     if (
       (cleanInput.includes('ekta') || cleanInput.includes('gehlot') || cleanInput.includes('gahlawat')) &&
       (t.name.toLowerCase().includes('ekta') || t.email.toLowerCase().includes('ekta'))
@@ -359,38 +526,25 @@ export function verifyFacultyCredentials(
       return true;
     }
 
-    // Name match
-    if (t.name.trim().toLowerCase() === cleanInput || (cleanInput.includes('harshit') && t.name.toLowerCase().includes('harshit'))) return true;
-
     return false;
   });
 
   if (!matched) {
-    if (cleanInput.includes('harshit') || cleanInput === 'harshit@gmail.com') {
-      const harshitRec = SEED_TEACHERS.find((t) => t.id === 'fac-harshit-01')!;
-      return { success: true, teacher: harshitRec };
-    }
-
-    // Check if it's master phone/email fallback
-    if (
-      (cleanPhone === '9792303434' || cleanInput.includes('9792303434') || cleanInput.includes('drektagahlawat')) &&
-      isAcceptedFacultyPassword
-    ) {
-      const ekta = teachers.find((t) => t.id === 'fac-law-ekta') || SEED_TEACHERS[0];
-      return { success: true, teacher: ekta };
-    }
-
     return {
       success: false,
-      message: 'No faculty record found for this mobile number or email ID. Please contact Super Admin.',
+      message: 'No active faculty record found for this mobile number or email ID. Please contact Super Admin.',
+    };
+  }
+
+  // Double check matched teacher is not in deleted registry
+  if (isTeacherDeleted(matched.id) || isTeacherDeleted(matched.email)) {
+    return {
+      success: false,
+      message: 'This faculty account has been removed/deactivated by Administration. Login access is permanently revoked.',
     };
   }
 
   // Verify password:
-  // 1. Accepted universal faculty passwords
-  // 2. Exact match on stored password
-  // 3. Lowercase match on stored password
-  // 4. Stored temporary password match
   const storedPass = (matched.password || '').trim();
   const storedTemp = (matched.temporaryPassword || '').trim();
 

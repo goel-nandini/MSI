@@ -106,13 +106,13 @@ export default function HomePage() {
     const loadCourses = async () => {
       try {
         const stored = getStoredCourses();
-        if (stored && stored.length > 0) {
+        if (stored) {
           setDynamicCourses(stored);
         }
-        const res = await fetch('/api/courses');
+        const res = await fetch('/api/courses', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
+          if (data.success && Array.isArray(data.courses)) {
             setDynamicCourses(data.courses);
           }
         }
@@ -123,12 +123,38 @@ export default function HomePage() {
 
     loadCourses();
 
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (
+            event.data?.type === 'COURSE_CREATED' ||
+            event.data?.type === 'COURSE_PUBLISHED' ||
+            event.data?.type === 'COURSE_DELETED' ||
+            event.data?.type === 'COURSE_ASSIGNED'
+          ) {
+            loadCourses();
+          }
+        };
+      }
+    } catch (_) {}
+
     const handleSync = () => loadCourses();
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_courses_sync', handleSync);
+
+    const interval = setInterval(() => {
+      loadCourses();
+    }, 3500);
+
     return () => {
+      if (bc) bc.close();
+      clearInterval(interval);
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_courses_sync', handleSync);
     };
   }, []);
 

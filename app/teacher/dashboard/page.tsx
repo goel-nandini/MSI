@@ -71,78 +71,114 @@ export default function TeacherDashboardPage() {
   const [isAccessRevoked, setIsAccessRevoked] = useState(false);
 
   // Synchronize LMS Courses assigned to this teacher from central store
-  const loadLmsCourses = async () => {
+  // Trigger instant session revocation and purge credentials
+  const triggerInstantRevocation = () => {
+    setIsAccessRevoked(true);
     try {
-      await syncCoursesFromServer();
-      await syncTeachersFromServer();
+      localStorage.removeItem('msi_teacher_user');
+      localStorage.removeItem('msi_teacher_logged_in');
+      localStorage.removeItem('msi_active_teacher_id');
+      localStorage.removeItem('msi_active_teacher_name');
+      localStorage.removeItem('msi_active_teacher_email');
+      localStorage.removeItem('msi_active_teacher_phone');
     } catch (_) {}
-    const all = getStoredCourses();
-    const storedTeachers = getStoredTeachers();
-    const teacherRec = storedTeachers.find(
-      (t) =>
-        t.id === activeTeacher.id ||
-        (t.email && activeTeacher.email && t.email.toLowerCase() === activeTeacher.email.toLowerCase()) ||
-        (t.name && activeTeacher.name && t.name.toLowerCase().includes(activeTeacher.name.toLowerCase())) ||
-        (t.name.toLowerCase().includes('ekta') && activeTeacher.name.toLowerCase().includes('ekta'))
-    );
-    const assignedIds = teacherRec?.assignedCourseIds || [];
-
-    const assigned = all.filter((c) => {
-      if (assignedIds.includes(c.id)) return true;
-      if (c.instructorId === activeTeacher.id) return true;
-      if (activeTeacher.name && c.instructorName && c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
-      if (activeTeacher.name && c.instructorName && activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
-      if (
-        (c.instructorName.toLowerCase().includes('ekta') ||
-          c.instructorName.toLowerCase().includes('gahlawat') ||
-          c.instructorName.toLowerCase().includes('gehlot')) &&
-        (activeTeacher.name.toLowerCase().includes('ekta') ||
-          activeTeacher.name.toLowerCase().includes('gahlawat') ||
-          activeTeacher.name.toLowerCase().includes('gehlot'))
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-    setLmsCourses(assigned);
   };
 
   // Check if current faculty was deleted by administration
-  const checkRevocation = async () => {
+  const checkRevocation = async (forceDeletedPayload?: {
+    teacherId?: string;
+    teacherEmail?: string;
+    teacherPhone?: string;
+  }) => {
     if (typeof window === 'undefined') return;
     try {
-      const teachers = await syncTeachersFromServer();
-      const storedId = localStorage.getItem('msi_active_teacher_id') || '';
+      const storedId = (localStorage.getItem('msi_active_teacher_id') || '').toLowerCase().trim();
       const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
       const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '').slice(-10);
 
+      // Fast check directly from broadcast event
+      if (forceDeletedPayload) {
+        const pId = (forceDeletedPayload.teacherId || '').toLowerCase().trim();
+        const pEmail = (forceDeletedPayload.teacherEmail || '').toLowerCase().trim();
+        const pPhone = (forceDeletedPayload.teacherPhone || '').replace(/\D/g, '').slice(-10);
+
+        const currentId = activeTeacher.id?.toLowerCase().trim();
+        const currentEmail = activeTeacher.email?.toLowerCase().trim();
+        const currentPhone = (activeTeacher.phone || '').replace(/\D/g, '').slice(-10);
+
+        if (
+          (pId && (pId === currentId || pId === storedId)) ||
+          (pEmail && (pEmail === currentEmail || pEmail === storedEmail)) ||
+          (pPhone.length >= 10 && (pPhone === currentPhone || pPhone === storedPhone))
+        ) {
+          triggerInstantRevocation();
+          return;
+        }
+      }
+
       if (!storedId && !storedEmail && !storedPhone) return;
 
+      const teachers = await syncTeachersFromServer();
       const stillExists = teachers.some((t) => {
         const tId = (t.id || '').toLowerCase().trim();
         const tEmail = (t.email || '').toLowerCase().trim();
         const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
         return (
-          (storedId && tId === storedId.toLowerCase().trim()) ||
+          (storedId && tId === storedId) ||
           (storedEmail && tEmail === storedEmail) ||
           (storedPhone.length >= 10 && tPhone === storedPhone)
         );
       });
 
       if (!stillExists) {
-        setIsAccessRevoked(true);
-        try {
-          localStorage.removeItem('msi_teacher_user');
-          localStorage.removeItem('msi_teacher_logged_in');
-          localStorage.removeItem('msi_active_teacher_id');
-          localStorage.removeItem('msi_active_teacher_name');
-          localStorage.removeItem('msi_active_teacher_email');
-        } catch (_) {}
+        triggerInstantRevocation();
       }
     } catch (err) {
       console.warn('Revocation check error:', err);
     }
+  };
+
+  // Synchronize LMS Courses assigned to this teacher from central store
+  const loadLmsCourses = async (overrideTeacher?: TeacherProfile) => {
+    try {
+      await syncCoursesFromServer();
+      await syncTeachersFromServer();
+    } catch (_) {}
+    const tProfile = overrideTeacher || activeTeacher;
+    const all = getStoredCourses();
+    const storedTeachers = getStoredTeachers();
+
+    const storedTeacherId = (typeof window !== 'undefined' ? localStorage.getItem('msi_active_teacher_id') || '' : '').toLowerCase().trim();
+    const storedTeacherEmail = (typeof window !== 'undefined' ? localStorage.getItem('msi_active_teacher_email') || '' : '').toLowerCase().trim();
+
+    const teacherRec = storedTeachers.find(
+      (t) =>
+        (t.id && (t.id === tProfile.id || (storedTeacherId && t.id.toLowerCase() === storedTeacherId))) ||
+        (t.email && (
+          (tProfile.email && t.email.toLowerCase() === tProfile.email.toLowerCase()) ||
+          (storedTeacherEmail && t.email.toLowerCase() === storedTeacherEmail)
+        )) ||
+        (t.name && tProfile.name && (
+          t.name.toLowerCase().includes(tProfile.name.toLowerCase()) ||
+          tProfile.name.toLowerCase().includes(t.name.toLowerCase())
+        ))
+    );
+    const assignedIds = teacherRec?.assignedCourseIds || [];
+
+    const assigned = all.filter((c) => {
+      // 1. Course ID is in faculty's assignedCourseIds list
+      if (assignedIds.includes(c.id)) return true;
+      // 2. Course instructorId matches faculty ID
+      if (c.instructorId && (c.instructorId === tProfile.id || (storedTeacherId && c.instructorId.toLowerCase() === storedTeacherId))) return true;
+      // 3. Course instructorName matches
+      if (tProfile.name && c.instructorName && (
+        c.instructorName.toLowerCase().includes(tProfile.name.toLowerCase()) ||
+        tProfile.name.toLowerCase().includes(c.instructorName.toLowerCase())
+      )) return true;
+      return false;
+    });
+
+    setLmsCourses(assigned);
   };
 
   // Synchronize active teacher from localStorage & server store on mount
@@ -165,18 +201,13 @@ export default function TeacherDashboardPage() {
           if (storedEmail && r.email.toLowerCase().trim() === storedEmail) return true;
           if (storedName && r.name.toLowerCase().trim() === storedName.toLowerCase()) return true;
           if (storedPhone && r.phone && r.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
-          if (
-            storedEmail.includes('ekta') ||
-            storedName.toLowerCase().includes('ekta') ||
-            storedPhone === '9792303434'
-          ) {
-            return r.id.includes('ekta') || r.name.toLowerCase().includes('ekta');
-          }
           return false;
         });
 
         if (recMatched) {
-          setActiveTeacher(buildTeacherProfileFromRecord(recMatched));
+          const profile = buildTeacherProfileFromRecord(recMatched);
+          setActiveTeacher(profile);
+          loadLmsCourses(profile);
           return;
         }
 
@@ -185,34 +216,23 @@ export default function TeacherDashboardPage() {
           if (storedEmail && t.email.toLowerCase() === storedEmail) return true;
           if (storedName && t.name.toLowerCase().includes(storedName.toLowerCase())) return true;
           if (storedPhone && t.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
-          if (
-            storedEmail.includes('ekta') ||
-            storedName.toLowerCase().includes('ekta') ||
-            storedPhone === '9792303434'
-          ) {
-            return t.id.includes('ekta') || t.name.toLowerCase().includes('ekta');
-          }
           return false;
         });
 
         if (matched) {
           setActiveTeacher(matched);
+          loadLmsCourses(matched);
         } else if (storedName || storedEmail || storedId) {
           // Record was deleted by administration: trigger revocation notice
-          setIsAccessRevoked(true);
-          try {
-            localStorage.removeItem('msi_teacher_user');
-            localStorage.removeItem('msi_teacher_logged_in');
-            localStorage.removeItem('msi_active_teacher_id');
-          } catch (_) {}
+          triggerInstantRevocation();
         }
       }
     };
 
     initTeacher();
-    loadLmsCourses();
   }, []);
 
+  // Watch for activeTeacher changes, BroadcastChannel events, and background heartbeat
   useEffect(() => {
     loadLmsCourses();
 
@@ -222,8 +242,13 @@ export default function TeacherDashboardPage() {
         bc = new BroadcastChannel('msi_sync_channel');
         bc.onmessage = (event) => {
           if (event.data?.type === 'FACULTY_DELETED') {
-            checkRevocation();
-          } else if (event.data?.type === 'COURSE_CREATED' || event.data?.type === 'COURSE_DELETED') {
+            checkRevocation(event.data);
+          } else if (
+            event.data?.type === 'COURSE_ASSIGNED' ||
+            event.data?.type === 'COURSE_PUBLISHED' ||
+            event.data?.type === 'COURSE_CREATED' ||
+            event.data?.type === 'COURSE_DELETED'
+          ) {
             loadLmsCourses();
           }
         };
@@ -237,12 +262,32 @@ export default function TeacherDashboardPage() {
 
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_courses_sync', handleSync);
+
+    // Periodic heartbeat sync so changes in admin reflect within 3 seconds
+    const interval = setInterval(() => {
+      checkRevocation();
+      loadLmsCourses();
+    }, 3000);
+
     return () => {
       if (bc) bc.close();
+      clearInterval(interval);
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_courses_sync', handleSync);
     };
   }, [activeTeacher.id, activeTeacher.name, activeTeacher.email]);
+
+  // Automatic logout redirect after revocation
+  useEffect(() => {
+    if (isAccessRevoked) {
+      const timer = setTimeout(() => {
+        router.push('/teacher/login');
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAccessRevoked, router]);
 
   // --------------------------------------------------------------------------
   // ROLE-BASED DATA ISOLATION ENFORCEMENT:

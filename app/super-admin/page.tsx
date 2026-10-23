@@ -69,6 +69,7 @@ import {
   getStoredCourses,
   saveStoredCourses,
   deleteCourseAction,
+  deleteTeacherAction,
   getStoredTeachers,
   saveStoredTeachers,
   getStoredEnrollments,
@@ -938,10 +939,52 @@ export default function SuperAdminMasterDashboard() {
     showToast('Faculty status marked as rejected.');
   };
 
-  const handleSaveCourseAssignments = () => {
+  const handleSaveCourseAssignments = async () => {
     if (!assigningTeacher) return;
     const updated = assignCoursesToTeacherAction(assigningTeacher.id, teacherSelectedCourseIds);
     setTeachers(updated);
+    const updatedCourses = getStoredCourses();
+    setCourses(updatedCourses);
+
+    const updatedTeacher = updated.find((t) => t.id === assigningTeacher.id);
+    if (updatedTeacher) {
+      try {
+        await fetch('/api/admin/faculty', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedTeacher),
+        });
+      } catch (err) {
+        console.warn('Failed to persist faculty course assignments to server disk:', err);
+      }
+    }
+
+    // Also persist each updated course to disk so it has instructor assigned
+    const assignedCoursesList = updatedCourses.filter((c) => teacherSelectedCourseIds.includes(c.id));
+    for (const c of assignedCoursesList) {
+      try {
+        fetch('/api/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(c),
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const bc = new BroadcastChannel('msi_sync_channel');
+      bc.postMessage({
+        type: 'COURSE_ASSIGNED',
+        teacherId: assigningTeacher.id,
+        teacherEmail: assigningTeacher.email,
+        teacherName: assigningTeacher.name,
+        assignedCourseIds: teacherSelectedCourseIds,
+      });
+      bc.close();
+    }
+    window.dispatchEvent(new Event('msi_courses_sync'));
+    window.dispatchEvent(new Event('storage'));
+
     setAssigningTeacher(null);
     showToast(`Courses assigned to ${assigningTeacher.name} successfully.`);
   };
@@ -1035,15 +1078,25 @@ export default function SuperAdminMasterDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        const updated = teachers.filter((t) => t.id !== teacherToDelete.id);
-        setTeachers(updated);
-        saveStoredTeachers(updated);
-        showToast(`Faculty member (${teacherToDelete.name}) permanently removed from disk.`);
+        const remaining = deleteTeacherAction(teacherToDelete.id, teacherToDelete.email, teacherToDelete.phone);
+        setTeachers(remaining);
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({
+            type: 'FACULTY_DELETED',
+            teacherId: teacherToDelete.id,
+            teacherEmail: teacherToDelete.email,
+            teacherPhone: teacherToDelete.phone,
+            teacherName: teacherToDelete.name,
+          });
+          bc.close();
+        }
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event(LMS_SYNC_EVENT));
+
+        showToast(`Faculty member (${teacherToDelete.name}) permanently removed from disk and session revoked.`);
         setTeacherToDelete(null);
-        try {
-          window.dispatchEvent(new Event(LMS_SYNC_EVENT));
-          window.dispatchEvent(new Event('storage'));
-        } catch (_) {}
       } else {
         showToast(data.message || 'Failed to delete faculty member.');
       }
@@ -1335,17 +1388,21 @@ export default function SuperAdminMasterDashboard() {
     if (!courseToDelete) return;
     setIsDeletingCourse(true);
     try {
-      const res = await fetch(`/api/courses?id=${courseToDelete.id}`, {
+      const res = await fetch(`/api/courses?id=${encodeURIComponent(courseToDelete.id)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
-        deleteCourseAction(courseToDelete.id);
-        setCourses(getStoredCourses());
+        const remaining = deleteCourseAction(courseToDelete.id);
+        setCourses(remaining);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
-          bc.postMessage({ type: 'COURSE_DELETED', courseId: courseToDelete.id });
+          bc.postMessage({
+            type: 'COURSE_DELETED',
+            courseId: courseToDelete.id,
+            courseSlug: courseToDelete.slug,
+          });
           bc.close();
         }
         window.dispatchEvent(new Event('msi_courses_sync'));

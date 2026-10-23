@@ -25,6 +25,7 @@ import {
   getStoredTeachers,
   saveStoredTeachers,
   syncTeachersFromServer,
+  getDeletedTeacherIds,
   TeacherApprovalRecord,
 } from '@/lib/lmsStore';
 
@@ -95,7 +96,18 @@ export default function TeacherLoginPage() {
         cleanPassLower === 'msi@superadmin' ||
         cleanPassLower === 'harshit@reception';
 
-      // 1. Primary: Server-side Authentication against data/teachers.json
+      // 1. Check if teacher was deleted
+      const deletedIds = getDeletedTeacherIds();
+      if (
+        deletedIds.includes(cleanInput) ||
+        (cleanPhone.length >= 10 && deletedIds.includes(cleanPhone))
+      ) {
+        setIsLoading(false);
+        setErrorMessage('This faculty account has been permanently removed by Administration. Login access is revoked.');
+        return;
+      }
+
+      // 2. Primary: Server-side Authentication against data/teachers.json
       try {
         const authRes = await fetch('/api/teacher/auth', {
           method: 'POST',
@@ -120,48 +132,30 @@ export default function TeacherLoginPage() {
           setIsLoading(false);
           router.push('/teacher/dashboard');
           return;
+        } else if (authRes.status === 401 || (authData && !authData.success)) {
+          // Explicitly rejected by server
+          setIsLoading(false);
+          setErrorMessage(authData.message || 'Invalid credentials or faculty account has been deactivated.');
+          return;
         }
       } catch (serverErr) {
-        console.warn('Server auth fallback to client store:', serverErr);
+        console.warn('Server auth network error, attempting offline verification:', serverErr);
       }
 
-      // 2. Master Faculty Login Credentials: 9792303434 / drektagahlawat@msi.edu.in
-      const isMasterPhone =
-        cleanPhone === '9792303434' ||
-        cleanInput === '9792303434' ||
-        cleanInput.includes('9792303434') ||
-        cleanInput.includes('ekta') ||
-        cleanInput.includes('drektagahlawat@msi.edu.in') ||
-        cleanInput === 'faculty@msi.edu.in';
-
-      if (isMasterPhone && isAcceptedFacultyPassword) {
-        localStorage.setItem('msi_teacher_logged_in', 'true');
-        localStorage.setItem('msi_active_teacher_email', 'drektagahlawat@msi.edu.in');
-        localStorage.setItem('msi_active_teacher_name', 'Dr. Ekta Gahlawat');
-        localStorage.setItem('msi_active_teacher_phone', '9792303434');
-        localStorage.setItem('msi_active_teacher_id', 'fac-law-ekta');
-        setIsLoading(false);
-        router.push('/teacher/dashboard');
-        return;
-      }
-
-      // 3. Client LocalStorage Matching Fallback
+      // 3. Offline LocalStorage Matching Fallback (strictly against verified stored teachers)
       const stored = getStoredTeachers();
       const matched = stored.find((t) => {
         const tEmail = (t.email || '').trim().toLowerCase();
         const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+        const tId = (t.id || '').trim().toLowerCase();
 
         if (isEmailInput) {
-          return tEmail === cleanInput || (cleanInput.includes('harshit') && tEmail.includes('harshit'));
+          return tEmail === cleanInput;
         }
         if (cleanPhone.length >= 10 && tPhone === cleanPhone) {
           return true;
         }
-        return (
-          tEmail === cleanInput ||
-          t.name.trim().toLowerCase() === cleanInput ||
-          (cleanInput.includes('harshit') && t.name.toLowerCase().includes('harshit'))
-        );
+        return tEmail === cleanInput || tId === cleanInput || t.name.trim().toLowerCase() === cleanInput;
       });
 
       if (matched) {
@@ -190,34 +184,9 @@ export default function TeacherLoginPage() {
         return;
       }
 
-      // 4. Universal fallback for any faculty member if accepted faculty password is used
-      if (isAcceptedFacultyPassword || cleanInput.includes('harshit')) {
-        const teacherName = cleanInput.includes('harshit')
-          ? 'Harshit Singh'
-          : cleanInput.includes('anurag')
-          ? 'Mr. Anurag Dwivedi'
-          : cleanInput.includes('riya')
-          ? 'Ms. Riya Hooda'
-          : cleanInput.includes('vikram')
-          ? 'Dr. Vikramaditya Sharma'
-          : cleanInput.includes('shikha')
-          ? 'Ms. Shikha Singh'
-          : 'Dr. Ekta Gahlawat';
-        localStorage.setItem('msi_teacher_logged_in', 'true');
-        localStorage.setItem(
-          'msi_active_teacher_email',
-          cleanInput.includes('@') ? cleanInput : 'harshit@gmail.com'
-        );
-        localStorage.setItem('msi_active_teacher_name', teacherName);
-        localStorage.setItem(
-          'msi_active_teacher_id',
-          cleanInput.includes('harshit') ? 'fac-harshit-01' : 'fac-law-ekta'
-        );
-        localStorage.setItem('msi_active_teacher_phone', cleanPhone || '9792303434');
-        setIsLoading(false);
-        router.push('/teacher/dashboard');
-        return;
-      }
+      setIsLoading(false);
+      setErrorMessage('No active faculty record found for these credentials. Please contact Super Admin.');
+      return;
 
       setIsLoading(false);
       setErrorMessage('Invalid credentials. Please verify your authorized mobile number or email and password.');
