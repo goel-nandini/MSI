@@ -47,6 +47,7 @@ import {
   UdemyCourse,
   getStoredCourses,
   getStoredEnrollments,
+  syncCoursesFromServer,
   enrollStudentAction,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
@@ -112,18 +113,97 @@ export default function CoursesPage() {
 
   const activeStudentId = 'msi-stu-001'; // Default student Aarav Sharma
 
-  const loadLmsData = () => {
-    const courses = getStoredCourses();
-    setUdemyCourses(courses);
+  const loadLmsData = async () => {
+    try {
+      const serverCourses = await syncCoursesFromServer();
+      setUdemyCourses(serverCourses);
+    } catch (_) {
+      const courses = getStoredCourses();
+      setUdemyCourses(courses);
+    }
+
+    const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
+    const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
     const enrollments = getStoredEnrollments();
+
     const enrolled = enrollments
-      .filter((e) => e.studentId === activeStudentId)
+      .filter((e) => {
+        if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+        if (!cleanPhone && (e.studentId === activeStudentId || e.studentId === 'msi-stu-001')) return true;
+        return false;
+      })
       .map((e) => e.courseId);
     setEnrolledCourseIds(enrolled);
   };
 
+  const handleOrderBookOrKit = (item: {
+    id: string;
+    title: string;
+    price: number;
+    originalPrice?: number;
+    type: 'book' | 'kit';
+    description?: string;
+  }) => {
+    const virtualCourse: UdemyCourse = {
+      id: item.id,
+      slug: item.id,
+      title: item.title,
+      headline: item.description || 'Official MSI Publications Study Material Kit',
+      description: item.description || 'Curated by MSI senior legal faculty with doorstep dispatch and digital PDF access.',
+      category: 'Judiciary',
+      department: 'law',
+      rating: 5.0,
+      reviewCount: 48,
+      totalDuration: 'Complete Hardcopy & Digital Edition',
+      totalLectures: 6,
+      level: 'All Levels',
+      thumbnail: '/images/courses/clat.jpg',
+      price: item.price,
+      originalPrice: item.originalPrice || item.price + 1000,
+      isFreeForMsiStudents: false,
+      instructorId: 'fac-harshit-01',
+      instructorName: 'MSI Academic Editorial Board',
+      instructorTitle: 'Senior Jurists & Editorial Directorate',
+      instructorAvatar: '/images/avatars/avatar-1.webp',
+      whatYouWillLearn: [
+        'Doorstep physical delivery within 3-5 business days across India',
+        'Official 2026 Updated Edition with new criminal codes (BNS, BNSS, BSA)',
+        'Free digital companion access and past year solved papers',
+      ],
+      requirements: ['Valid delivery address across India', 'Active mobile number for delivery tracking'],
+      sections: [],
+      updatedDate: 'Oct 2026',
+      language: 'English & Bilingual Legal Notes',
+      isPublished: true,
+    };
+
+    if (!isStudentLoggedIn()) {
+      setLoginModalCourse(virtualCourse);
+      return;
+    }
+
+    setDirectCheckoutCourse(virtualCourse);
+  };
+
   useEffect(() => {
     loadLmsData();
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (
+            event.data?.type === 'COURSE_CREATED' ||
+            event.data?.type === 'COURSE_DELETED' ||
+            event.data?.type === 'FACULTY_DELETED' ||
+            event.data?.type === 'STUDENT_ENROLLED'
+          ) {
+            loadLmsData();
+          }
+        };
+      }
+    } catch (_) {}
 
     const handleSync = () => {
       loadLmsData();
@@ -131,9 +211,12 @@ export default function CoursesPage() {
 
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_kits_sync', handleSync);
     return () => {
+      if (bc) bc.close();
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_kits_sync', handleSync);
     };
   }, []);
 
@@ -1134,10 +1217,23 @@ export default function CoursesPage() {
               <span className="text-xs font-mono font-bold tracking-wider text-[#89190E] uppercase">
                 MSI Master Book Series (6 Core Books)
               </span>
-              <div className="p-2 px-3 rounded-xl bg-[#FFF3DD] border border-[#EFC988] flex items-center space-x-2 text-xs font-bold text-[#10233F]">
-                <Package className="w-4 h-4 text-[#89190E]" />
-                <span>6-Book Combo: <strong className="text-[#89190E]">₹4,999</strong> <span className="line-through text-[#526174] font-normal text-[11px]">(MRP: ₹5,999)</span></span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleOrderBookOrKit({
+                    id: 'kit-6book-combo',
+                    title: 'MSI Master Books 6-Book Complete Series Combo',
+                    price: 4999,
+                    originalPrice: 5999,
+                    type: 'kit',
+                    description: 'Complete 6-Volume Set with OMR Practice Sheets & Sectional Diagnostic Tests',
+                  });
+                }}
+                className="p-2 px-3 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white flex items-center space-x-2 text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                <Package className="w-4 h-4 text-[#EFC988]" />
+                <span>6-Book Combo: <strong className="text-[#EFC988]">₹4,999</strong> <span className="line-through text-white/70 font-normal text-[11px]">(MRP: ₹5,999)</span></span>
+              </button>
             </div>
 
             <div
@@ -1146,15 +1242,15 @@ export default function CoursesPage() {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {[
-                { book: 'BOOK 1 — GK & CA', title: 'MSI Master Book – General Knowledge & Current Affairs', mrp: '₹999', contents: 'National/International Affairs, Government Schemes, Science & Tech, Economy, Defence, Reports & Indices, Legal Current Affairs & Constitutional developments.' },
-                { book: 'BOOK 2 — MATHEMATICS', title: 'MSI Master Book – Quantitative Aptitude & Mathematics', mrp: '₹999', contents: 'Number System, Percentage, Ratio, Average, Profit & Loss, SI & CI, Time & Work, Time-Speed-Distance, Data Interpretation, Geometry, Mensuration & Shortcuts.' },
-                { book: 'BOOK 3 — LEGAL STUDIES', title: 'MSI Master Book – Legal Reasoning & Legal Studies', mrp: '₹999', contents: 'Constitution, Fundamental Rights, DPSP, Parliament, Judiciary, Contract, Torts, Criminal Law, Legal Maxims, Landmark Judgments & Passage-based questions.' },
-                { book: 'BOOK 4 — QUANTS', title: 'MSI Master Book – Quantitative Techniques', mrp: '₹999', contents: 'Arithmetic, Advanced Data Interpretation, Tables, Charts, Graphs, Percentage, Ratio, Average, Profit & Loss, Speed-Time-Distance & Advanced CLAT Practice.' },
-                { book: 'BOOK 5 — REASONING', title: 'MSI Master Book – Logical & Critical Reasoning', mrp: '₹999', contents: 'Arguments, Assumptions, Conclusions, Inference, Strengthen/Weaken, Cause & Effect, Syllogisms, Blood Relations, Series, Puzzles & Passage-based reasoning.' },
-                { book: 'BOOK 6 — ENGLISH', title: 'MSI Master Book – English Language & Comprehension', mrp: '₹999', contents: 'Reading Comprehension, Vocabulary, Synonyms, Antonyms, Idioms, Grammar, Sentence correction, Para jumbles, Tone, Inference, Main idea & Author viewpoint.' },
-              ].map((b, i) => (
+                { id: 'book-1', book: 'BOOK 1 — GK & CA', title: 'MSI Master Book – General Knowledge & Current Affairs', mrp: '₹999', contents: 'National/International Affairs, Government Schemes, Science & Tech, Economy, Defence, Reports & Indices, Legal Current Affairs & Constitutional developments.' },
+                { id: 'book-2', book: 'BOOK 2 — MATHEMATICS', title: 'MSI Master Book – Quantitative Aptitude & Mathematics', mrp: '₹999', contents: 'Number System, Percentage, Ratio, Average, Profit & Loss, SI & CI, Time & Work, Time-Speed-Distance, Data Interpretation, Geometry, Mensuration & Shortcuts.' },
+                { id: 'book-3', book: 'BOOK 3 — LEGAL STUDIES', title: 'MSI Master Book – Legal Reasoning & Legal Studies', mrp: '₹999', contents: 'Constitution, Fundamental Rights, DPSP, Parliament, Judiciary, Contract, Torts, Criminal Law, Legal Maxims, Landmark Judgments & Passage-based questions.' },
+                { id: 'book-4', book: 'BOOK 4 — QUANTS', title: 'MSI Master Book – Quantitative Techniques', mrp: '₹999', contents: 'Arithmetic, Advanced Data Interpretation, Tables, Charts, Graphs, Percentage, Ratio, Average, Profit & Loss, Speed-Time-Distance & Advanced CLAT Practice.' },
+                { id: 'book-5', book: 'BOOK 5 — REASONING', title: 'MSI Master Book – Logical & Critical Reasoning', mrp: '₹999', contents: 'Arguments, Assumptions, Conclusions, Inference, Strengthen/Weaken, Cause & Effect, Syllogisms, Blood Relations, Series, Puzzles & Passage-based reasoning.' },
+                { id: 'book-6', book: 'BOOK 6 — ENGLISH', title: 'MSI Master Book – English Language & Comprehension', mrp: '₹999', contents: 'Reading Comprehension, Vocabulary, Synonyms, Antonyms, Idioms, Grammar, Sentence correction, Para jumbles, Tone, Inference, Main idea & Author viewpoint.' },
+              ].map((b) => (
                 <div
-                  key={i}
+                  key={b.id}
                   className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0 snap-start bg-white rounded-3xl p-6 border border-[#E8DCCB] shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                 >
                   <div>
@@ -1171,12 +1267,18 @@ export default function CoursesPage() {
                   </div>
                   <button
                     onClick={() => {
-                      setSelectedCourse(`${b.title} (${b.mrp})`);
-                      setIsEnquiryOpen(true);
+                      handleOrderBookOrKit({
+                        id: b.id,
+                        title: b.title,
+                        price: 999,
+                        originalPrice: 1499,
+                        type: 'book',
+                        description: b.contents,
+                      });
                     }}
-                    className="w-full py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#89190E] hover:text-white text-[#10233F] border border-[#E8DCCB] text-xs font-bold transition-all text-center cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all text-center cursor-pointer shadow-xs"
                   >
-                    Order Book / Enquire
+                    Order Book (₹999)
                   </button>
                 </div>
               ))}
@@ -1241,8 +1343,14 @@ export default function CoursesPage() {
               </div>
               <button
                 onClick={() => {
-                  setSelectedCourse('MSI CLAT Aspirant Kit (₹2,999)');
-                  setIsEnquiryOpen(true);
+                  handleOrderBookOrKit({
+                    id: 'kit-clat-aspirant',
+                    title: 'MSI CLAT Aspirant Kit',
+                    price: 2999,
+                    originalPrice: 4000,
+                    type: 'kit',
+                    description: 'All 6 MSI Master Books Series, Monthly Magazine, Full-Length Mock Tests, OMR Sheets & Study Planner',
+                  });
                 }}
                 className="w-full py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
@@ -1280,8 +1388,14 @@ export default function CoursesPage() {
               </div>
               <button
                 onClick={() => {
-                  setSelectedCourse('MSI Judiciary Aspirant Kit (₹3,999)');
-                  setIsEnquiryOpen(true);
+                  handleOrderBookOrKit({
+                    id: 'kit-judiciary-aspirant',
+                    title: 'MSI Judiciary Aspirant Kit',
+                    price: 3999,
+                    originalPrice: 5500,
+                    type: 'kit',
+                    description: 'Judiciary Notes & Bare Act Notes, Landmark Case-Law Compilation, Prelims & Mains Practice Books, Bag & Diary',
+                  });
                 }}
                 className="w-full py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
@@ -1319,8 +1433,14 @@ export default function CoursesPage() {
               </div>
               <button
                 onClick={() => {
-                  setSelectedCourse('MSI Merchandise Combo Kit (₹1,499)');
-                  setIsEnquiryOpen(true);
+                  handleOrderBookOrKit({
+                    id: 'kit-merchandise-combo',
+                    title: 'MSI Merchandise Combo Kit',
+                    price: 1499,
+                    originalPrice: 2199,
+                    type: 'kit',
+                    description: 'MSI Ergonomic Institute Backpack, Official MSI Institute T-Shirt, Executive Diary, Insulated Sipper & Pen',
+                  });
                 }}
                 className="w-full py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
@@ -1539,9 +1659,53 @@ export default function CoursesPage() {
             const cleanPhone = studentPhone.replace(/\D/g, '').slice(-10);
             const stuId = cleanPhone ? `msi-stu-${cleanPhone.slice(-4)}` : activeStudentId;
 
-            enrollStudentAction(stuId, directCheckoutCourse.id, 'self', studentName, 'Purchased via Razorpay', cleanPhone, studentName);
-            loadLmsData();
-            showToast(`🎉 Enrolled in ${directCheckoutCourse.title}! Verified via ${info.receiptNumber}`);
+            if (directCheckoutCourse.id.startsWith('kit-') || directCheckoutCourse.id.startsWith('book-')) {
+              // Record Book / Kit Purchase
+              const purchasedKit = {
+                id: `ord-${Date.now()}`,
+                itemId: directCheckoutCourse.id,
+                title: directCheckoutCourse.title,
+                price: directCheckoutCourse.price,
+                orderDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+                receiptNumber: info.receiptNumber,
+                paymentId: info.razorpayPaymentId,
+                status: 'Dispatched from MSI Campus',
+                trackingNumber: `MSI-EXP-${Math.floor(100000 + Math.random() * 900000)}`,
+              };
+
+              try {
+                const existingKits = JSON.parse(localStorage.getItem('msi_student_purchased_kits') || '[]');
+                const updatedKits = [purchasedKit, ...existingKits];
+                localStorage.setItem('msi_student_purchased_kits', JSON.stringify(updatedKits));
+
+                // Save to student profile on server disk
+                if (cleanPhone) {
+                  fetch('/api/student/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      phone: cleanPhone,
+                      profile: {
+                        purchasedKits: updatedKits,
+                      },
+                    }),
+                  }).catch((e) => console.warn('Profile kit save error:', e));
+                }
+
+                window.dispatchEvent(new Event('msi_kits_sync'));
+                window.dispatchEvent(new Event('storage'));
+              } catch (err) {
+                console.warn('Kit save error:', err);
+              }
+
+              showToast(`🎉 Order confirmed for ${directCheckoutCourse.title}! Verified via ${info.receiptNumber}. View in Student Dashboard.`);
+            } else {
+              // Standard Course Enrollment
+              enrollStudentAction(stuId, directCheckoutCourse.id, 'self', studentName, 'Purchased via Razorpay', cleanPhone, studentName);
+              loadLmsData();
+              showToast(`🎉 Enrolled in ${directCheckoutCourse.title}! Verified via ${info.receiptNumber}`);
+            }
+
             setDirectCheckoutCourse(null);
           }}
         />

@@ -29,8 +29,27 @@ export default function EnquiryModal({ isOpen, onClose, initialCourse }: Enquiry
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          mobile: formData.phone,
+          targetCourse: formData.course,
+          source: 'Website Enquiry Modal',
+          location: 'Website Lead',
+          notes: formData.message || `Submitted online admission enquiry for ${formData.course}`,
+        }),
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('msi_leads_sync'));
+      }
+    } catch (err) {
+      console.warn('Could not save enquiry lead:', err);
+    }
     onClose();
     router.push(
       `/thank-you?name=${encodeURIComponent(formData.name)}&course=${encodeURIComponent(

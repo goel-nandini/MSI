@@ -40,8 +40,27 @@ export default function ContactPage() {
     message: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          mobile: formData.phone,
+          targetCourse: formData.program,
+          source: 'Contact Page Inquiry',
+          location: 'Website Contact',
+          notes: formData.message || `Contact page query: ${formData.email}`,
+        }),
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('msi_leads_sync'));
+      }
+    } catch (err) {
+      console.warn('Could not save contact lead:', err);
+    }
     router.push(
       `/thank-you?name=${encodeURIComponent(formData.name)}&course=${encodeURIComponent(
         formData.program

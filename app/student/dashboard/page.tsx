@@ -9,12 +9,13 @@ import StudentProfileTab from '@/components/student/StudentProfileTab';
 import StudentLearningTab from '@/components/student/StudentLearningTab';
 import StudentAttendanceTab from '@/components/student/StudentAttendanceTab';
 import StudentTestsTab from '@/components/student/StudentTestsTab';
-import StudentFeesTab from '@/components/student/StudentFeesTab';
+import StudentFeesTab, { FeePaymentRequest } from '@/components/student/StudentFeesTab';
 import TimedTestModal from '@/components/student/TimedTestModal';
 import VideoPlayerModal from '@/components/student/VideoPlayerModal';
 import FeeReceiptModal from '@/components/student/FeeReceiptModal';
 import SubmitAssignmentModal from '@/components/student/SubmitAssignmentModal';
 import UdemyPlayerModal from '@/components/student/UdemyPlayerModal';
+import RazorpayCheckoutModal, { RazorpayPaymentSuccessInfo } from '@/components/payments/RazorpayCheckoutModal';
 import {
   INITIAL_STUDENT_PROFILE,
   ACTIVE_COURSES,
@@ -33,6 +34,7 @@ import {
   TestItem,
   RecordedVideo,
   FeeTransaction,
+  FeeBreakdownItem,
   AssignmentItem,
 } from '@/components/student/data/studentMockData';
 import { UdemyCourse } from '@/lib/lmsStore';
@@ -173,6 +175,17 @@ export default function StudentDashboardPage() {
               : prev.rollNo,
           }));
         }
+        // 4. Restore custom fee ledger if student previously paid dues online
+        if (cleanPhone) {
+          try {
+            const cachedTxns = localStorage.getItem(`msi_fee_transactions_${cleanPhone}`);
+            if (cachedTxns) setFeeTransactions(JSON.parse(cachedTxns));
+            const cachedBreakdown = localStorage.getItem(`msi_fee_breakdown_${cleanPhone}`);
+            if (cachedBreakdown) setFeeBreakdown(JSON.parse(cachedBreakdown));
+          } catch (e) {
+            console.warn('Could not read cached fee ledger:', e);
+          }
+        }
       } catch (err) {
         console.error('[Dashboard] Error loading student profile:', err);
       }
@@ -185,6 +198,8 @@ export default function StudentDashboardPage() {
   const [notifications, setNotifications] = useState(STUDENT_NOTIFICATIONS);
   const [assignments, setAssignments] = useState(ASSIGNMENTS_LIST);
   const [tests, setTests] = useState(TESTS_LIST);
+  const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdownItem[]>(FEE_BREAKDOWN);
+  const [feeTransactions, setFeeTransactions] = useState<FeeTransaction[]>(FEE_TRANSACTIONS);
 
   // Active Modals
   const [activeTimedTest, setActiveTimedTest] = useState<TestItem | null>(null);
@@ -193,6 +208,7 @@ export default function StudentDashboardPage() {
   const [activeAssignmentSubmit, setActiveAssignmentSubmit] = useState<AssignmentItem | null>(null);
   const [activeUdemyCourse, setActiveUdemyCourse] = useState<UdemyCourse | null>(null);
   const [activeLectureIndex, setActiveLectureIndex] = useState<number>(0);
+  const [activeRazorpayFeePayment, setActiveRazorpayFeePayment] = useState<FeePaymentRequest | null>(null);
 
   // Logout
   const handleLogout = () => {
@@ -315,6 +331,61 @@ export default function StudentDashboardPage() {
     );
   };
 
+  // Online Fee Payment Completion via Razorpay (Same authentic gateway options as Order Time)
+  const handleFeePaymentSuccess = (info: RazorpayPaymentSuccessInfo) => {
+    const paymentDate = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const newTxn: FeeTransaction = {
+      id: `TXN-MSI-${info.razorpayPaymentId.slice(-6).toUpperCase()}`,
+      receiptNo: info.receiptNumber,
+      date: paymentDate,
+      amount: info.amount,
+      mode: 'UPI',
+      status: 'Successful',
+      remarks: `${info.courseTitle} (Online Razorpay Clearance)`,
+    };
+
+    const updatedTxns = [newTxn, ...feeTransactions];
+    setFeeTransactions(updatedTxns);
+
+    // Update Fee Breakdown item matching payment
+    const updatedBreakdown = feeBreakdown.map((item) => {
+      const match =
+        info.courseTitle.toLowerCase().includes(item.category.toLowerCase().slice(0, 15)) ||
+        item.category.toLowerCase().includes(info.courseTitle.toLowerCase().slice(0, 15));
+      if (match && item.status === 'Pending') {
+        return {
+          ...item,
+          status: 'Paid' as const,
+          dueDate: `Cleared on ${paymentDate}`,
+        };
+      }
+      return item;
+    });
+    setFeeBreakdown(updatedBreakdown);
+
+    // Persist to student's localStorage ledger
+    try {
+      const cleanPhone = (localStorage.getItem('msi_active_student_phone') || student.phone || '')
+        .replace(/\D/g, '')
+        .slice(-10);
+      if (cleanPhone) {
+        localStorage.setItem(`msi_fee_transactions_${cleanPhone}`, JSON.stringify(updatedTxns));
+        localStorage.setItem(`msi_fee_breakdown_${cleanPhone}`, JSON.stringify(updatedBreakdown));
+      }
+    } catch (e) {
+      console.warn('Could not cache fee transactions:', e);
+    }
+
+    // Close Razorpay Modal & open official institutional tax invoice / receipt
+    setActiveRazorpayFeePayment(null);
+    setActiveReceipt(newTxn);
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF9EF] flex flex-col selection:bg-[#EFC988] selection:text-[#89190E]">
       {/* 1. Top Navbar Header */}
@@ -397,9 +468,10 @@ export default function StudentDashboardPage() {
           {activeTab === 'fees' && (
             <StudentFeesTab
               student={student}
-              breakdown={FEE_BREAKDOWN}
-              transactions={FEE_TRANSACTIONS}
+              breakdown={feeBreakdown}
+              transactions={feeTransactions}
               onViewReceipt={(tx) => setActiveReceipt(tx)}
+              onPayFee={(req) => setActiveRazorpayFeePayment(req)}
             />
           )}
         </main>
@@ -450,6 +522,24 @@ export default function StudentDashboardPage() {
           studentId={student.id}
           studentName={student.name}
           initialLectureIndex={activeLectureIndex}
+        />
+      )}
+
+      {/* Razorpay Authentic Gateway Modal for Student Fee Settlements (Exact same gateway options as order time) */}
+      {activeRazorpayFeePayment && (
+        <RazorpayCheckoutModal
+          isOpen={!!activeRazorpayFeePayment}
+          onClose={() => setActiveRazorpayFeePayment(null)}
+          course={{
+            id: activeRazorpayFeePayment.id,
+            title: activeRazorpayFeePayment.title,
+            price: activeRazorpayFeePayment.amount,
+            originalPrice:
+              activeRazorpayFeePayment.originalPrice || activeRazorpayFeePayment.amount,
+          }}
+          studentName={student.name}
+          studentPhone={student.phone}
+          onPaymentSuccess={handleFeePaymentSuccess}
         />
       )}
     </div>

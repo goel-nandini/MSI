@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserCheck,
+  UserPlus,
   Globe,
   AlertCircle,
   CheckCircle2,
@@ -23,19 +24,29 @@ import {
   Users,
 } from 'lucide-react';
 
-type LoginTab = 'password' | 'otp';
+type LoginTab = 'password' | 'register' | 'otp';
 type OtpStep = 'request' | 'verify' | 'create_password';
 
 export default function UnifiedLoginPage() {
   const router = useRouter();
 
-  // Active top-level mode: Direct Password Login vs OTP / Register
+  // Active top-level mode: Direct Password Login vs Student Registration vs OTP Access
   const [activeTab, setActiveTab] = useState<LoginTab>('password');
 
   // Direct Password Login State
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Direct Student Registration State
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regStream, setRegStream] = useState('PCS-J Punjab Judicial Services');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
   // Student OTP & Password Creation State
   const [otpStep, setOtpStep] = useState<OtpStep>('request');
@@ -60,11 +71,13 @@ export default function UnifiedLoginPage() {
   // 6-digit OTP input refs for keyboard navigation
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Check URL query parameters (e.g. ?tab=otp or ?role=faculty)
+  // Check URL query parameters (e.g. ?tab=signup or ?tab=otp)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('tab') === 'otp' || params.get('tab') === 'signup') {
+      if (params.get('tab') === 'signup' || params.get('tab') === 'register') {
+        setActiveTab('register');
+      } else if (params.get('tab') === 'otp') {
         setActiveTab('otp');
       }
     }
@@ -183,7 +196,70 @@ export default function UnifiedLoginPage() {
     }
   };
 
-  // ── 2. Request OTP Handler ───────────────────────────────────────────────────
+  // ── 2. Direct Student Registration Handler (Instant Sign-Up) ─────────────────
+  const handleDirectStudentRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (!regName.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
+    const clean = cleanPhoneInput(regPhone);
+    if (clean.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!regPassword || regPassword.trim().length < 4) {
+      setErrorMessage('Password must be at least 4 characters long.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify and re-type.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: regName.trim(),
+          phone: clean,
+          stream: regStream,
+          email: regEmail.trim() || undefined,
+          password: regPassword.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMessage(`Welcome, ${data.student?.name || regName}! Registration successful.`);
+
+        // Instantly notify Super Admin & other open tabs via BroadcastChannel & storage
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('storage'));
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'STUDENT_REGISTERED', student: data.student });
+            bc.close();
+          }
+        } catch (_) {}
+
+        handleAuthSuccess(data);
+      } else {
+        setErrorMessage(data.message || 'Could not complete registration. Please try again.');
+      }
+    } catch (err) {
+      setErrorMessage('Network error while registering. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── 3. Request OTP Handler ───────────────────────────────────────────────────
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -216,6 +292,16 @@ export default function UnifiedLoginPage() {
           setDevOtpBadge(data.devOtp);
         }
         setSuccessMessage(`Verification code sent to +91 ${clean.slice(0, 5)} ${clean.slice(5)}`);
+
+        // Notify Super Admin that a student has registered / initiated onboarding
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('storage'));
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'STUDENT_REGISTERED', phone: clean });
+            bc.close();
+          }
+        } catch (_) {}
       } else {
         setErrorMessage(data.message || 'Failed to send OTP code. Please try again.');
       }
@@ -226,7 +312,7 @@ export default function UnifiedLoginPage() {
     }
   };
 
-  // ── 3. Verify OTP Code Handler ────────────────────────────────────────────────
+  // ── 4. Verify OTP Code Handler ────────────────────────────────────────────────
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -255,9 +341,16 @@ export default function UnifiedLoginPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        // As explicitly required: Step 2 of OTP leads to "Create Password"
         setOtpStep('create_password');
         setSuccessMessage('Mobile number verified! Now please create your password.');
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('storage'));
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'STUDENT_REGISTERED', phone: clean });
+            bc.close();
+          }
+        } catch (_) {}
       } else {
         setErrorMessage(data.message || 'Invalid or expired verification code.');
       }
@@ -268,7 +361,7 @@ export default function UnifiedLoginPage() {
     }
   };
 
-  // ── 4. Create Password & Complete Registration ────────────────────────────────
+  // ── 5. Create Password & Complete Registration ────────────────────────────────
   const handleSaveCreatedPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -300,6 +393,14 @@ export default function UnifiedLoginPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccessMessage('Password successfully saved! You can now log in anytime with your phone and password.');
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('storage'));
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'STUDENT_REGISTERED', student: data.user });
+            bc.close();
+          }
+        } catch (_) {}
         handleAuthSuccess(data);
       } else {
         setErrorMessage(data.message || 'Failed to save password.');
@@ -387,8 +488,8 @@ export default function UnifiedLoginPage() {
             </p>
           </div>
 
-          {/* Top Switcher: Password Login vs OTP & Register */}
-          <div className="grid grid-cols-2 p-1 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] mb-6">
+          {/* Top Switcher: Password Login vs Student Registration vs OTP Access */}
+          <div className="grid grid-cols-3 p-1 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] mb-6 gap-1">
             <button
               type="button"
               onClick={() => {
@@ -396,14 +497,31 @@ export default function UnifiedLoginPage() {
                 setErrorMessage('');
                 setSuccessMessage('');
               }}
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+              className={`py-2 px-2 sm:px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
                 activeTab === 'password'
                   ? 'bg-[#10233F] text-white shadow-md'
                   : 'text-[#526174] hover:text-[#10233F]'
               }`}
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Password Login</span>
+              <KeyRound className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Sign In</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('register');
+                setErrorMessage('');
+                setSuccessMessage('');
+              }}
+              className={`py-2 px-2 sm:px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                activeTab === 'register'
+                  ? 'bg-[#89190E] text-white shadow-md'
+                  : 'text-[#526174] hover:text-[#89190E]'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5 shrink-0 text-[#EFC988]" />
+              <span className="truncate font-bold">New Student Register</span>
             </button>
 
             <button
@@ -414,14 +532,14 @@ export default function UnifiedLoginPage() {
                 setErrorMessage('');
                 setSuccessMessage('');
               }}
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+              className={`py-2 px-2 sm:px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
                 activeTab === 'otp'
-                  ? 'bg-[#89190E] text-white shadow-md'
-                  : 'text-[#526174] hover:text-[#89190E]'
+                  ? 'bg-[#10233F] text-white shadow-md'
+                  : 'text-[#526174] hover:text-[#10233F]'
               }`}
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Student OTP / Register</span>
+              <Smartphone className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">OTP Access</span>
             </button>
           </div>
 
@@ -520,12 +638,13 @@ export default function UnifiedLoginPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveTab('otp');
-                      setOtpStep('request');
+                      setActiveTab('register');
+                      setErrorMessage('');
+                      setSuccessMessage('');
                     }}
                     className="font-bold text-[#89190E] hover:underline cursor-pointer"
                   >
-                    Register or Login with OTP →
+                    Register New Account (Instant Sign-Up) →
                   </button>
                 </p>
               </div>
@@ -539,7 +658,159 @@ export default function UnifiedLoginPage() {
           )}
 
           {/* ═════════════════════════════════════════════════════════════════════ */}
-          {/* TAB 2: STUDENT OTP & CREATE PASSWORD WIZARD                           */}
+          {/* TAB 2: DIRECT STUDENT REGISTRATION (INSTANT SIGN UP)                 */}
+          {/* ═════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'register' && (
+            <form onSubmit={handleDirectStudentRegister} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                  Student Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Harshit Verma"
+                  className="w-full h-11 px-4 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium placeholder:text-[#526174]/50 focus:border-[#89190E] focus:outline-none focus:bg-white transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                  Mobile Number (10 Digits) *
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-xs font-bold text-[#526174]">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(cleanPhoneInput(e.target.value))}
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    className="w-full h-11 pl-13 pr-4 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium placeholder:text-[#526174]/50 focus:border-[#89190E] focus:outline-none focus:bg-white transition-all font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                  Target Programme / Course Stream *
+                </label>
+                <select
+                  value={regStream}
+                  onChange={(e) => setRegStream(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium focus:border-[#89190E] focus:outline-none focus:bg-white transition-all"
+                >
+                  <option value="PCS-J Punjab Judicial Services">PCS-J Punjab Judicial Services</option>
+                  <option value="CLAT UG Foundation Batch">CLAT UG Foundation & Target Batch</option>
+                  <option value="AILET & All-India Law Entrances">AILET & Law Entrances</option>
+                  <option value="PU Law Entrance (3-Yr & 5-Yr)">PU Law Entrance (3-Yr & 5-Yr)</option>
+                  <option value="Judicial Services Foundation">Judicial Services Foundation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                  Email Address (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="e.g. scholar@gmail.com"
+                  className="w-full h-11 px-4 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium placeholder:text-[#526174]/50 focus:border-[#89190E] focus:outline-none focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min 4 characters"
+                      className="w-full h-11 px-3.5 pr-10 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium focus:border-[#89190E] focus:outline-none focus:bg-white transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F] cursor-pointer"
+                    >
+                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#10233F] mb-1.5 uppercase tracking-wider">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showRegConfirmPassword ? 'text' : 'password'}
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Re-type password"
+                      className="w-full h-11 px-3.5 pr-10 rounded-xl border border-[#E8DCCB] bg-[#FFF9EF]/40 text-[#10233F] text-xs font-medium focus:border-[#89190E] focus:outline-none focus:bg-white transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#10233F] cursor-pointer"
+                    >
+                      {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-[#89190E] to-[#65130D] hover:from-[#65130D] hover:to-[#89190E] text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-[#89190E]/20 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <span>Registering Scholar Account...</span>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 text-[#EFC988]" />
+                    <span>Complete Registration & Enter Portal</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="pt-3 border-t border-[#E8DCCB]/60 text-center">
+                <p className="text-xs text-[#526174]">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('password');
+                      setErrorMessage('');
+                      setSuccessMessage('');
+                    }}
+                    className="font-bold text-[#89190E] hover:underline cursor-pointer"
+                  >
+                    Sign In with Password →
+                  </button>
+                </p>
+              </div>
+            </form>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════════════ */}
+          {/* TAB 3: STUDENT OTP & CREATE PASSWORD WIZARD                           */}
           {/* ═════════════════════════════════════════════════════════════════════ */}
           {activeTab === 'otp' && (
             <div>

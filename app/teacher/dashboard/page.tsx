@@ -15,10 +15,12 @@ import ScheduleClassModal from '@/components/teacher/ScheduleClassModal';
 import MarkAttendanceModal from '@/components/teacher/MarkAttendanceModal';
 import ScheduleOneToOneModal from '@/components/teacher/ScheduleOneToOneModal';
 import TeacherLectureModal from '@/components/teacher/TeacherLectureModal';
+import { AlertTriangle, LogOut } from 'lucide-react';
 import {
   getStoredCourses,
   getStoredTeachers,
   syncTeachersFromServer,
+  syncCoursesFromServer,
   buildTeacherProfileFromRecord,
   UdemyCourse,
   LMS_SYNC_EVENT,
@@ -66,6 +68,82 @@ export default function TeacherDashboardPage() {
   const [isScheduleClassOpen, setIsScheduleClassOpen] = useState(false);
   const [activeAttendanceSession, setActiveAttendanceSession] = useState<TeacherClassSchedule | null>(null);
   const [isScheduleOneToOneOpen, setIsScheduleOneToOneOpen] = useState(false);
+  const [isAccessRevoked, setIsAccessRevoked] = useState(false);
+
+  // Synchronize LMS Courses assigned to this teacher from central store
+  const loadLmsCourses = async () => {
+    try {
+      await syncCoursesFromServer();
+      await syncTeachersFromServer();
+    } catch (_) {}
+    const all = getStoredCourses();
+    const storedTeachers = getStoredTeachers();
+    const teacherRec = storedTeachers.find(
+      (t) =>
+        t.id === activeTeacher.id ||
+        (t.email && activeTeacher.email && t.email.toLowerCase() === activeTeacher.email.toLowerCase()) ||
+        (t.name && activeTeacher.name && t.name.toLowerCase().includes(activeTeacher.name.toLowerCase())) ||
+        (t.name.toLowerCase().includes('ekta') && activeTeacher.name.toLowerCase().includes('ekta'))
+    );
+    const assignedIds = teacherRec?.assignedCourseIds || [];
+
+    const assigned = all.filter((c) => {
+      if (assignedIds.includes(c.id)) return true;
+      if (c.instructorId === activeTeacher.id) return true;
+      if (activeTeacher.name && c.instructorName && c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
+      if (activeTeacher.name && c.instructorName && activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
+      if (
+        (c.instructorName.toLowerCase().includes('ekta') ||
+          c.instructorName.toLowerCase().includes('gahlawat') ||
+          c.instructorName.toLowerCase().includes('gehlot')) &&
+        (activeTeacher.name.toLowerCase().includes('ekta') ||
+          activeTeacher.name.toLowerCase().includes('gahlawat') ||
+          activeTeacher.name.toLowerCase().includes('gehlot'))
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    setLmsCourses(assigned);
+  };
+
+  // Check if current faculty was deleted by administration
+  const checkRevocation = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const teachers = await syncTeachersFromServer();
+      const storedId = localStorage.getItem('msi_active_teacher_id') || '';
+      const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
+      const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '').slice(-10);
+
+      if (!storedId && !storedEmail && !storedPhone) return;
+
+      const stillExists = teachers.some((t) => {
+        const tId = (t.id || '').toLowerCase().trim();
+        const tEmail = (t.email || '').toLowerCase().trim();
+        const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+        return (
+          (storedId && tId === storedId.toLowerCase().trim()) ||
+          (storedEmail && tEmail === storedEmail) ||
+          (storedPhone.length >= 10 && tPhone === storedPhone)
+        );
+      });
+
+      if (!stillExists) {
+        setIsAccessRevoked(true);
+        try {
+          localStorage.removeItem('msi_teacher_user');
+          localStorage.removeItem('msi_teacher_logged_in');
+          localStorage.removeItem('msi_active_teacher_id');
+          localStorage.removeItem('msi_active_teacher_name');
+          localStorage.removeItem('msi_active_teacher_email');
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.warn('Revocation check error:', err);
+    }
+  };
 
   // Synchronize active teacher from localStorage & server store on mount
   useEffect(() => {
@@ -119,68 +197,48 @@ export default function TeacherDashboardPage() {
 
         if (matched) {
           setActiveTeacher(matched);
-        } else if (storedName || storedEmail) {
-          // Dynamic profile for custom authenticated faculty
-          setActiveTeacher({
-            id: storedId || `fac-${Date.now()}`,
-            name: storedName || 'Faculty Professor',
-            title: 'Professor of Law & Faculty Jurist',
-            department: 'School of Law & Judicial Studies',
-            email: storedEmail || 'faculty@msi-institutes.edu.in',
-            phone: storedPhone || '+91 98000 00000',
-            avatarUrl: '/images/avatars/avatar-2.webp',
-            stream: 'Law',
-            cabin: 'Academic Block A, Jurists Chamber #104',
-            assignedCourseCodes: ['crs-udemy-pcsj'],
-            assignedSubjects: ['Jurisprudence & Procedural Law'],
-          });
+        } else if (storedName || storedEmail || storedId) {
+          // Record was deleted by administration: trigger revocation notice
+          setIsAccessRevoked(true);
+          try {
+            localStorage.removeItem('msi_teacher_user');
+            localStorage.removeItem('msi_teacher_logged_in');
+            localStorage.removeItem('msi_active_teacher_id');
+          } catch (_) {}
         }
       }
     };
 
     initTeacher();
+    loadLmsCourses();
   }, []);
-
-  // Synchronize LMS Courses assigned to this teacher from central store
-  const loadLmsCourses = () => {
-    const all = getStoredCourses();
-    const storedTeachers = getStoredTeachers();
-    const teacherRec = storedTeachers.find(
-      (t) =>
-        t.id === activeTeacher.id ||
-        (t.email && activeTeacher.email && t.email.toLowerCase() === activeTeacher.email.toLowerCase()) ||
-        (t.name && activeTeacher.name && t.name.toLowerCase().includes(activeTeacher.name.toLowerCase())) ||
-        (t.name.toLowerCase().includes('ekta') && activeTeacher.name.toLowerCase().includes('ekta'))
-    );
-    const assignedIds = teacherRec?.assignedCourseIds || [];
-
-    const assigned = all.filter((c) => {
-      if (assignedIds.includes(c.id)) return true;
-      if (c.instructorId === activeTeacher.id) return true;
-      if (activeTeacher.name && c.instructorName && c.instructorName.toLowerCase().includes(activeTeacher.name.toLowerCase())) return true;
-      if (activeTeacher.name && c.instructorName && activeTeacher.name.toLowerCase().includes(c.instructorName.toLowerCase())) return true;
-      if (
-        (c.instructorName.toLowerCase().includes('ekta') ||
-          c.instructorName.toLowerCase().includes('gahlawat') ||
-          c.instructorName.toLowerCase().includes('gehlot')) &&
-        (activeTeacher.name.toLowerCase().includes('ekta') ||
-          activeTeacher.name.toLowerCase().includes('gahlawat') ||
-          activeTeacher.name.toLowerCase().includes('gehlot'))
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-    setLmsCourses(assigned);
-  };
 
   useEffect(() => {
     loadLmsCourses();
-    const handleSync = () => loadLmsCourses();
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'FACULTY_DELETED') {
+            checkRevocation();
+          } else if (event.data?.type === 'COURSE_CREATED' || event.data?.type === 'COURSE_DELETED') {
+            loadLmsCourses();
+          }
+        };
+      }
+    } catch (_) {}
+
+    const handleSync = () => {
+      checkRevocation();
+      loadLmsCourses();
+    };
+
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
+      if (bc) bc.close();
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
     };
@@ -412,6 +470,43 @@ export default function TeacherDashboardPage() {
           onClose={() => setIsScheduleOneToOneOpen(false)}
           onSchedule={handleScheduleOneToOne}
         />
+      )}
+
+      {/* Critical Modal: Faculty Access Revoked by Administration */}
+      {isAccessRevoked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-7 text-center shadow-2xl border-2 border-red-300">
+            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 mx-auto flex items-center justify-center mb-4 shadow-inner">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-red-600 bg-red-50 px-3 py-1 rounded-full">
+              Notice from MSI Governance Directorate
+            </span>
+            <h3 className="font-serif text-xl font-bold text-gray-900 mt-3 mb-2">
+              Faculty Access Revoked
+            </h3>
+            <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+              Aapka faculty account MSI Group of Institutes administration dwaara permanently remove / terminate kar diya gaya hai. Portal session band kar diya gaya hai.
+            </p>
+            <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-[11px] text-gray-500 mb-6">
+              In case of discrepancy, kindly contact the Super Admin Directorate at <strong className="text-gray-800">admin@msi-institutes.edu.in</strong>.
+            </div>
+            <button
+              onClick={() => {
+                try {
+                  localStorage.removeItem('msi_teacher_user');
+                  localStorage.removeItem('msi_teacher_logged_in');
+                  localStorage.removeItem('msi_active_teacher_id');
+                } catch (_) {}
+                router.push('/login');
+              }}
+              className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Back to Login</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

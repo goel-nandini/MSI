@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
 import { authenticateWithPassword, getStudentProfile } from '@/lib/studentUserStore';
 import { verifyFacultyCredentials } from '@/lib/teacherUserStore';
+import { verifyReceptionistCredentials } from '@/lib/receptionistStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = sanitizeIndianPhone(identifier);
 
-    // 1. Dedicated Authentication for Super Admin & Reception Desk (9792303434)
+    // 1. Dedicated Authentication for Super Admin (9792303434)
     if (cleanPhone === '9792303434' || identifier.toLowerCase() === 'admin@msi-institutes.edu.in') {
       const isSuperAdminPassword =
         password === 'MSI@superadmin' ||
@@ -51,29 +52,28 @@ export async function POST(req: NextRequest) {
           },
         });
       }
+    }
 
-      const isHarshitPassword =
-        password === 'Harshit@reception' ||
-        password.toLowerCase() === 'harshit@reception';
-
-      if (isHarshitPassword) {
-        return NextResponse.json({
-          success: true,
-          message: 'Welcome Harshit! Access granted to Reception Desk.',
+    // 2. Check Receptionist Credentials (from data/receptionists.json)
+    const recResult = verifyReceptionistCredentials(identifier, password);
+    if (recResult.success && recResult.receptionist) {
+      const rec = recResult.receptionist;
+      return NextResponse.json({
+        success: true,
+        message: `Welcome ${rec.name}! Access granted to Reception Desk.`,
+        role: 'reception',
+        redirectTo: '/reception/dashboard',
+        user: {
+          id: rec.id,
+          phone: `+91 ${rec.phone.slice(0, 5)} ${rec.phone.slice(5)}`,
+          cleanPhone: rec.phone,
+          name: rec.name,
+          email: rec.email,
+          stream: 'Reception Desk & Visitor Management',
           role: 'reception',
           redirectTo: '/reception/dashboard',
-          user: {
-            id: 'staff-harshit',
-            phone: '+91 97923 03434',
-            cleanPhone: '9792303434',
-            name: 'Harshit',
-            email: 'harshit.reception@msi-institutes.edu.in',
-            stream: 'Reception Desk & Visitor Management',
-            role: 'reception',
-            redirectTo: '/reception/dashboard',
-          },
-        });
-      }
+        },
+      });
     }
 
     // 2. Check Faculty Credentials

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "rec-631526",
+    "name": "Pooja Verma",
+    "phone": "9811223344",
+    "email": "pooja@msi.edu.in",
+    "password": "Pooja@Reception2026",
+    "status": "active",
+    "createdAt": "2026-10-23T11:40:31.526Z",
+    "role": "reception"
+  },
+  {
+    "id": "rec-harshit-01",
+    "name": "Harshit",
+    "phone": "9792303434",
+    "email": "harshit.reception@msi-institutes.edu.in",
+    "password": "Harshit@reception",
+    "status": "active",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "role": "reception"
+  }
+]

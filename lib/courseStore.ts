@@ -17,7 +17,7 @@ export function readCoursesFromDisk(): UdemyCourse[] {
       const raw = fs.readFileSync(COURSES_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }

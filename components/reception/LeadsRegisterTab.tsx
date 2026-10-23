@@ -100,7 +100,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     try {
       const res = await fetch('/api/admin/leads');
       const data = await res.json();
-      if (data.success && Array.isArray(data.leads) && data.leads.length > 0) {
+      if (data.success && Array.isArray(data.leads)) {
         setLeads(data.leads);
         try {
           localStorage.setItem('msi_reception_leads_data', JSON.stringify(data.leads));
@@ -117,7 +117,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       const saved = localStorage.getItem('msi_reception_leads_data');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setLeads(parsed);
         }
       }
@@ -126,10 +126,18 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     }
     fetchBackendLeads();
 
+    // Auto-poll every 6 seconds to keep telecalling desk fresh
+    const pollTimer = setInterval(() => {
+      fetchBackendLeads();
+    }, 6000);
+
     const handleSync = () => fetchBackendLeads();
+    window.addEventListener('focus', handleSync);
     window.addEventListener('msi_leads_sync', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', handleSync);
       window.removeEventListener('msi_leads_sync', handleSync);
       window.removeEventListener('storage', handleSync);
     };

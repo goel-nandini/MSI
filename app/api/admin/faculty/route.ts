@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, phone, specialization, experienceYears, password, temporaryPassword, department, designation } = body;
+    const { name, email, phone, specialization, experienceYears, password, temporaryPassword, department, designation, assignedCourseIds } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       department: department?.trim() || 'School of Law & Judicial Studies',
       designation: designation?.trim() || 'Professor of Law / Senior Jurist',
       status: 'approved',
+      assignedCourseIds: Array.isArray(assignedCourseIds) ? assignedCourseIds : undefined,
       mustChangePassword: false,
     });
 
@@ -72,19 +73,30 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    let id = searchParams.get('id');
 
+    // Also check body in case client sent JSON body
     if (!id) {
+      try {
+        const body = await req.json().catch(() => ({}));
+        id = body?.id || body?.email || body?.phone;
+      } catch (_) {}
+    }
+
+    if (!id || !id.trim()) {
       return NextResponse.json(
-        { success: false, message: 'Faculty ID is required for deletion.' },
+        { success: false, message: 'Faculty ID, email, or mobile number is required for deletion.' },
         { status: 400 }
       );
     }
 
-    deleteTeacherFromDisk(id);
+    const result = deleteTeacherFromDisk(id.trim());
     return NextResponse.json({
       success: true,
-      message: 'Faculty member deleted successfully.',
+      message: `Faculty member (${id}) deleted successfully.`,
+      teachers: result.remainingTeachers,
+      count: result.remainingTeachers.length,
+      deletedCount: result.deletedCount,
     });
   } catch (error: any) {
     return NextResponse.json(

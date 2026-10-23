@@ -135,6 +135,15 @@ export default function StudentEnrollLoginModal({
         localStorage.setItem('msi_active_student_name', signupName.trim());
         localStorage.setItem('msi_active_student_stream', signupStream);
 
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('storage'));
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'STUDENT_REGISTERED', student: data.student });
+            bc.close();
+          }
+        } catch (_) {}
+
         setIsLoading(false);
         onLoginSuccess(course, { name: signupName.trim(), phone: cleanPhone });
       } else {

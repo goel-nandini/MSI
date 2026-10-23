@@ -107,12 +107,35 @@ export function registerStudentUser(data: {
   }
 
   const students = readStudentsFromDisk();
-  const existing = students.find((s) => s.phone === cleanPhone);
+  const existingIndex = students.findIndex((s) => s.phone === cleanPhone);
 
-  if (existing) {
+  if (existingIndex >= 0) {
+    const existing = students[existingIndex];
+    if (data.name && data.name.trim()) existing.name = data.name.trim();
+    if (data.stream) existing.stream = data.stream;
+    if (data.email && data.email.trim()) existing.email = data.email.trim();
+    if (data.password && data.password.trim()) existing.password = data.password.trim();
+    if (!existing.role) existing.role = 'student';
+
+    // Refresh profile name & stream
+    if (!existing.profile) {
+      existing.profile = buildDefaultStudentProfile(
+        cleanPhone,
+        existing.name,
+        existing.stream,
+        existing.email
+      );
+    } else {
+      if (data.name && data.name.trim()) existing.profile.name = data.name.trim();
+      if (data.stream) existing.profile.courseTitle = data.stream;
+    }
+
+    students[existingIndex] = existing;
+    writeStudentsToDisk(students);
     return {
-      success: false,
-      message: 'This mobile number is already registered. Please sign in with your password.',
+      success: true,
+      student: existing,
+      message: 'Student account updated successfully.',
     };
   }
 
@@ -121,9 +144,10 @@ export function registerStudentUser(data: {
     phone: cleanPhone,
     name: data.name.trim() || 'MSI Student',
     stream: data.stream || 'PCS-J Punjab Judicial Services',
-    password: data.password.trim(),
+    password: (data.password || 'Student@MSI2026').trim(),
     email: data.email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`,
     registeredAt: new Date().toISOString(),
+    role: 'student',
   };
 
   newStudent.profile = buildDefaultStudentProfile(
@@ -137,6 +161,30 @@ export function registerStudentUser(data: {
   writeStudentsToDisk(students);
 
   return { success: true, student: newStudent };
+}
+
+/**
+ * Ensures a student is registered or updated on disk safely.
+ */
+export function ensureStudentExists(data: {
+  phone: string;
+  name?: string;
+  stream?: string;
+  email?: string;
+  password?: string;
+}): RegisteredStudentUser | null {
+  const cleanPhone = (data.phone || '').replace(/\D/g, '').slice(-10);
+  if (cleanPhone.length !== 10) return null;
+
+  const result = registerStudentUser({
+    phone: cleanPhone,
+    name: data.name?.trim() || `Student ${cleanPhone.slice(-4)}`,
+    stream: data.stream || 'PCS-J Punjab Judicial Services',
+    password: data.password?.trim() || 'Student@MSI2026',
+    email: data.email?.trim(),
+  });
+
+  return result.student || null;
 }
 
 /**

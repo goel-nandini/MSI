@@ -9,8 +9,8 @@ export async function POST(req: Request) {
       currency = 'INR',
       courseId,
       courseTitle,
-      studentName = 'Harshit (MSI Scholar)',
-      studentPhone = '+91 97923 03434',
+      studentName = 'MSI Scholar',
+      studentPhone = '',
       studentEmail = 'scholar@msi-institutes.edu.in',
     } = body;
 

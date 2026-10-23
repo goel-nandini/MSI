@@ -18,6 +18,9 @@ export interface StudentProfile {
   guardianContact: string;
   admissionDate: string;
   validUntil: string;
+  stream?: string;
+  purchasedKits?: any[];
+  profile?: any;
 }
 
 export interface ActiveCourse {
@@ -717,16 +720,57 @@ export const TIMED_MOCK_QUESTIONS: TestQuestion[] = [
 // Fees & Accounts Data
 // --------------------------------------------------------------------------
 
-export const FEE_BREAKDOWN: FeeBreakdownItem[] = [];
+export const FEE_BREAKDOWN: FeeBreakdownItem[] = [
+  {
+    category: 'Admission & Institutional Registration',
+    amount: 10000,
+    status: 'Paid',
+    dueDate: 'Cleared on Admission',
+  },
+  {
+    category: 'Academic Tuition & Faculty Mentorship (Semester 1)',
+    amount: 25000,
+    status: 'Paid',
+    dueDate: 'Cleared on Enrollment',
+  },
+  {
+    category: 'Digital LMS, National Bare Acts Library & Handbook Kits',
+    amount: 5000,
+    status: 'Paid',
+    dueDate: 'Cleared on Dispatch',
+  },
+  {
+    category: 'Academic Tuition & Faculty Mentorship (Semester 2)',
+    amount: 25000,
+    status: 'Pending',
+    dueDate: '15 Nov 2026',
+  },
+  {
+    category: 'All-India Grand Mock Test Series & National Ranking Audit',
+    amount: 5000,
+    status: 'Pending',
+    dueDate: '30 Nov 2026',
+  },
+];
 
-export const FEE_TRANSACTIONS: FeeTransaction[] = [];
+export const FEE_TRANSACTIONS: FeeTransaction[] = [
+  {
+    id: 'TXN-MSI-8841',
+    receiptNo: 'MSI/REC/2026/0891',
+    date: '02 Aug 2026',
+    amount: 40000,
+    mode: 'UPI',
+    status: 'Successful',
+    remarks: 'Semester 1 Academic Tuition & Registration (Razorpay Instant Clearance)',
+  },
+];
 
 export const FEE_SUMMARY = {
-  totalFee: 0,
-  paidFee: 0,
-  pendingFee: 0,
-  nextDueDate: 'No pending dues',
+  totalFee: 70000,
+  paidFee: 40000,
+  pendingFee: 30000,
+  nextDueDate: '15 Nov 2026',
   academicYear: '2026 – 2027',
-  scholarshipApplied: 'None',
-  courseValidity: 'Active',
+  scholarshipApplied: 'Merit Entrance Waiver 10%',
+  courseValidity: 'Active (Valid until 31 July 2027)',
 };

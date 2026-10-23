@@ -22,9 +22,13 @@ import {
   PlusCircle,
   GraduationCap,
   Radio,
+  Package,
+  Truck,
+  Download,
+  FileText,
   X,
-  Play,
   UserCheck,
+  Play,
 } from 'lucide-react';
 import {
   StudentProfile,
@@ -39,6 +43,7 @@ import {
   CourseEnrollment,
   getStoredCourses,
   getStoredEnrollments,
+  syncCoursesFromServer,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import StudentActivityHeatmap from './StudentActivityHeatmap';
@@ -79,15 +84,47 @@ export default function StudentDashboardTab({
     enrollment: CourseEnrollment;
   }[]>([]);
 
-  const loadEnrolledUdemy = () => {
+  // Purchased Study Material & Book Kits
+  const [purchasedKits, setPurchasedKits] = useState<{
+    id: string;
+    itemId: string;
+    title: string;
+    price: number;
+    orderDate: string;
+    receiptNumber?: string;
+    status: string;
+    trackingNumber: string;
+  }[]>([]);
+
+  const loadPurchasedKits = () => {
+    try {
+      const localKits = JSON.parse(localStorage.getItem('msi_student_purchased_kits') || '[]');
+      const profileKits = (student.profile as any)?.purchasedKits || [];
+      const combined = [...localKits];
+      profileKits.forEach((pk: any) => {
+        if (!combined.some((k) => k.id === pk.id || (k.itemId && k.itemId === pk.itemId))) {
+          combined.push(pk);
+        }
+      });
+      setPurchasedKits(combined);
+    } catch (_) {}
+  };
+
+  const loadEnrolledUdemy = async () => {
+    try {
+      await syncCoursesFromServer();
+    } catch (_) {}
+
     const allCourses = getStoredCourses();
     const allEnrollments = getStoredEnrollments();
     const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
     const cleanPhone = (student.phone || storedPhone).replace(/\D/g, '').slice(-10);
 
     const studentEnrollments = allEnrollments.filter((e) => {
-      if (e.studentId === student.id) return true;
-      if (cleanPhone && (e.studentPhone === cleanPhone || e.studentId.includes(cleanPhone) || e.studentId === `msi-stu-${cleanPhone.slice(-4)}`)) return true;
+      const ePhone = (e.studentPhone || '').replace(/\D/g, '').slice(-10);
+      if (cleanPhone && ePhone === cleanPhone) return true;
+      if (student.id && e.studentId === student.id) return true;
+      if (cleanPhone && (e.studentId.includes(cleanPhone) || e.studentId.endsWith(cleanPhone.slice(-4)))) return true;
       if (!cleanPhone && (e.studentId === 'msi-stu-001' || student.id === 'msi-stu-001')) return true;
       return false;
     });
@@ -100,23 +137,72 @@ export default function StudentDashboardTab({
       })
       .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
 
+    // If no explicit enrollment but student has stream/courseTitle, auto-match their enrolled program
+    if (merged.length === 0 && student.stream) {
+      const streamLower = student.stream.toLowerCase();
+      const matchedCourse = allCourses.find((c) => {
+        const cTitleLower = c.title.toLowerCase();
+        if (streamLower.includes('pcs-j') && cTitleLower.includes('pcs')) return true;
+        if (streamLower.includes('clat') && cTitleLower.includes('clat')) return true;
+        if (streamLower.includes('judiciary') && cTitleLower.includes('judic')) return true;
+        return false;
+      });
+      if (matchedCourse) {
+        merged.push({
+          course: matchedCourse,
+          enrollment: {
+            studentId: student.id,
+            courseId: matchedCourse.id,
+            enrolledAt: 'Immediate Academic Clearance',
+            progressPercentage: 15,
+            completedLectureIds: [],
+            assignedBy: 'super-admin',
+            assignedByName: 'MSI Academic Directorate',
+            assignedNote: `Admitted under ${student.stream}`,
+            certificateIssued: false,
+          },
+        });
+      }
+    }
+
     setEnrolledUdemyData(merged);
   };
 
   useEffect(() => {
     loadEnrolledUdemy();
+    loadPurchasedKits();
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (
+            event.data?.type === 'COURSE_CREATED' ||
+            event.data?.type === 'COURSE_DELETED' ||
+            event.data?.type === 'STUDENT_ENROLLED'
+          ) {
+            loadEnrolledUdemy();
+          }
+        };
+      }
+    } catch (_) {}
 
     const handleSync = () => {
       loadEnrolledUdemy();
+      loadPurchasedKits();
     };
 
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_kits_sync', handleSync);
     return () => {
+      if (bc) bc.close();
       window.removeEventListener(LMS_SYNC_EVENT, handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_kits_sync', handleSync);
     };
-  }, [student.id]);
+  }, [student.id, student.phone, student.stream]);
 
   // Live Broadcast Listener for Enrolled Courses
   const [activeLiveStream, setActiveLiveStream] = useState<{
@@ -489,6 +575,114 @@ export default function StudentDashboardTab({
         </div>
       )}
     </div>
+
+      {/* 2b. Ordered Books & Aspirant Kits Section (AUDIO 4 SPECIFIC) */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E8DCCB] shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-[#E8DCCB]/60">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#FFF3DD] text-[#89190E] flex items-center justify-center border border-[#EFC988] shrink-0">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#89190E]">
+                  Publications & Doorstep Dispatch
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  {purchasedKits.length} Consignments
+                </span>
+              </div>
+              <h3 className="font-serif text-base sm:text-lg font-bold text-[#10233F]">
+                My Purchased Study Material & Book Kits
+              </h3>
+            </div>
+          </div>
+
+          <Link
+            href="/courses#master-books-kits"
+            className="text-xs font-bold text-[#89190E] hover:underline flex items-center space-x-1 self-start sm:self-center"
+          >
+            <span>+ Order More Books & Kits</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {purchasedKits.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-center space-y-2.5">
+            <Package className="w-9 h-9 text-[#89190E] mx-auto opacity-70" />
+            <h4 className="font-serif text-base font-bold text-[#10233F]">No Books or Aspirant Kits Ordered Yet</h4>
+            <p className="text-xs text-[#526174] max-w-md mx-auto leading-relaxed">
+              Enhance your legal preparation with the official 6-Book Master Series, CLAT/Judiciary Aspirant Kits, and printed OMR test booklets.
+            </p>
+            <div className="pt-1">
+              <Link
+                href="/courses#master-books-kits"
+                className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#89190E] text-white text-xs font-bold shadow-xs hover:bg-[#65130D] transition-all cursor-pointer"
+              >
+                <Package className="w-3.5 h-3.5 text-[#EFC988]" />
+                <span>Browse 6-Book Master Series & Kits</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {purchasedKits.map((kit) => (
+              <div
+                key={kit.id}
+                className="p-4 rounded-2xl border-2 border-[#E8DCCB] hover:border-[#89190E] transition-all bg-[#FFF9EF]/40 flex flex-col justify-between space-y-3 group shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#89190E] bg-[#FFF3DD] border border-[#EFC988] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <Truck className="w-3 h-3 text-[#89190E]" />
+                      <span>{kit.status || 'Dispatched from MSI Campus'}</span>
+                    </span>
+                    <span className="font-bold text-xs text-[#10233F]">
+                      ₹{kit.price.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <h4 className="font-serif font-bold text-sm text-[#10233F] group-hover:text-[#89190E] transition-colors leading-snug">
+                    {kit.title}
+                  </h4>
+
+                  <div className="mt-3 p-2.5 rounded-xl bg-white border border-[#E8DCCB]/80 text-[11px] text-[#526174] space-y-1">
+                    <div className="flex justify-between">
+                      <span>Tracking ID:</span>
+                      <strong className="font-mono text-[#10233F]">{kit.trackingNumber || 'MSI-EXP-772910'}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Order Date:</span>
+                      <span className="font-mono text-[#10233F]">{kit.orderDate}</span>
+                    </div>
+                    {kit.receiptNumber && (
+                      <div className="flex justify-between">
+                        <span>Receipt:</span>
+                        <span className="font-mono text-[#89190E] font-bold">{kit.receiptNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#E8DCCB]/60 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>Verified Purchase</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => alert(`Tracking Consignment: ${kit.trackingNumber || 'MSI-EXP-772910'}\nCourier Partner: MSI Express Logistics\nOrigin: MSI Campus, Sector 15 Chandigarh\nCurrent Status: Out for delivery to your registered address.`)}
+                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[11px] font-bold text-[#10233F] transition-all cursor-pointer"
+                  >
+                    Track Dispatch
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 3. Key Metrics Row: Progress, Classes, Tests, Fee Status */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

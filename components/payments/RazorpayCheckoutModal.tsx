@@ -57,12 +57,32 @@ export default function RazorpayCheckoutModal({
   isOpen,
   onClose,
   course,
-  studentName = 'Harshit (MSI Scholar)',
-  studentPhone = '+91 97923 03434',
+  studentName = 'MSI Scholar',
+  studentPhone = '',
   onPaymentSuccess,
 }: RazorpayCheckoutModalProps) {
-  // Matches the exact screenshot where "Pay Later" is expanded with FlexiPay, LazyPay, ICICI
-  const [expandedSection, setExpandedSection] = useState<PaymentOptionKey | null>('paylater');
+  // Resolve actual student details if default or from localStorage
+  const effectiveStudentName =
+    studentName && studentName !== 'MSI Scholar' && !studentName.includes('Harshit')
+      ? studentName
+      : typeof window !== 'undefined'
+      ? localStorage.getItem('msi_active_student_name') || studentName || 'MSI Scholar'
+      : studentName || 'MSI Scholar';
+
+  const effectiveStudentPhone =
+    studentPhone && !studentPhone.includes('97923')
+      ? studentPhone
+      : typeof window !== 'undefined'
+      ? localStorage.getItem('msi_active_student_phone') || studentPhone || ''
+      : studentPhone || '';
+
+  const isFeePayment =
+    course.id.startsWith('fee-') ||
+    course.title.toLowerCase().includes('fee') ||
+    course.title.toLowerCase().includes('tuition');
+
+  // Matches authentic Razorpay checkout: UPI is prioritized for Indian payments
+  const [expandedSection, setExpandedSection] = useState<PaymentOptionKey | null>('upi');
   
   // Pay Later sub-selection
   const [selectedPayLaterProvider, setSelectedPayLaterProvider] = useState<'flexipay' | 'lazypay' | 'icici'>('flexipay');
@@ -75,7 +95,7 @@ export default function RazorpayCheckoutModal({
   const [cardNumber, setCardNumber] = useState('4111 2222 3333 4444');
   const [cardExpiry, setCardExpiry] = useState('12/28');
   const [cardCvv, setCardCvv] = useState('842');
-  const [cardName, setCardName] = useState(studentName);
+  const [cardName, setCardName] = useState(effectiveStudentName);
   
   // Netbanking state
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
@@ -139,8 +159,8 @@ export default function RazorpayCheckoutModal({
           currency: 'INR',
           courseId: course.id,
           courseTitle: course.title,
-          studentName,
-          studentPhone,
+          studentName: effectiveStudentName,
+          studentPhone: effectiveStudentPhone,
         }),
       });
 
@@ -161,8 +181,8 @@ export default function RazorpayCheckoutModal({
           courseId: course.id,
           courseTitle: course.title,
           amount: course.price,
-          studentName,
-          studentPhone,
+          studentName: effectiveStudentName,
+          studentPhone: effectiveStudentPhone,
           paymentMethod: methodLabel,
         }),
       });
@@ -181,7 +201,7 @@ export default function RazorpayCheckoutModal({
         amount: course.price,
         courseId: course.id,
         courseTitle: course.title,
-        studentName,
+        studentName: effectiveStudentName,
         receiptNumber: receiptNo,
         timestamp,
       };
@@ -192,8 +212,8 @@ export default function RazorpayCheckoutModal({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            studentName,
-            studentPhone,
+            studentName: effectiveStudentName,
+            studentPhone: effectiveStudentPhone,
             courseId: course.id,
             courseTitle: course.title,
             amount: course.price,
@@ -279,10 +299,12 @@ export default function RazorpayCheckoutModal({
                   Payment Captured Successfully
                 </span>
                 <h3 className="font-serif text-xl font-bold text-[#10233F] mt-2">
-                  Enrollment Unlocked!
+                  {isFeePayment ? 'Fee Payment Verified!' : 'Enrollment Unlocked!'}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Full lecture curriculum & live sessions are now activated in your Student Portal.
+                  {isFeePayment
+                    ? 'Official institutional e-receipt has been generated and your student fee ledger is updated.'
+                    : 'Full lecture curriculum & live sessions are now activated in your Student Portal.'}
                 </p>
               </div>
 
@@ -315,10 +337,10 @@ export default function RazorpayCheckoutModal({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Candidate</span>
-                  <span className="font-bold text-[#10233F]">{studentName}</span>
+                  <span className="font-bold text-[#10233F]">{effectiveStudentName}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Course</span>
+                  <span className="text-gray-500">{isFeePayment ? 'Purpose' : 'Course'}</span>
                   <span className="font-medium text-[#10233F] max-w-[190px] truncate text-right">
                     {course.title}
                   </span>
@@ -345,7 +367,7 @@ export default function RazorpayCheckoutModal({
                   onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl bg-[#0C66E4] hover:bg-[#0852B8] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                 >
-                  <span>Go to Course</span>
+                  <span>{isFeePayment ? 'Close & View Ledger' : 'Go to Course'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -359,9 +381,11 @@ export default function RazorpayCheckoutModal({
                   All Payment Options
                 </h4>
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 line-through mr-1.5">
-                    ₹{course.originalPrice.toLocaleString('en-IN')}
-                  </span>
+                  {course.originalPrice > course.price && (
+                    <span className="text-xs text-gray-400 line-through mr-1.5">
+                      ₹{course.originalPrice.toLocaleString('en-IN')}
+                    </span>
+                  )}
                   <span className="font-sans font-bold text-sm text-[#0C66E4]">
                     ₹{course.price.toLocaleString('en-IN')}
                   </span>

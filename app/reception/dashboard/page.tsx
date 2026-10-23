@@ -36,7 +36,22 @@ export default function ReceptionDashboardPage() {
       }
 
       const savedStaffId = localStorage.getItem('msi_active_staff_id');
-      if (savedStaffId) {
+      const savedStaffName = localStorage.getItem('msi_active_staff_name');
+      const savedStaffPhone = localStorage.getItem('msi_active_staff_phone');
+      const savedStaffEmail = localStorage.getItem('msi_active_staff_email');
+
+      if (savedStaffName) {
+        setCurrentStaff({
+          id: savedStaffId || 'rec-01',
+          name: savedStaffName,
+          role: 'Reception Desk',
+          phone: savedStaffPhone || '+91 97923 03434',
+          email: savedStaffEmail || 'reception@msi-institutes.edu.in',
+          avatar: '/images/avatars/avatar-1.webp',
+          location: 'Main Administrative Block (Reception Desk)',
+          badgeId: 'MSI-REC-STAFF',
+        });
+      } else if (savedStaffId) {
         const found = RECEPTION_STAFF_PROFILES.find((s) => s.id === savedStaffId);
         if (found) setCurrentStaff(found);
       }

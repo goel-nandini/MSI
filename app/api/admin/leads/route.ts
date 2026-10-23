@@ -17,17 +17,16 @@ function readLeadsFromDisk(): Lead[] {
       const raw = fs.readFileSync(LEADS_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
     }
-    // Seed initial leads if file does not exist
-    fs.writeFileSync(LEADS_FILE, JSON.stringify(INITIAL_LEADS, null, 2), 'utf-8');
-    return INITIAL_LEADS;
+    fs.writeFileSync(LEADS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    return [];
   } catch (err) {
     console.error('[Leads Disk Error]', err);
-    return INITIAL_LEADS;
+    return [];
   }
 }
 

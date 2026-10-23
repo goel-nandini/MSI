@@ -58,6 +58,7 @@ import {
   Printer,
   Globe,
   ExternalLink,
+  EyeOff,
 } from 'lucide-react';
 import {
   UdemyCourse,
@@ -67,6 +68,7 @@ import {
   CourseEnrollment,
   getStoredCourses,
   saveStoredCourses,
+  deleteCourseAction,
   getStoredTeachers,
   saveStoredTeachers,
   getStoredEnrollments,
@@ -78,6 +80,7 @@ import {
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
+import { ReceptionistRecord } from '@/lib/receptionistStore';
 import { GalleryItem } from '../api/admin/gallery/route';
 import { AdminTransaction } from '../api/admin/transactions/route';
 
@@ -148,6 +151,17 @@ export default function SuperAdminMasterDashboard() {
 
   // 3. Delete Student Confirmation Modal
   const [studentToDelete, setStudentToDelete] = useState<RegisteredStudent | null>(null);
+  const [createdStudentCredentials, setCreatedStudentCredentials] = useState<{
+    name: string;
+    phone: string;
+    email?: string;
+    stream: string;
+    pass: string;
+  } | null>(null);
+  const [showStudentPasswords, setShowStudentPasswords] = useState<Record<string, boolean>>({});
+  const toggleStudentPasswordVisibility = (phone: string) => {
+    setShowStudentPasswords((prev) => ({ ...prev, [phone]: !prev[phone] }));
+  };
 
   // 4. Add Lead Modal (Dispatches directly to Reception)
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
@@ -159,6 +173,23 @@ export default function SuperAdminMasterDashboard() {
   const [newLeadAgent, setNewLeadAgent] = useState('Harshit (Reception Desk)');
   const [newLeadNotes, setNewLeadNotes] = useState('');
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+
+  // 4a. Receptionist Staff Management
+  const [receptionists, setReceptionists] = useState<ReceptionistRecord[]>([]);
+  const [showAddReceptionistModal, setShowAddReceptionistModal] = useState(false);
+  const [newReceptionistName, setNewReceptionistName] = useState('');
+  const [newReceptionistPhone, setNewReceptionistPhone] = useState('');
+  const [newReceptionistEmail, setNewReceptionistEmail] = useState('');
+  const [newReceptionistPassword, setNewReceptionistPassword] = useState('Reception@MSI2026');
+  const [isSubmittingReceptionist, setIsSubmittingReceptionist] = useState(false);
+  const [receptionistToDelete, setReceptionistToDelete] = useState<ReceptionistRecord | null>(null);
+  const [isDeletingReceptionist, setIsDeletingReceptionist] = useState(false);
+  const [createdReceptionistCredentials, setCreatedReceptionistCredentials] = useState<{
+    name: string;
+    phone: string;
+    email?: string;
+    pass: string;
+  } | null>(null);
 
   // 4b. Bulk Lead Import Modal (Excel / CSV)
   const [showBulkLeadModal, setShowBulkLeadModal] = useState(false);
@@ -216,9 +247,15 @@ export default function SuperAdminMasterDashboard() {
   const [newCourseTeacherId, setNewCourseTeacherId] = useState('');
   const [newCourseLevel, setNewCourseLevel] = useState<'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced'>('All Levels');
   const [newCourseDesc, setNewCourseDesc] = useState('');
+  const [newCourseThumbnail, setNewCourseThumbnail] = useState('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80');
+  const [newCourseThumbnailPreview, setNewCourseThumbnailPreview] = useState<string | null>(null);
   const [newCourseLectureTitle, setNewCourseLectureTitle] = useState('Orientation & Landmark Constitutional Doctrines');
   const [newCourseLectureVideo, setNewCourseLectureVideo] = useState('https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc');
   const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
+
+  // 9b. Delete Course Modal
+  const [courseToDelete, setCourseToDelete] = useState<UdemyCourse | null>(null);
+  const [isDeletingCourse, setIsDeletingCourse] = useState(false);
 
   // 10. Add Recorded Lecture Modal to existing Course
   const [selectedCourseForLecture, setSelectedCourseForLecture] = useState<UdemyCourse | null>(null);
@@ -445,11 +482,24 @@ export default function SuperAdminMasterDashboard() {
     }
   }, []);
 
+  const fetchReceptionists = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/receptionists', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.receptionists)) {
+        setReceptionists(data.receptionists);
+      }
+    } catch (err) {
+      console.warn('Could not fetch receptionists from disk:', err);
+    }
+  }, []);
+
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
       fetchStudents(),
       fetchLeads(),
+      fetchReceptionists(),
       fetchGallery(),
       fetchTransactions(),
       fetchFaculty(),
@@ -460,12 +510,19 @@ export default function SuperAdminMasterDashboard() {
       }),
     ]);
     setIsRefreshing(false);
-  }, [fetchStudents, fetchLeads, fetchGallery, fetchTransactions, fetchFaculty]);
-
+  }, [fetchStudents, fetchLeads, fetchReceptionists, fetchGallery, fetchTransactions, fetchFaculty]);
 
   useEffect(() => {
     if (isAuthenticated) {
       refreshAllData();
+
+      const pollInterval = setInterval(() => {
+        fetchStudents();
+        fetchLeads();
+        fetchReceptionists();
+        fetchFaculty();
+        fetchTransactions();
+      }, 5000);
 
       const handleSync = () => {
         refreshAllData();
@@ -477,13 +534,30 @@ export default function SuperAdminMasterDashboard() {
       window.addEventListener('storage', handleSync);
 
       return () => {
+        clearInterval(pollInterval);
         window.removeEventListener(LMS_SYNC_EVENT, handleSync);
         window.removeEventListener('msi_leads_sync', handleSync);
         window.removeEventListener('msi_gallery_sync', handleSync);
         window.removeEventListener('storage', handleSync);
       };
     }
-  }, [isAuthenticated, refreshAllData]);
+  }, [isAuthenticated, refreshAllData, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchTransactions]);
+
+  // Immediate data fetch on tab switch
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (activeTab === 'students') {
+        fetchStudents();
+      } else if (activeTab === 'leads') {
+        fetchLeads();
+        fetchReceptionists();
+      } else if (activeTab === 'teachers') {
+        fetchFaculty();
+      } else if (activeTab === 'transactions') {
+        fetchTransactions();
+      }
+    }
+  }, [activeTab, isAuthenticated, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchTransactions]);
 
   // ── Action Handlers ────────────────────────────────────────────────────────
   // 1. Add Student
@@ -496,6 +570,7 @@ export default function SuperAdminMasterDashboard() {
 
     setIsSubmittingStudent(true);
     try {
+      const assignedPassword = newStudentPassword.trim() || 'Student@MSI2026';
       const res = await fetch('/api/admin/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -504,12 +579,19 @@ export default function SuperAdminMasterDashboard() {
           phone: newStudentPhone.trim(),
           stream: newStudentStream,
           email: newStudentEmail.trim(),
-          password: newStudentPassword.trim() || 'Student@MSI2026',
+          password: assignedPassword,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
+        setCreatedStudentCredentials({
+          name: newStudentName.trim(),
+          phone: newStudentPhone.trim(),
+          email: newStudentEmail.trim(),
+          stream: newStudentStream,
+          pass: assignedPassword,
+        });
         showToast(`Student ${newStudentName} registered and saved to disk.`);
         setShowAddStudentModal(false);
         setNewStudentName('');
@@ -686,6 +768,74 @@ export default function SuperAdminMasterDashboard() {
       showToast('Network error during bulk lead import.');
     } finally {
       setIsImportingBulk(false);
+    }
+  };
+
+  // 3c. Receptionist Staff Management Handlers
+  const handleCreateReceptionist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReceptionistName.trim() || !newReceptionistPhone.trim()) {
+      showToast('Please specify receptionist staff name and 10-digit mobile number.');
+      return;
+    }
+
+    setIsSubmittingReceptionist(true);
+    try {
+      const assignedPass = newReceptionistPassword.trim() || 'Reception@MSI2026';
+      const res = await fetch('/api/admin/receptionists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newReceptionistName.trim(),
+          phone: newReceptionistPhone.trim(),
+          email: newReceptionistEmail.trim(),
+          password: assignedPass,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setCreatedReceptionistCredentials({
+          name: newReceptionistName.trim(),
+          phone: newReceptionistPhone.trim(),
+          email: newReceptionistEmail.trim(),
+          pass: assignedPass,
+        });
+        showToast(`Receptionist ${newReceptionistName} account created!`);
+        setShowAddReceptionistModal(false);
+        setNewReceptionistName('');
+        setNewReceptionistPhone('');
+        setNewReceptionistEmail('');
+        fetchReceptionists();
+      } else {
+        showToast(data.message || 'Failed to create receptionist.');
+      }
+    } catch (err) {
+      showToast('Network error while saving receptionist.');
+    } finally {
+      setIsSubmittingReceptionist(false);
+    }
+  };
+
+  const handleDeleteReceptionist = async () => {
+    if (!receptionistToDelete) return;
+    setIsDeletingReceptionist(true);
+    try {
+      const res = await fetch(`/api/admin/receptionists?id=${receptionistToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Receptionist ${receptionistToDelete.name} removed from system.`);
+        setReceptionistToDelete(null);
+        fetchReceptionists();
+      } else {
+        showToast(data.message || 'Could not delete receptionist.');
+      }
+    } catch (err) {
+      showToast('Network error while deleting receptionist.');
+    } finally {
+      setIsDeletingReceptionist(false);
     }
   };
 
@@ -938,7 +1088,7 @@ export default function SuperAdminMasterDashboard() {
         totalDuration: '40 hours',
         totalLectures: 1,
         level: newCourseLevel,
-        thumbnail: '/images/courses/clat.jpg',
+        thumbnail: newCourseThumbnail.trim() || '/images/courses/clat.jpg',
         price: Number(newCoursePrice) || 4999,
         originalPrice: Number(newCourseOriginalPrice) || 14999,
         isFreeForMsiStudents: true,
@@ -999,23 +1149,43 @@ export default function SuperAdminMasterDashboard() {
       // Auto-assign to faculty
       if (assignedFaculty) {
         const currentTeachers = getStoredTeachers();
+        let targetUpdatedTeacher: TeacherApprovalRecord | null = null;
         const updatedTeachers = currentTeachers.map((t) => {
           if (t.id === assignedFaculty.id) {
-            return {
+            targetUpdatedTeacher = {
               ...t,
               assignedCourseIds: Array.from(new Set([...(t.assignedCourseIds || []), courseId])),
             };
+            return targetUpdatedTeacher;
           }
           return t;
         });
         saveStoredTeachers(updatedTeachers);
         setTeachers(updatedTeachers);
+
+        if (targetUpdatedTeacher) {
+          fetch('/api/admin/faculty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(targetUpdatedTeacher),
+          }).catch((err) => console.warn('Failed to sync faculty to server disk:', err));
+        }
       }
 
       setShowAddCourseModal(false);
       setNewCourseTitle('');
       setNewCourseHeadline('');
       setNewCourseDesc('');
+      setNewCourseThumbnail('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80');
+      setNewCourseThumbnailPreview(null);
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('msi_sync_channel');
+        bc.postMessage({ type: 'COURSE_PUBLISHED', courseId: newCourse.id });
+        bc.close();
+      }
+      window.dispatchEvent(new Event('msi_courses_sync'));
+      window.dispatchEvent(new Event('storage'));
+
       showToast(`Course "${newCourse.title}" published and assigned to ${assignedFaculty.name}!`);
     } catch (err) {
       showToast('Error creating course program.');
@@ -1116,6 +1286,34 @@ export default function SuperAdminMasterDashboard() {
       if (res) {
         setCourses(getStoredCourses());
         setTeachers(getStoredTeachers());
+
+        // Sync updated course & faculty to server disk
+        const assignedCourse =
+          res.updatedCourses.find((c) => c.id === selectedCourseForFacultyAssign.id) ||
+          selectedCourseForFacultyAssign;
+
+        try {
+          fetch('/api/courses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(assignedCourse),
+          }).catch((err) => console.warn('Failed to sync assigned course to server disk:', err));
+
+          fetch('/api/admin/faculty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(res.teacher),
+          }).catch((err) => console.warn('Failed to sync faculty assigned courses to server disk:', err));
+
+          if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'COURSE_ASSIGNED', courseId: assignedCourse.id, teacherId: res.teacher.id });
+            bc.close();
+          }
+          window.dispatchEvent(new Event('msi_courses_sync'));
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
+
         showToast(
           `Course "${selectedCourseForFacultyAssign.title}" successfully assigned to ${res.teacher.name}! Enrolled students now have immediate access.`
         );
@@ -1129,6 +1327,39 @@ export default function SuperAdminMasterDashboard() {
       showToast('Error assigning course to faculty.');
     } finally {
       setIsSubmittingFacultyAssign(false);
+    }
+  };
+
+  // 8c. Delete Course Program
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    setIsDeletingCourse(true);
+    try {
+      const res = await fetch(`/api/courses?id=${courseToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        deleteCourseAction(courseToDelete.id);
+        setCourses(getStoredCourses());
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({ type: 'COURSE_DELETED', courseId: courseToDelete.id });
+          bc.close();
+        }
+        window.dispatchEvent(new Event('msi_courses_sync'));
+        window.dispatchEvent(new Event('storage'));
+
+        showToast(`Course "${courseToDelete.title}" removed permanently from public website and server disk.`);
+        setCourseToDelete(null);
+      } else {
+        showToast(data.message || 'Failed to delete course.');
+      }
+    } catch (err) {
+      showToast('Network error while deleting course.');
+    } finally {
+      setIsDeletingCourse(false);
     }
   };
 
@@ -1188,10 +1419,10 @@ export default function SuperAdminMasterDashboard() {
             </div>
           </Link>
           <Link
-            href="/login"
+            href="/student/login"
             className="text-xs font-semibold text-[#89190E] hover:underline flex items-center gap-1"
           >
-            <span>Student & Faculty Login</span>
+            <span>Student & Reception Login</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </header>
@@ -2187,6 +2418,7 @@ export default function SuperAdminMasterDashboard() {
                       <tr className="bg-[#F0F3FF] uppercase font-bold text-[10px] text-[#8C716C] tracking-wider border-b border-[#E8EEFF]">
                         <th className="py-3.5 px-4">Student Name</th>
                         <th className="py-3.5 px-4">Mobile Number</th>
+                        <th className="py-3.5 px-4">Portal Password</th>
                         <th className="py-3.5 px-4">Enrolled Stream / Batch</th>
                         <th className="py-3.5 px-4">Email ID</th>
                         <th className="py-3.5 px-4">Registration Date</th>
@@ -2197,7 +2429,7 @@ export default function SuperAdminMasterDashboard() {
                     <tbody className="divide-y divide-[#E8EEFF]">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center py-12 text-gray-500">
+                          <td colSpan={8} className="text-center py-12 text-gray-500">
                             No registered students found matching your search.
                           </td>
                         </tr>
@@ -2214,6 +2446,38 @@ export default function SuperAdminMasterDashboard() {
                             </td>
                             <td className="py-3.5 px-4 font-mono font-semibold text-[#10233F]">
                               +91 {stu.phone.slice(0, 5)} {stu.phone.slice(5)}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="flex items-center gap-1.5">
+                                <span className="bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
+                                  {showStudentPasswords[stu.phone]
+                                    ? (stu.password || 'Student@MSI2026')
+                                    : '••••••••'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStudentPasswordVisibility(stu.phone)}
+                                  className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                                  title={showStudentPasswords[stu.phone] ? 'Hide Password' : 'Show Password'}
+                                >
+                                  {showStudentPasswords[stu.phone] ? (
+                                    <EyeOff className="w-3 h-3" />
+                                  ) : (
+                                    <Eye className="w-3 h-3" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(stu.password || 'Student@MSI2026');
+                                    showToast(`Password for ${stu.name} copied!`);
+                                  }}
+                                  className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                                  title="Copy Password"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
                             </td>
                             <td className="py-3.5 px-4 text-[#58413D] font-medium">
                               {stu.stream}
@@ -2374,6 +2638,161 @@ export default function SuperAdminMasterDashboard() {
                   </table>
                 </div>
               </div>
+
+              {/* Receptionist Staff Accounts Card (User Audio Request) */}
+              <div className="bg-white rounded-2xl border border-[#E8EEFF] shadow-xs overflow-hidden">
+                <div className="p-6 border-b border-[#E8EEFF] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-white to-[#F0F3FF]/40">
+                  <div>
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-[#89190E] uppercase tracking-wider mb-1">
+                      <Users className="w-4 h-4" />
+                      <span>Front Desk Staff Credentials</span>
+                    </div>
+                    <h3 className="font-serif text-xl font-bold text-[#071B37]">
+                      Receptionist Accounts ({receptionists.length + 1})
+                    </h3>
+                    <p className="text-xs text-[#58413D] mt-0.5">
+                      Front-desk team members authorized to log in at <code>/login</code> or <code>/reception/login</code> to receive inquiries and call leads.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <Link
+                      href="/reception/login"
+                      target="_blank"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E8EEFF] hover:border-[#89190E] text-[#89190E] text-xs font-bold transition-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Reception Portal</span>
+                    </Link>
+
+                    <button
+                      onClick={() => setShowAddReceptionistModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Receptionist Staff</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-[#F0F3FF] uppercase font-bold text-[10px] text-[#8C716C] tracking-wider border-b border-[#E8EEFF]">
+                        <th className="py-3 px-4">Staff Member</th>
+                        <th className="py-3 px-4">Login Mobile</th>
+                        <th className="py-3 px-4">Login Password</th>
+                        <th className="py-3 px-4">Email ID</th>
+                        <th className="py-3 px-4">Authorization</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E8EEFF]">
+                      {/* Built-in Senior Receptionist */}
+                      <tr className="hover:bg-[#F0F3FF]/40 transition-colors bg-[#FFFDF9]">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-[#89190E] text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+                              H
+                            </div>
+                            <div>
+                              <span className="font-bold text-[#071B37] block">Harshit (Senior Desk)</span>
+                              <span className="text-[10px] text-gray-500">Fixed System Administrator</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-[#10233F]">
+                          9792303434
+                        </td>
+                        <td className="py-3 px-4 font-mono">
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-white border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
+                              Harshit@reception
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText('Harshit@reception');
+                                showToast('Password for Harshit copied!');
+                              }}
+                              className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                              title="Copy Password"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
+                          harshit.reception@msi-institutes.edu.in
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Active Senior Desk
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-[10px] text-gray-400 italic">Permanent Desk</span>
+                        </td>
+                      </tr>
+
+                      {/* Dynamic Receptionists */}
+                      {receptionists.map((rec) => (
+                        <tr key={rec.id} className="hover:bg-[#F0F3FF]/40 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[11px] shrink-0">
+                                {rec.name.slice(0, 1).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="font-bold text-[#071B37] block">{rec.name}</span>
+                                <span className="text-[10px] text-gray-500 font-mono">ID: {rec.id}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-[#10233F]">
+                            {rec.phone}
+                          </td>
+                          <td className="py-3 px-4 font-mono">
+                            <div className="flex items-center gap-1.5">
+                              <span className="bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
+                                {rec.password}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(rec.password);
+                                  showToast(`Password for ${rec.name} copied!`);
+                                }}
+                                className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                                title="Copy Password"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
+                            {rec.email || '—'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                              Active
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => setReceptionistToDelete(rec)}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Delete Receptionist Account"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -2443,7 +2862,7 @@ export default function SuperAdminMasterDashboard() {
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-[#F0F3FF] text-xs space-y-1.5 mb-3">
+                      <div className="p-3 rounded-xl bg-[#F0F3FF] text-xs space-y-1 mb-3">
                         <div className="text-[11px] text-[#58413D]">
                           <strong>Specialization:</strong> {tc.specialization || tc.department}
                         </div>
@@ -2452,25 +2871,6 @@ export default function SuperAdminMasterDashboard() {
                         </div>
                         <div className="text-[11px] text-[#58413D]">
                           <strong>Assigned Courses:</strong> {tc.assignedCourseIds?.length || 0} Batches
-                        </div>
-                        <div className="pt-1.5 border-t border-[#E0E7FF] flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-mono">Password:</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-[#89190E] bg-white px-1.5 py-0.5 rounded border border-[#E0E7FF]">
-                              {tc.password || tc.temporaryPassword || 'Faculty@MSI2026'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(tc.password || tc.temporaryPassword || 'Faculty@MSI2026');
-                                showToast(`Password for ${tc.name} copied!`);
-                              }}
-                              className="text-gray-400 hover:text-[#89190E] cursor-pointer"
-                              title="Copy Password"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -2485,16 +2885,6 @@ export default function SuperAdminMasterDashboard() {
                       >
                         Assign Courses
                       </button>
-
-                      <Link
-                        href="/login"
-                        target="_blank"
-                        className="px-2.5 py-1.5 rounded-lg border border-[#E8EEFF] hover:border-[#89190E] text-[#89190E] font-bold text-[11px] transition-colors cursor-pointer text-center flex items-center gap-1"
-                        title="Open Teacher Login Portal"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>Login</span>
-                      </Link>
 
                       {tc.status === 'pending' && (
                         <>
@@ -2569,6 +2959,21 @@ export default function SuperAdminMasterDashboard() {
                     className="bg-white rounded-2xl border border-[#E8EEFF] p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
+                      {crs.thumbnail && (
+                        <div className="relative h-32 w-full rounded-xl overflow-hidden mb-3 bg-gray-100">
+                          <Image
+                            src={crs.thumbnail}
+                            alt={crs.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                          />
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[9px] font-bold uppercase backdrop-blur-xs">
+                            {crs.category}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between mb-2">
                         <span className="px-2 py-0.5 rounded-full bg-[#89190E]/10 text-[#89190E] text-[10px] font-bold uppercase">
                           {crs.category}
@@ -2649,14 +3054,23 @@ export default function SuperAdminMasterDashboard() {
                         </button>
                       </div>
 
-                      <Link
-                        href={`/courses`}
-                        target="_blank"
-                        className="text-[#89190E] font-bold hover:underline flex items-center gap-1 shrink-0"
-                      >
-                        <span>View Public Page</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCourseToDelete(crs)}
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
+                          title="Delete Course from Website"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <Link
+                          href={`/courses`}
+                          target="_blank"
+                          className="text-[#89190E] font-bold hover:underline flex items-center gap-1 shrink-0"
+                        >
+                          <span>View Public Page</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -3540,6 +3954,25 @@ export default function SuperAdminMasterDashboard() {
                     : 'Active'}
                 </span>
               </div>
+              <div className="flex justify-between items-center py-1 border-b border-gray-200">
+                <span className="text-gray-500">Portal Password:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-[#89190E] bg-white px-2 py-0.5 rounded border border-gray-200">
+                    {selectedStudentForView.password || 'Student@MSI2026'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedStudentForView.password || 'Student@MSI2026');
+                      showToast('Student password copied to clipboard!');
+                    }}
+                    className="p-1 text-gray-400 hover:text-[#89190E] cursor-pointer"
+                    title="Copy Password"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
               <div className="flex justify-between py-1">
                 <span className="text-gray-500">Enrolled Batch:</span>
                 <span className="font-semibold text-[#89190E]">
@@ -3585,6 +4018,318 @@ export default function SuperAdminMasterDashboard() {
                 className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer"
               >
                 Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3b. Student Credentials Success Dialog */}
+      {createdStudentCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h3 className="font-serif text-xl font-bold text-[#10233F] mb-1">
+              Student Account Created!
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Share these credentials with the student. They can log in immediately at the Student Portal.
+            </p>
+            <div className="p-4 rounded-2xl bg-[#F0F3FF] text-left text-xs space-y-2 mb-5 font-sans">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Student Name:</span>
+                <span className="font-bold text-[#10233F]">{createdStudentCredentials.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Mobile / Login ID:</span>
+                <span className="font-mono font-bold text-[#10233F]">{createdStudentCredentials.phone}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Password:</span>
+                <span className="font-mono font-bold text-[#89190E] bg-white px-2 py-0.5 rounded border border-gray-200">
+                  {createdStudentCredentials.pass}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Enrolled Stream:</span>
+                <span className="font-semibold text-emerald-800">{createdStudentCredentials.stream}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `MSI Student Login Credentials:\nName: ${createdStudentCredentials.name}\nLogin Mobile: ${createdStudentCredentials.phone}\nPassword: ${createdStudentCredentials.pass}\nStream: ${createdStudentCredentials.stream}\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/student/login`;
+                  navigator.clipboard.writeText(text);
+                  showToast('Credentials copied to clipboard!');
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] hover:bg-gray-50 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Copy Credentials</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedStudentCredentials(null)}
+                className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold shadow-xs cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3c. Add Receptionist Staff Modal */}
+      {showAddReceptionistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+            <button
+              onClick={() => setShowAddReceptionistModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Add Receptionist Staff Member
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Creates front-desk login credentials to answer telecalls, view intake leads, and record remarks.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateReceptionist} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Receptionist Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newReceptionistName}
+                  onChange={(e) => setNewReceptionistName(e.target.value)}
+                  placeholder="e.g. Priya Sharma"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  10-Digit Mobile Number (Login ID) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newReceptionistPhone}
+                  onChange={(e) => setNewReceptionistPhone(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] font-mono focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Official Email ID (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={newReceptionistEmail}
+                  onChange={(e) => setNewReceptionistEmail(e.target.value)}
+                  placeholder="e.g. priya.reception@msigroup.edu.in"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] font-mono focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Portal Login Password *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newReceptionistPassword}
+                  onChange={(e) => setNewReceptionistPassword(e.target.value)}
+                  placeholder="Reception@MSI2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Receptionist will use this password to sign in at /login or /reception/login.
+                </p>
+              </div>
+
+              <div className="pt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddReceptionistModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReceptionist}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingReceptionist ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Create Receptionist</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3d. Delete Receptionist Confirmation Modal */}
+      {receptionistToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-red-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="font-serif text-lg font-bold text-[#10233F] mb-1">
+              Delete Receptionist Account?
+            </h3>
+            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              Are you sure you want to delete receptionist <strong>{receptionistToDelete.name}</strong> ({receptionistToDelete.phone})? They will immediately lose access to the reception portal.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setReceptionistToDelete(null)}
+                disabled={isDeletingReceptionist}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteReceptionist}
+                disabled={isDeletingReceptionist}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingReceptionist ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3e. Receptionist Credentials Created Dialog */}
+      {createdReceptionistCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h3 className="font-serif text-xl font-bold text-[#10233F] mb-1">
+              Receptionist Account Created!
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Share these credentials with the front desk receptionist. They can log in directly at the reception desk.
+            </p>
+            <div className="p-4 rounded-2xl bg-[#F0F3FF] text-left text-xs space-y-2 mb-5 font-sans">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Staff Name:</span>
+                <span className="font-bold text-[#10233F]">{createdReceptionistCredentials.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Mobile / Login ID:</span>
+                <span className="font-mono font-bold text-[#10233F]">{createdReceptionistCredentials.phone}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Password:</span>
+                <span className="font-mono font-bold text-[#89190E] bg-white px-2 py-0.5 rounded border border-gray-200">
+                  {createdReceptionistCredentials.pass}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `MSI Receptionist Login:\nName: ${createdReceptionistCredentials.name}\nLogin Mobile: ${createdReceptionistCredentials.phone}\nPassword: ${createdReceptionistCredentials.pass}\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/reception/login`;
+                  navigator.clipboard.writeText(text);
+                  showToast('Reception credentials copied to clipboard!');
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] hover:bg-gray-50 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-[#89190E]" />
+                <span>Copy Credentials</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedReceptionistCredentials(null)}
+                className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold shadow-xs cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3f. Delete Course Confirmation Modal */}
+      {courseToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-red-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="font-serif text-lg font-bold text-[#10233F] mb-1">
+              Delete Course Program?
+            </h3>
+            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              Are you sure you want to permanently delete <strong>{courseToDelete.title}</strong>? This will remove the course from the public website, student portal, and faculty assignments.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setCourseToDelete(null)}
+                disabled={isDeletingCourse}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCourse}
+                disabled={isDeletingCourse}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingCourse ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -4523,7 +5268,7 @@ export default function SuperAdminMasterDashboard() {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
                 <p className="text-[10px] text-gray-500 mt-1">
-                  This faculty member can log in directly using this password and their mobile number or Gmail ID at /login.
+                  This faculty member can log in directly using this password and their Gmail ID at /teacher/login.
                 </p>
               </div>
 
@@ -4576,7 +5321,7 @@ export default function SuperAdminMasterDashboard() {
             <div className="p-4 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-left space-y-3 mb-5 font-mono text-xs">
               <div>
                 <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Portal URL:</span>
-                <span className="text-[#10233F] font-bold select-all">/login</span>
+                <span className="text-[#10233F] font-bold select-all">/teacher/login</span>
               </div>
               <div>
                 <span className="text-[10px] text-gray-500 block uppercase font-sans font-bold">Official Email / Gmail:</span>
@@ -4601,7 +5346,7 @@ export default function SuperAdminMasterDashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/login\nEmail: ${createdFacultyCredentials.email}\nPassword: ${createdFacultyCredentials.pass}\nStatus: Active & Authorized`;
+                    const msg = `MSI Faculty Login Credentials:\nPortal: ${typeof window !== 'undefined' ? window.location.origin : ''}/teacher/login\nEmail: ${createdFacultyCredentials.email}\nPassword: ${createdFacultyCredentials.pass}\nStatus: Active & Authorized`;
                     navigator.clipboard.writeText(msg);
                     showToast('Credentials copied to clipboard!');
                   }}
@@ -4611,7 +5356,7 @@ export default function SuperAdminMasterDashboard() {
                   <span>Copy Credentials</span>
                 </button>
                 <Link
-                  href="/login"
+                  href="/teacher/login"
                   target="_blank"
                   className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
@@ -4779,6 +5524,136 @@ export default function SuperAdminMasterDashboard() {
                   placeholder="Overview of syllabus, bare act coverage, landmark judgments, and mock test schedules."
                   className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
+              </div>
+
+              {/* Course Thumbnail Image Upload (Audio 3 / User Request) */}
+              <div className="p-3.5 rounded-2xl bg-[#F0F3FF] border border-[#E8EEFF] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-[#10233F]">
+                      Course Thumbnail Image / Cover *
+                    </label>
+                    <span className="text-[10px] text-gray-500">
+                      Upload from computer, enter URL, or choose an academic preset.
+                    </span>
+                  </div>
+                  {newCourseThumbnail && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      ✓ Thumbnail Selected
+                    </span>
+                  )}
+                </div>
+
+                {/* Upload Button + URL Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label
+                      htmlFor="course-thumbnail-upload"
+                      className="w-full py-2.5 px-3 rounded-xl border border-dashed border-[#89190E] bg-white hover:bg-[#89190E]/5 text-[#89190E] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Image File (PNG / JPG / WEBP)</span>
+                    </label>
+                    <input
+                      id="course-thumbnail-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!file.type.startsWith('image/')) {
+                          showToast('Please select a valid image file.');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const result = event.target?.result as string;
+                          if (result) {
+                            setNewCourseThumbnail(result);
+                            setNewCourseThumbnailPreview(result);
+                            showToast('Course thumbnail uploaded successfully!');
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={newCourseThumbnail.startsWith('data:') ? '' : newCourseThumbnail}
+                      onChange={(e) => {
+                        setNewCourseThumbnail(e.target.value);
+                        setNewCourseThumbnailPreview(e.target.value);
+                      }}
+                      placeholder="Or paste image URL (e.g., https://...)"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#E8DCCB] bg-white text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                    />
+                  </div>
+                </div>
+
+                {/* Preset Options */}
+                <div>
+                  <span className="text-[10px] text-gray-500 font-bold block mb-1.5 uppercase">
+                    Or Quick Select MSI Academic Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      {
+                        name: 'Judiciary & Law Books',
+                        url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+                      },
+                      {
+                        name: 'Courtroom Gavel',
+                        url: 'https://images.unsplash.com/photo-1453733197781-704fa5988075?auto=format&fit=crop&w=1200&q=80',
+                      },
+                      {
+                        name: 'Lady Justice & Library',
+                        url: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=1200&q=80',
+                      },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setNewCourseThumbnail(preset.url);
+                          setNewCourseThumbnailPreview(preset.url);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                          newCourseThumbnail === preset.url
+                            ? 'bg-[#89190E] text-white border-[#89190E]'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-[#89190E]'
+                        }`}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                {(newCourseThumbnailPreview || newCourseThumbnail) && (
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-xl border border-gray-200">
+                    <div className="relative w-20 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={newCourseThumbnailPreview || newCourseThumbnail}
+                        alt="Thumbnail Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="text-[11px] truncate">
+                      <span className="font-bold text-[#10233F] block">Live Thumbnail Preview</span>
+                      <span className="text-gray-400 font-mono text-[9px] truncate block max-w-xs">
+                        {newCourseThumbnail.startsWith('data:')
+                          ? 'Uploaded File (Base64 Data URI)'
+                          : newCourseThumbnail}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Initial Recorded Lecture Module */}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { ensureStudentExists } from '@/lib/studentUserStore';
 
 const TRANSACTIONS_FILE = path.join(process.cwd(), 'data', 'transactions.json');
 
@@ -25,8 +26,8 @@ export async function POST(req: Request) {
       courseId,
       courseTitle,
       amount,
-      studentName = 'Harshit (MSI Scholar)',
-      studentPhone = '+91 97923 03434',
+      studentName = 'MSI Scholar',
+      studentPhone = '',
       paymentMethod = 'Razorpay Gateway (UPI / Cards / NetBanking)',
     } = body;
 
@@ -108,6 +109,19 @@ export async function POST(req: Request) {
 
     const updated = [newTransaction, ...currentTransactions];
     fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+
+    // Auto-record student in permanent students database
+    if (studentPhone) {
+      try {
+        ensureStudentExists({
+          phone: studentPhone,
+          name: studentName,
+          stream: courseTitle,
+        });
+      } catch (err) {
+        console.warn('Could not auto-register student from payment:', err);
+      }
+    }
 
     return NextResponse.json({
       success: true,

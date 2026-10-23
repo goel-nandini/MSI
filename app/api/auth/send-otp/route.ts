@@ -6,7 +6,7 @@ import {
   sendOtpToMobile,
 } from '@/lib/smsService';
 import { checkOtpCooldown, saveOtp, cleanupExpiredOtps } from '@/lib/otpStore';
-import { isPhoneRegistered } from '@/lib/studentUserStore';
+import { isPhoneRegistered, registerStudentUser } from '@/lib/studentUserStore';
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,6 +62,21 @@ export async function POST(req: NextRequest) {
 
     // Generate fresh 6-digit OTP
     const otp = generateNumericOTP();
+
+    // Auto-record student on disk immediately so Super Admin and Reception CRM see the student record right away
+    if (name?.trim() || purpose === 'student-portal-auth' || purpose === 'signup') {
+      try {
+        registerStudentUser({
+          phone: cleanPhone,
+          name: name?.trim() || `Student ${cleanPhone.slice(-4)}`,
+          stream: stream?.trim() || 'PCS-J Punjab Judicial Services',
+          email: email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`,
+          password: password?.trim() || 'Student@MSI2026',
+        });
+      } catch (e) {
+        console.warn('[SendOTP] Could not pre-register student:', e);
+      }
+    }
 
     // Save in store with metadata (including pending password for registration)
     saveOtp(cleanPhone, otp, {

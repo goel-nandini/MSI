@@ -33,7 +33,7 @@ export default function ReceptionLoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -49,25 +49,50 @@ export default function ReceptionLoginPage() {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      // 1. Primary Fixed Credentials: Mobile 9792303434 & Password Harshit@reception
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: phoneOrId.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.role === 'reception' && data.user) {
+        try {
+          localStorage.setItem('msi_reception_logged_in', 'true');
+          localStorage.setItem('msi_active_staff_id', data.user.id || 'rec-desk');
+          localStorage.setItem('msi_active_staff_name', data.user.name || 'Reception Staff');
+          localStorage.setItem('msi_active_staff_phone', data.user.cleanPhone || data.user.phone || '');
+          localStorage.setItem('msi_active_staff_email', data.user.email || '');
+        } catch (err) {
+          console.error(err);
+        }
+
+        setSuccessMessage(`Welcome ${data.user.name}! Access granted to Reception Desk...`);
+        setTimeout(() => {
+          setIsLoading(false);
+          router.push('/reception/dashboard');
+        }, 500);
+        return;
+      }
+
+      // Fallback local check
       const isHarshitNumber = cleanInput === '9792303434' || rawInput.includes('9792303434');
       const isHarshitPassword =
         cleanPassword === 'Harshit@reception' ||
         cleanPassword.toLowerCase() === 'harshit@reception';
 
       if (isHarshitNumber && isHarshitPassword) {
-        try {
-          localStorage.setItem('msi_reception_logged_in', 'true');
-          localStorage.setItem('msi_active_staff_id', 'staff-harshit');
-          localStorage.setItem('msi_active_staff_name', 'Harshit');
-          localStorage.setItem('msi_active_staff_phone', '9792303434');
-          localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
-        } catch (err) {
-          console.error(err);
-        }
-
-        setSuccessMessage('Welcome Harshit! Access granted to Reception & VMS Desk...');
+        localStorage.setItem('msi_reception_logged_in', 'true');
+        localStorage.setItem('msi_active_staff_id', 'staff-harshit');
+        localStorage.setItem('msi_active_staff_name', 'Harshit');
+        localStorage.setItem('msi_active_staff_phone', '9792303434');
+        localStorage.setItem('msi_active_staff_email', 'harshit.reception@msi-institutes.edu.in');
+        setSuccessMessage('Welcome Harshit! Access granted to Reception Desk...');
         setTimeout(() => {
           setIsLoading(false);
           router.push('/reception/dashboard');
@@ -75,44 +100,12 @@ export default function ReceptionLoginPage() {
         return;
       }
 
-      // 2. Secondary check for other staff profiles in system
-      const foundStaff = RECEPTION_STAFF_PROFILES.find(
-        (s) =>
-          s.id.toLowerCase() === rawInput ||
-          s.email.toLowerCase() === rawInput ||
-          (s.phone && s.phone.replace(/\D/g, '').slice(-10) === cleanInput)
-      );
-
-      if (
-        foundStaff &&
-        (cleanPassword === 'Reception@MSI2025' ||
-          cleanPassword === 'Harshit@reception' ||
-          cleanPassword.toLowerCase() === 'harshit@reception')
-      ) {
-        try {
-          localStorage.setItem('msi_reception_logged_in', 'true');
-          localStorage.setItem('msi_active_staff_id', foundStaff.id);
-          localStorage.setItem('msi_active_staff_name', foundStaff.name);
-          localStorage.setItem('msi_active_staff_email', foundStaff.email);
-          if (foundStaff.phone) localStorage.setItem('msi_active_staff_phone', foundStaff.phone);
-        } catch (err) {
-          console.error(err);
-        }
-
-        setSuccessMessage(`Authenticated as ${foundStaff.name}. Entering Reception Desk...`);
-        setTimeout(() => {
-          setIsLoading(false);
-          router.push('/reception/dashboard');
-        }, 500);
-        return;
-      }
-
-      // 3. Invalid credentials
       setIsLoading(false);
-      setErrorMessage(
-        'Invalid credentials. Please enter a valid mobile number and password.'
-      );
-    }, 450);
+      setErrorMessage(data.message || 'Invalid credentials. Please enter a valid mobile number and password.');
+    } catch (err) {
+      setIsLoading(false);
+      setErrorMessage('Network error while authenticating. Please try again.');
+    }
   };
 
   return (
