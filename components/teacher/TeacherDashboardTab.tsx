@@ -23,7 +23,7 @@ import {
 } from './data/teacherMockData';
 import { TeacherModuleTab } from './TeacherSidebar';
 import { getStoredTeachers, LMS_SYNC_EVENT, UdemyCourse } from '@/lib/lmsStore';
-import { Plus, Play } from 'lucide-react';
+import { Plus, Play, UserPlus } from 'lucide-react';
 
 interface TeacherDashboardTabProps {
   teacher: TeacherProfile;
@@ -35,6 +35,7 @@ interface TeacherDashboardTabProps {
   onNavigateTab: (tab: TeacherModuleTab) => void;
   onLaunchAttendance: (session: TeacherClassSchedule) => void;
   onOpenLectureModal?: (course: UdemyCourse) => void;
+  onOpenEnrollModal?: (course?: UdemyCourse) => void;
 }
 
 export default function TeacherDashboardTab({
@@ -47,6 +48,7 @@ export default function TeacherDashboardTab({
   onNavigateTab,
   onLaunchAttendance,
   onOpenLectureModal,
+  onOpenEnrollModal,
 }: TeacherDashboardTabProps) {
   const upcomingClasses = schedules.filter((s) => s.day === 'Today');
 
@@ -322,6 +324,15 @@ export default function TeacherDashboardTab({
                         </div>
 
                         <div className="flex items-center space-x-2 shrink-0 self-start sm:self-center">
+                          <button
+                            onClick={() => onOpenEnrollModal?.(course)}
+                            className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+                            title="Enroll registered student into this course"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>+ Enroll Students</span>
+                          </button>
+
                           <button
                             onClick={() => onOpenLectureModal?.(course)}
                             className="px-3 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"

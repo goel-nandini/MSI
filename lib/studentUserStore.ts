@@ -218,6 +218,24 @@ export function registerStudentUser(data: {
     return { success: false, message: 'Invalid 10-digit mobile number format.' };
   }
 
+  // If this student was previously deleted, remove them from deleted_students.json
+  try {
+    const deletedList = readDeletedStudentsFromDisk();
+    const cleanEmail = (data.email || '').trim().toLowerCase();
+    const filteredDeleted = deletedList.filter((d) => {
+      const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+      const dEmail = (d.email || '').trim().toLowerCase();
+      if (dPhone === cleanPhone) return false;
+      if (cleanEmail && dEmail === cleanEmail) return false;
+      return true;
+    });
+    if (filteredDeleted.length !== deletedList.length) {
+      fs.writeFileSync(DELETED_STUDENTS_FILE, JSON.stringify(filteredDeleted, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[StudentStore] Error unmarking deleted student:', err);
+  }
+
   const students = readStudentsFromDisk();
   const existingIndex = students.findIndex((s) => s.phone === cleanPhone);
 
@@ -584,5 +602,29 @@ export function deleteStudentFromDisk(rawPhoneOrId: string, additionalId?: strin
   });
 
   writeStudentsToDisk(filtered);
+
+  // Cascade cleanup in enrollments.json (remove all enrollments for this student)
+  try {
+    const ENROLLMENTS_FILE = path.join(DATA_DIR, 'enrollments.json');
+    if (fs.existsSync(ENROLLMENTS_FILE)) {
+      const raw = fs.readFileSync(ENROLLMENTS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const enrollments = JSON.parse(raw);
+        if (Array.isArray(enrollments)) {
+          const updatedEnrollments = enrollments.filter((e: any) => {
+            const ePhone = (e.studentPhone || '').replace(/\D/g, '').slice(-10);
+            const eId = (e.studentId || '').trim().toLowerCase();
+            if (cleanPhone.length >= 10 && ePhone === cleanPhone) return false;
+            if (eId === cleanId || (addId && eId === addId)) return false;
+            return true;
+          });
+          fs.writeFileSync(ENROLLMENTS_FILE, JSON.stringify(updatedEnrollments, null, 2), 'utf-8');
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[StudentStore] Error cascading student deletion to enrollments:', err);
+  }
+
   return true;
 }

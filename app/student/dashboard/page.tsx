@@ -38,7 +38,7 @@ import {
   FeeBreakdownItem,
   AssignmentItem,
 } from '@/components/student/data/studentMockData';
-import { UdemyCourse } from '@/lib/lmsStore';
+import { UdemyCourse, syncEnrollmentsFromServer } from '@/lib/lmsStore';
 
 export default function StudentDashboardPage() {
   const router = useRouter();
@@ -184,8 +184,18 @@ export default function StudentDashboardPage() {
   useEffect(() => {
     const loadStudentProfile = async () => {
       try {
+        const isLoggedIn = localStorage.getItem('msi_student_logged_in') === 'true';
         const storedPhone = localStorage.getItem('msi_active_student_phone') || '';
         const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
+
+        if (!isLoggedIn && !cleanPhone) {
+          router.push('/student/login');
+          return;
+        }
+
+        try {
+          await syncEnrollmentsFromServer();
+        } catch (_) {}
 
         // 1. Instant load from phone-keyed localStorage if available
         if (cleanPhone) {

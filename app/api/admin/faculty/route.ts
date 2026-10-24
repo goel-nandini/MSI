@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   readTeachersFromDisk,
+  readDeletedTeachersFromDisk,
   addOrUpdateTeacherOnDisk,
   deleteTeacherFromDisk,
 } from '@/lib/teacherUserStore';
@@ -10,9 +11,11 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const teachers = readTeachersFromDisk();
+    const deletedTeachers = readDeletedTeachersFromDisk();
     return NextResponse.json({
       success: true,
       teachers,
+      deletedTeachers,
       count: teachers.length,
     });
   } catch (error: any) {
@@ -74,26 +77,31 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     let id = searchParams.get('id');
+    let email = searchParams.get('email');
+    let phone = searchParams.get('phone');
 
     // Also check body in case client sent JSON body
-    if (!id) {
+    if (!id && !email && !phone) {
       try {
         const body = await req.json().catch(() => ({}));
-        id = body?.id || body?.email || body?.phone;
+        id = body?.id;
+        email = body?.email;
+        phone = body?.phone;
       } catch (_) {}
     }
 
-    if (!id || !id.trim()) {
+    const target = id || email || phone;
+    if (!target || !target.trim()) {
       return NextResponse.json(
         { success: false, message: 'Faculty ID, email, or mobile number is required for deletion.' },
         { status: 400 }
       );
     }
 
-    const result = deleteTeacherFromDisk(id.trim());
+    const result = deleteTeacherFromDisk(target.trim(), email || undefined, phone || undefined);
     return NextResponse.json({
       success: true,
-      message: `Faculty member (${id}) deleted successfully.`,
+      message: `Faculty member (${target}) deleted successfully.`,
       teachers: result.remainingTeachers,
       count: result.remainingTeachers.length,
       deletedCount: result.deletedCount,

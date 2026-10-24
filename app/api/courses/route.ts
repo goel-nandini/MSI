@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readCoursesFromDisk, addCourseToDisk, deleteCourseFromDisk } from '@/lib/courseStore';
+import { readCoursesFromDisk, addCourseToDisk, deleteCourseFromDisk, readDeletedCourseIds } from '@/lib/courseStore';
 import { UdemyCourse } from '@/lib/lmsStore';
 
 export const dynamic = 'force-dynamic';
@@ -7,9 +7,11 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const courses = readCoursesFromDisk();
+    const deletedIds = readDeletedCourseIds();
     return NextResponse.json({
       success: true,
       courses,
+      deletedIds,
       count: courses.length,
     });
   } catch (err: any) {

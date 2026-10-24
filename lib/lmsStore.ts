@@ -96,11 +96,13 @@ export interface CourseEnrollment {
   studentPhone?: string;
   studentName?: string;
   courseId: string;
+  courseTitle?: string;
   enrolledAt: string;
   progressPercentage: number;
   completedLectureIds: string[];
   assignedBy: 'self' | 'super-admin' | 'teacher';
   assignedByName?: string;
+  assignedByTeacherId?: string;
   assignedNote?: string;
   certificateIssued?: boolean;
   lastActiveLectureId?: string;
@@ -278,521 +280,63 @@ export const INITIAL_UDEMY_COURSES: UdemyCourse[] = [
     ]
   },
 
-  // Course 2: General Knowledge & Current Affairs (MSI/GKCA/01)
+  // Course 2: Supreme Court Constitutional Doctrines & Case Law 2026 (MSI Flagship)
   {
-    id: 'crs-msi-gkca',
-    slug: 'general-knowledge-current-affairs-clat',
-    title: 'General Knowledge & Current Affairs: 180-Session Comprehensive Mastercourse (MSI/GKCA/01)',
-    headline: 'Complete Merged Edition: Units I–IX Live Current Affairs & Units X–XIX Static GK Addendum',
-    description: 'The official merged 180-session course handout for CLAT UG Foundation Batch 2026–27. Covers constitutional updates, international relations, macroeconomic policy, science, climate accords, and the comprehensive static GK foundation across Indian History, Polity, and Geography.',
-    category: 'Law Entrance',
-    department: 'law',
-    badge: 'Highest Rated',
-    rating: 4.9,
-    reviewCount: 3120,
-    totalDuration: '180 total hours',
-    totalLectures: 45,
-    level: 'All Levels',
-    thumbnail: '/images/courses/gkca.jpg',
-    price: 2999,
-    originalPrice: 9999,
-    isFreeForMsiStudents: true,
-    instructorId: 'fac-law-anurag',
-    instructorName: 'Mr. Anurag Dwivedi',
-    instructorTitle: 'Faculty – General Knowledge & Current Affairs, MSI Group of Institutes',
-    instructorAvatar: '/images/avatars/avatar-1.webp',
-    updatedDate: 'Academic Session 2026–27',
-    language: 'English & Hindi (Bilingual)',
-    isPublished: true,
-    whatYouWillLearn: [
-      'Constitutional & Governance Current Affairs: SC Constitution-Bench Rulings, Delimitation & Reservation bills',
-      'Geopolitics & Bilateral Ties: G20 outcomes, BRICS expansion, SCO & Quad summits, Red Sea maritime security',
-      'Macroeconomic Policy & Union Budget: Inflation metrics (CPI, WPI, IIP), RBI monetary stance, Digital Rupee & UPI',
-      'Science, Space & Climate: ISRO missions, Semiconductor push, AI governance, COP summits & Net-Zero targets',
-      'Static GK Track (Units X–XIX): Indus Valley to Modern Freedom Struggle, 12 Schedules of Constitution, River Systems, Static Science & LPG Reforms',
-      'Passage-based reading comprehension technique for 450-word editorial and institutional reports'
-    ],
-    requirements: [
-      'Daily reading habit of national dailies (The Hindu, The Indian Express, The Tribune)',
-      'Basic awareness of Indian political structure and world geography fundamentals'
-    ],
-    sections: [
-      {
-        id: 'sec-gk-1',
-        title: 'Units I–II: Constitutional Governance & Geopolitics (Sessions 1–40)',
-        duration: '18 hours 30 mins',
-        lectures: [
-          {
-            id: 'lec-gk-1-1',
-            title: '01. Recent Supreme Court Constitution-Bench Verdicts & Centre-State Jurisprudence',
-            duration: '48:20',
-            durationSeconds: 2900,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-            preview: true,
-            summary: 'Detailed reasoning behind major 5-judge and 7-judge benches, Governor-State friction, and legislative assent.',
-            resources: [
-              { title: 'SC_Constitution_Bench_Digest_2026.pdf', type: 'pdf', size: '3.4 MB', downloadUrl: '#' },
-              { title: 'Governor_Powers_Dispute_Summary.pdf', type: 'notes', size: '1.2 MB', downloadUrl: '#' }
-            ]
-          },
-          {
-            id: 'lec-gk-1-2',
-            title: '02. G20 Outcomes, Global South Initiatives & BRICS Expansion Dynamics',
-            duration: '46:15',
-            durationSeconds: 2775,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-            preview: true,
-            summary: 'Shifting multilateral currencies, New Delhi Declaration implementations, and trade corridor pacts.'
-          },
-          {
-            id: 'lec-gk-1-3',
-            title: '03. Red Sea Maritime Security, West Asia Tensions & Strategic Maritime Chokepoints',
-            duration: '44:40',
-            durationSeconds: 2680,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-            preview: false,
-            summary: 'Strait of Hormuz, Bab-el-Mandeb, Malacca Strait, and energy security ramifications for India.'
-          }
-        ]
-      },
-      {
-        id: 'sec-gk-2',
-        title: 'Units III–IV: Economy, Infrastructure, Science & Climate (Sessions 41–80)',
-        duration: '22 hours 10 mins',
-        lectures: [
-          {
-            id: 'lec-gk-2-1',
-            title: '04. Union Budget Allocations, Deficit Targets, RBI MPC Rate Stance & Inflation Metrics',
-            duration: '52:10',
-            durationSeconds: 3130,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            preview: false,
-            summary: 'Fiscal deficit vs Revenue deficit, CPI vs WPI inflation baskets, and monetary policy transmission.'
-          },
-          {
-            id: 'lec-gk-2-2',
-            title: '05. ISRO Deep Space Missions, Semiconductor Fabrication Push & AI Governance',
-            duration: '49:30',
-            durationSeconds: 2970,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-            preview: false,
-            summary: 'Gaganyaan, Chandrayaan science return, India Semiconductor Mission (ISM), and global AI accords.'
-          },
-          {
-            id: 'lec-gk-2-3',
-            title: '06. India’s Net-Zero Roadmap 2070, Green Hydrogen & Protected Wetland Notifications',
-            duration: '47:00',
-            durationSeconds: 2820,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-            preview: false,
-            summary: 'Ramsar sites, national emissions targets, carbon border adjustment mechanisms, and COP outcomes.'
-          }
-        ]
-      },
-      {
-        id: 'sec-gk-3',
-        title: 'Units X–XIX: Static General Knowledge Addendum (Sessions 127–180)',
-        duration: '28 hours 40 mins',
-        lectures: [
-          {
-            id: 'lec-gk-3-1',
-            title: '07. Ancient & Medieval India: Indus Valley Sites, Mauryan Edicts & Mughal Administrative Structure',
-            duration: '55:30',
-            durationSeconds: 3330,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-            preview: true,
-            summary: 'High-yield timeline of ancient urbanization, Ashokan inscriptions, Delhi Sultanate, and Vijayanagara kingdom.'
-          },
-          {
-            id: 'lec-gk-3-2',
-            title: '08. Modern Indian Freedom Struggle: 1857 Revolt to Constituent Assembly Formation',
-            duration: '53:15',
-            durationSeconds: 3195,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-            preview: false,
-            summary: 'Moderate vs Extremist phases, Gandhian mass movements, INA trials, and the Indian Independence Act 1947.'
-          },
-          {
-            id: 'lec-gk-3-3',
-            title: '09. Indian & World Geography: Himalayan & Peninsular Rivers, Climate & Natural Resources',
-            duration: '50:40',
-            durationSeconds: 3040,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-            preview: false,
-            summary: 'Physiographic divisions of India, monsoon mechanism, mineral belts, and international borders.'
-          }
-        ]
-      }
-    ]
-  },
-
-  // Course 3: Logical Reasoning (CLAT & AILET) (MSI/LR/01)
-  {
-    id: 'crs-msi-lr',
-    slug: 'logical-reasoning-for-clat-ailet',
-    title: 'Logical Reasoning for CLAT & AILET: Critical Reasoning & Analytical Puzzles (MSI/LR/01)',
-    headline: '126-Session Comprehensive Syllabus: Argument Analysis, Syllogisms, Seating Arrangements & Mixed Reasoning',
-    description: 'Structured directly from the official MSI Logical Reasoning Handout. Develops speed, precision, and argument breakdown technique across Critical Reasoning, Analytical Puzzles, Syllogisms, Coding-Decoding, and Passage-Based Comprehension Drills.',
-    category: 'Law Entrance',
-    department: 'law',
-    badge: 'Recommended',
-    rating: 4.8,
-    reviewCount: 1940,
-    totalDuration: '126 total hours',
-    totalLectures: 36,
-    level: 'All Levels',
-    thumbnail: '/images/courses/lr.jpg',
-    price: 2299,
-    originalPrice: 7999,
-    isFreeForMsiStudents: true,
-    instructorId: 'fac-law-riya',
-    instructorName: 'Ms. Riya Hooda',
-    instructorTitle: 'Faculty – Logical Reasoning, MSI Group of Institutes',
-    instructorAvatar: '/images/avatars/avatar-4.webp',
-    updatedDate: 'Academic Session 2026–27',
-    language: 'English',
-    isPublished: true,
-    whatYouWillLearn: [
-      'Critical reasoning fundamentals: Premises, conclusions, implicit assumptions, and strong vs weak inferences',
-      'Advanced argument evaluation: Strengthening, weakening, paradox resolution, and assumption-negation techniques',
-      'Analytical puzzle mastery: Linear, circular, facing-center/outward, floor, and multi-parameter puzzle solving',
-      'Syllogisms and Venn diagrams with 100% accuracy using Euler diagrams and formal categorical logic',
-      'Deciphering complex passage-based editorial arguments and identifying unstated author biases',
-      'Speed-accuracy optimization and personal error-log construction for CLAT & AILET entrance exams'
-    ],
-    requirements: [
-      'Elementary familiarity with number/letter series and comfort with everyday logical arguments',
-      'Enrolled in CLAT UG Foundation Batch 2026–27 Section A/B'
-    ],
-    sections: [
-      {
-        id: 'sec-lr-1',
-        title: 'Unit I: Critical Reasoning Fundamentals (Sessions 1–20)',
-        duration: '14 hours 20 mins',
-        lectures: [
-          {
-            id: 'lec-lr-1-1',
-            title: '01. Anatomy of Arguments: Premises, Conclusions & Core Logical Claims',
-            duration: '44:15',
-            durationSeconds: 2655,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-            preview: true,
-            summary: 'How to separate supporting facts and background context from the author’s primary thesis.',
-            resources: [
-              { title: 'Argument_Structure_Breakdown_Template.pdf', type: 'pdf', size: '2.1 MB', downloadUrl: '#' }
-            ]
-          },
-          {
-            id: 'lec-lr-1-2',
-            title: '02. Assumptions: Implicit vs Explicit & The Assumption-Negation Rule',
-            duration: '46:00',
-            durationSeconds: 2760,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-            preview: true,
-            summary: 'Spotting the unstated bridge between premise and conclusion using rigorous negation testing.'
-          },
-          {
-            id: 'lec-lr-1-3',
-            title: '03. Common Fallacies: Correlation vs Causation, Circular Reasoning & Straw Man',
-            duration: '42:50',
-            durationSeconds: 2570,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-            preview: false,
-            summary: 'Identifying traps set by examiners to lure students into false deductive leaps.'
-          }
-        ]
-      },
-      {
-        id: 'sec-lr-2',
-        title: 'Unit II: Analytical & Puzzle-Based Reasoning (Sessions 21–40)',
-        duration: '16 hours 10 mins',
-        lectures: [
-          {
-            id: 'lec-lr-2-1',
-            title: '04. Seating Arrangements: Linear & Circular (Facing Inward vs Outward)',
-            duration: '51:10',
-            durationSeconds: 3070,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-            preview: false,
-            summary: 'Grid mapping, definite clues, and eliminating redundant cases in double-row arrangements.'
-          },
-          {
-            id: 'lec-lr-2-2',
-            title: '05. Blood Relations & Direction Sense Multi-Step Puzzles',
-            duration: '48:30',
-            durationSeconds: 2910,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-            preview: false,
-            summary: 'Tree diagrams, gender notation, Pythagorean displacement, and angular rotation shortcuts.'
-          }
-        ]
-      },
-      {
-        id: 'sec-lr-3',
-        title: 'Unit III–IV: Passage-Based Editorial Reasoning & Timed Mocks (Sessions 41–126)',
-        duration: '20 hours 00 mins',
-        lectures: [
-          {
-            id: 'lec-lr-3-1',
-            title: '06. Dissecting Opinion-Editorial Passages for Central Argument & Tone',
-            duration: '47:40',
-            durationSeconds: 2860,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            preview: true,
-            summary: 'Reading editorial excerpts from The Hindu and Indian Express with question-first vs passage-first tactics.'
-          },
-          {
-            id: 'lec-lr-3-2',
-            title: '07. Resolving Paradoxes & Identifying Unstated Assumptions in Complex Scenarios',
-            duration: '49:15',
-            durationSeconds: 2955,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-            preview: false,
-            summary: 'Handling conflicting statistical claims and finding the harmonizing statement in timed condition.'
-          }
-        ]
-      }
-    ]
-  },
-
-  // Course 4: English for CLAT (MSI/ENGCLAT-/01)
-  {
-    id: 'crs-msi-engclat',
-    slug: 'english-for-clat',
-    title: 'English for CLAT: Reading Comprehension, Grammar & Legal Vocabulary (MSI/ENGCLAT-/01)',
-    headline: '44-Session Intensive Handout: Editorial Passage Mapping, Literary Devices, Cloze Tests & Grammar Drills',
-    description: 'Structured from the official MSI English Handout. Takes students from grammar fundamentals and Latin word power to advanced passage comprehension, literary device identification, and timed error-detection drills designed for the CLAT English Language paper.',
-    category: 'Law Entrance',
-    department: 'law',
-    badge: 'Recommended',
-    rating: 4.8,
-    reviewCount: 1650,
-    totalDuration: '44 total hours',
-    totalLectures: 28,
-    level: 'Beginner',
-    thumbnail: '/images/courses/english.jpg',
-    price: 2199,
-    originalPrice: 6999,
-    isFreeForMsiStudents: true,
-    instructorId: 'fac-law-shikha',
-    instructorName: 'Ms. Shikha Singh',
-    instructorTitle: 'English Faculty, MSI Group of Institutes',
-    instructorAvatar: '/images/avatars/avatar-5.webp',
-    updatedDate: 'Academic Session 2026–27',
-    language: 'English',
-    isPublished: true,
-    whatYouWillLearn: [
-      'Advanced Reading Comprehension: Main idea deduction, author’s tone, and differentiating direct facts from inferences',
-      'Contextual Vocabulary: Word Power Made Easy root words, Latin prefixes, idioms, phrasal verbs, and collocations',
-      'Grammar & Error Spotting: Subject-verb agreement, modifiers, parallelism, conditional clauses, and tense sequences',
-      'Figures of Speech: Simile, metaphor, hyperbole, oxymoron, irony, synecdoche, litotes, and rhetorical anaphora',
-      'Sentence Skills: Para-jumbles sequencing, cloze tests, sentence rearrangement, and punctuation subtleties',
-      'Legal & Contemporary Reading: Constitutional terminology and editorial analysis of contemporary social issues'
-    ],
-    requirements: [
-      'Basic working knowledge of English grammar and sentence construction at Class X–XII level',
-      'Commitment to daily vocabulary journal and editorial summary submissions'
-    ],
-    sections: [
-      {
-        id: 'sec-eng-1',
-        title: 'Unit I: Advanced Reading Comprehension (Sessions 1–5)',
-        duration: '8 hours 30 mins',
-        lectures: [
-          {
-            id: 'lec-eng-1-1',
-            title: '01. Central Theme, Title Selection & Differentiating Fact from Author Opinion',
-            duration: '46:30',
-            durationSeconds: 2790,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-            preview: true,
-            summary: 'Strategies to pinpoint the author’s primary purpose without getting trapped in illustrative examples.',
-            resources: [
-              { title: 'CLAT_RC_Master_Techniques.pdf', type: 'pdf', size: '2.5 MB', downloadUrl: '#' }
-            ]
-          },
-          {
-            id: 'lec-eng-1-2',
-            title: '02. Passage Mapping for Literary, Editorial & Social Issue-Based Passages',
-            duration: '42:15',
-            durationSeconds: 2535,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-            preview: true,
-            summary: 'Speed-reading methods that preserve comprehension and outline argument progression in paragraph margins.'
-          }
-        ]
-      },
-      {
-        id: 'sec-eng-2',
-        title: 'Unit II & V: Vocabulary, Roots & Figures of Speech (Sessions 6–9, 20–25)',
-        duration: '11 hours 20 mins',
-        lectures: [
-          {
-            id: 'lec-eng-2-1',
-            title: '03. Etymology & Root Words: Unlocking 500+ High-Frequency Exam Words',
-            duration: '48:00',
-            durationSeconds: 2880,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-            preview: false,
-            summary: 'Latin and Greek roots from Norman Lewis Word Power Made Easy with contextual sentence application.'
-          },
-          {
-            id: 'lec-eng-2-2',
-            title: '04. Figures of Speech: Metaphor, Irony, Litotes, Metonymy & Synecdoche in Passages',
-            duration: '44:45',
-            durationSeconds: 2685,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-            preview: false,
-            summary: 'Recognizing subtle rhetorical devices and figurative language examined in recent CLAT editions.'
-          }
-        ]
-      },
-      {
-        id: 'sec-eng-3',
-        title: 'Unit IV, VI & VIII: Sentence Structure, Error Spotting & Legal Texts (Sessions 14–19, 26–38)',
-        duration: '14 hours 40 mins',
-        lectures: [
-          {
-            id: 'lec-eng-3-1',
-            title: '05. High-Yield Error Spotting: Subject-Verb Agreement, Dangling Modifiers & Parallelism',
-            duration: '50:20',
-            durationSeconds: 3020,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-            preview: true,
-            summary: 'Mastering the 15 most frequent grammatical traps found in sentence correction and cloze tests.'
-          },
-          {
-            id: 'lec-eng-3-2',
-            title: '06. Legal Vocabulary & Contemporary Policy Editorial Comprehension',
-            duration: '47:10',
-            durationSeconds: 2830,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-            preview: false,
-            summary: 'Analyzing human rights, constitutional jurisprudence, and public policy articles with precision.'
-          }
-        ]
-      }
-    ]
-  },
-
-  // Course 5: PCS J Comprehensive Foundation & Procedural Law (MSI/PCSJ/01)
-  {
-    id: 'crs-udemy-pcsj',
-    slug: 'pcs-j-comprehensive-masterclass',
-    title: 'PCS J Comprehensive Foundation: Civil Judge & Judicial Magistrate Exam Masterclass (MSI/PCSJ/01)',
-    headline: 'Master Constitutional Law, Procedural Laws (CPC, CrPC, BNSS 2023, Evidence) & High Court Judgment Drafting',
-    description: 'Designed exclusively by senior judicial scholars and retired judges, this comprehensive flagship curriculum prepares law aspirants for Punjab, Haryana, Himachal Pradesh, and Delhi Judicial Services. Includes rigorous case law breakdowns, high court judgment drafting, and speed drills.',
+    id: 'crs-msi-775270',
+    slug: 'supreme-court-constitutional-doctrines-case-law-2026',
+    title: 'Supreme Court Constitutional Doctrines & Case Law 2026',
+    headline: 'Comprehensive Curriculum & Judicial Practice',
+    description: 'Official curriculum accredited by MSI Group of Institutes.',
     category: 'Judiciary',
     department: 'law',
-    badge: 'Bestseller',
-    rating: 4.9,
-    reviewCount: 2840,
-    totalDuration: '140 total hours',
-    totalLectures: 38,
+    badge: 'Hot & New',
+    rating: 5,
+    reviewCount: 1,
+    totalDuration: '40 hours',
+    totalLectures: 1,
     level: 'All Levels',
-    thumbnail: '/images/courses/pcsj.jpg',
-    price: 3499,
-    originalPrice: 9999,
+    thumbnail: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=1200&q=80',
+    price: 5999,
+    originalPrice: 14999,
     isFreeForMsiStudents: true,
-    instructorId: 'fac-law-vikram',
-    instructorName: 'Dr. Vikramaditya Sharma',
-    instructorTitle: 'Senior Professor of Procedural Law & Judicial Studies',
-    instructorAvatar: '/images/faculty/faculty-1.webp',
-    updatedDate: 'Academic Session 2026–27',
-    language: 'English & Hindi (Bilingual)',
+    instructorId: 'fac-harshit-01',
+    instructorName: 'Harshit Singh',
+    instructorTitle: 'Professor of Law & Faculty Jurist',
+    instructorAvatar: '/images/avatars/avatar-1.webp',
+    updatedDate: 'Oct 2026',
+    language: 'English & Bilingual Legal Notes',
     isPublished: true,
     whatYouWillLearn: [
-      'Comprehensive command over CrPC 1973, BNSS 2023, CPC 1908, and Indian Evidence Act frameworks',
-      'Civil Court and Criminal Magistrate Judgment writing techniques with real case files and issues framing',
-      'Landmark Supreme Court and High Court verdicts with ratio decidendi analysis',
-      'Techniques to conquer Prelims negative marking and structural Mains answers',
-      'Bare Act section mapping and cross-referencing tricks for lightning recall',
-      'Viva-voce / Personality interview simulation strategies for Judicial Boards'
+      'Mastery over ratio decidendi and obiter dicta distinctions',
+      'Timed answer drafting drills and Bare Act interpretations',
+      'Live judicial mentoring and doubt clearing'
     ],
     requirements: [
-      'Pursuing or completed LL.B (3-year or 5-year degree) from any recognized university',
-      'Basic understanding of Indian legal structure and bare act reading habits'
+      'Dedication to daily legal study drills',
+      'No prior legal diploma required'
     ],
     sections: [
       {
-        id: 'sec-pcsj-1',
-        title: 'Module 1: Constitutional Foundations & Judicial Review',
-        duration: '11 hours 20 mins',
+        id: 'sec-1792755775270-1',
+        title: 'Module 1: Foundational Jurisprudence & Overview',
+        duration: '3 hours',
         lectures: [
           {
-            id: 'lec-pcsj-1-1',
-            title: '01. Preamble Jurisprudence & Basic Structure Doctrine Masterclass (Bunny Stream HD)',
-            duration: '42:15',
-            durationSeconds: 2535,
+            id: 'lec-1792755775270-1',
+            title: 'Orientation & Landmark Constitutional Doctrines',
+            duration: '45 mins',
+            durationSeconds: 2700,
             videoUrl: 'https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc',
             preview: true,
-            summary: 'Official judicial lecture delivered over Bunny Stream High-Definition CDN.',
+            summary: 'Initial recorded foundational orientation lecture for registered scholars.',
             resources: [
-              { title: 'Constitutional_Basic_Structure_Digest.pdf', type: 'pdf', size: '2.4 MB', downloadUrl: '#' },
-              { title: 'Kesavananda_Bharati_Ratio_Analysis.pdf', type: 'notes', size: '1.1 MB', downloadUrl: '#' }
+              {
+                title: 'Official Lecture Handout & Landmark Briefs',
+                type: 'pdf',
+                size: '2.4 MB',
+                downloadUrl: '#'
+              }
             ]
-          },
-          {
-            id: 'lec-pcsj-1-2',
-            title: '02. Article 21 Evolution: Right to Privacy, Dignity & Speedy Trial',
-            duration: '38:40',
-            durationSeconds: 2320,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-            preview: true,
-            summary: 'In-depth review of Maneka Gandhi v. UOI, Puttaswamy judgment and expanding frontiers of personal liberty.',
-            resources: [
-              { title: 'Article_21_Landmark_Compendium.pdf', type: 'pdf', size: '3.1 MB', downloadUrl: '#' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'sec-pcsj-2',
-        title: 'Module 2: Code of Civil Procedure (CPC 1908) Essentials',
-        duration: '14 hours 45 mins',
-        lectures: [
-          {
-            id: 'lec-pcsj-2-1',
-            title: '03. Res Judicata & Constructive Res Judicata (Section 11 Analysis)',
-            duration: '46:18',
-            durationSeconds: 2778,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-            preview: true,
-            summary: 'Explanations I through VIII of Section 11 dissected with real trial court illustrations and mock problems.'
-          },
-          {
-            id: 'lec-pcsj-2-2',
-            title: '04. Order VII Rule 11: Rejection of Plaint Grounds & Procedure',
-            duration: '33:25',
-            durationSeconds: 2005,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-            preview: false,
-            summary: 'Procedural application of Order 7 Rule 11, barred by law, cause of action test, and limitation aspects.'
-          }
-        ]
-      },
-      {
-        id: 'sec-pcsj-3',
-        title: 'Module 3: Criminal Procedure & High Court Judgment Writing',
-        duration: '12 hours 10 mins',
-        lectures: [
-          {
-            id: 'lec-pcsj-3-1',
-            title: '05. Framing of Issues in Civil Suits: Order XIV Practice Workshop',
-            duration: '52:00',
-            durationSeconds: 3120,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-            preview: true,
-            summary: 'Issues of law vs issues of fact. Hands-on drafting exercise with Punjab & Haryana High Court model answers.'
-          },
-          {
-            id: 'lec-pcsj-3-2',
-            title: '06. BNSS 2023 vs CrPC 1973: Charge Framing & Magistrate Cognizance Protocol',
-            duration: '48:30',
-            durationSeconds: 2910,
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-            preview: false,
-            summary: 'Step-by-step charge drafting and comparative procedural transitions under the new criminal laws.'
           }
         ]
       }
@@ -887,30 +431,6 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
     rating: 4.8,
     studentsCount: 1420
   },
-  // 4. Ms. Shikha Singh (English for CLAT)
-  {
-    id: 'fac-law-shikha',
-    name: 'Ms. Shikha Singh',
-    email: 'Ss7487320@gmail.com',
-    phone: '+91 98144 23004',
-    avatarUrl: '/images/avatars/avatar-5.webp',
-    department: 'English Language & Verbal Studies',
-    designation: 'English Faculty, MSI Group of Institutes',
-    qualifications: 'M.A. English Literature (Delhi University), UGC-NET Qualified',
-    experienceYears: 9,
-    stream: 'Law',
-    bio: 'Faculty for English for CLAT (MSI/ENGCLAT-/01, 44 Sessions). Specializes in editorial passage mapping, etymology-based vocabulary building, literary devices, and grammar error-spotting drills.',
-    specialization: 'Reading Comprehension, Contextual Vocabulary, Figures of Speech, Legal Vocabulary',
-    sampleLectureTitle: 'Passage Mapping for Legal Editorials & Rhetorical Devices',
-    sampleLectureDuration: '42 mins',
-    status: 'approved',
-    applicationDate: '18 Jan 2025',
-    approvedAt: '20 Jan 2025',
-    approvedBy: 'Governing Academic Directorate',
-    assignedCourseIds: ['crs-msi-engclat'],
-    rating: 4.8,
-    studentsCount: 1290
-  },
   // 5. Dr. Vikramaditya Sharma (PCS J & Procedural Law)
   {
     id: 'fac-law-vikram',
@@ -979,50 +499,6 @@ export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [
     lastActiveLectureId: 'lec-leg-1-3'
   },
   {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-gkca',
-    enrolledAt: '15 July 2025',
-    progressPercentage: 68,
-    completedLectureIds: ['lec-gk-1-1', 'lec-gk-1-2', 'lec-gk-2-1'],
-    assignedBy: 'self',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-gk-1-2'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-lr',
-    enrolledAt: '20 July 2025',
-    progressPercentage: 74,
-    completedLectureIds: ['lec-lr-1-1', 'lec-lr-1-2', 'lec-lr-2-1'],
-    assignedBy: 'teacher',
-    assignedByName: 'Ms. Riya Hooda (Logical Reasoning)',
-    assignedNote: 'Critical Reasoning & Puzzle mastery sequence.',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-lr-1-2'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-msi-engclat',
-    enrolledAt: '25 July 2025',
-    progressPercentage: 60,
-    completedLectureIds: ['lec-eng-1-1', 'lec-eng-2-1'],
-    assignedBy: 'teacher',
-    assignedByName: 'Ms. Shikha Singh (English Faculty)',
-    assignedNote: 'RC and Legal Vocabulary journal tracking.',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-eng-1-1'
-  },
-  {
-    studentId: 'msi-stu-001', // Aarav Sharma
-    courseId: 'crs-udemy-pcsj',
-    enrolledAt: '10 August 2025',
-    progressPercentage: 45,
-    completedLectureIds: ['lec-pcsj-1-1'],
-    assignedBy: 'self',
-    certificateIssued: false,
-    lastActiveLectureId: 'lec-pcsj-1-1'
-  },
-  {
     studentId: 'msi-stu-002', // Meera Sen
     courseId: 'crs-msi-legstudies',
     enrolledAt: '20 June 2025',
@@ -1035,6 +511,8 @@ export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [
     lastActiveLectureId: 'lec-leg-2-2'
   }
 ];
+
+
 
 // ----------------------------------------------------------------------------
 // LocalStorage Keys & Synchronization Event (v2 for fresh handbook data)
@@ -1054,13 +532,26 @@ export function notifyLmsStoreChange() {
   }
 }
 
+const BASE_DELETED_COURSE_IDS = [
+  'crs-msi-gkca',
+  'crs-msi-lr',
+  'crs-msi-engclat',
+  'crs-udemy-pcsj',
+  'general-knowledge-current-affairs-clat',
+  'logical-reasoning-for-clat-ailet',
+  'english-language-comprehension-clat',
+  'pcs-j-punjab-judicial-services-foundation'
+];
+
 export function getDeletedCourseIds(): string[] {
-  if (typeof window === 'undefined') return [];
+  const base = [...BASE_DELETED_COURSE_IDS];
+  if (typeof window === 'undefined') return base;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_DELETED_COURSES);
-    return raw ? JSON.parse(raw) : [];
+    const stored: string[] = raw ? JSON.parse(raw) : [];
+    return Array.from(new Set([...base, ...stored]));
   } catch {
-    return [];
+    return base;
   }
 }
 
@@ -1076,13 +567,25 @@ export function markCourseDeletedLocally(courseId: string) {
   } catch (_) {}
 }
 
+const BASE_DELETED_TEACHER_IDS = [
+  'fac-law-shikha',
+  'ss7487320@gmail.com',
+  '9814423004',
+  '+91 98144 23004',
+  'test-dummy',
+  'fac-1792779313911',
+  'deleteme@msi.edu.in'
+];
+
 export function getDeletedTeacherIds(): string[] {
-  if (typeof window === 'undefined') return [];
+  const base = [...BASE_DELETED_TEACHER_IDS];
+  if (typeof window === 'undefined') return base;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_DELETED_TEACHERS);
-    return raw ? JSON.parse(raw) : [];
+    const stored: string[] = raw ? JSON.parse(raw) : [];
+    return Array.from(new Set([...base, ...stored]));
   } catch {
-    return [];
+    return base;
   }
 }
 
@@ -1201,6 +704,9 @@ export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
     const res = await fetch('/api/courses', { cache: 'no-store' });
     const data = await res.json();
     if (data.success && Array.isArray(data.courses)) {
+      if (Array.isArray(data.deletedIds)) {
+        data.deletedIds.forEach((id: string) => markCourseDeletedLocally(id));
+      }
       const deleted = getDeletedCourseIds();
       const isDeleted = (c: UdemyCourse) =>
         deleted.includes(c.id.toLowerCase().trim()) ||
@@ -1303,6 +809,11 @@ export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]>
     const res = await fetch('/api/admin/faculty', { cache: 'no-store' });
     const data = await res.json();
     if (data.success && Array.isArray(data.teachers)) {
+      if (Array.isArray(data.deletedTeachers)) {
+        data.deletedTeachers.forEach((dt: any) => {
+          markTeacherDeletedLocally(dt.id, dt.email, dt.phone);
+        });
+      }
       const deleted = getDeletedTeacherIds();
       const isDeleted = (t: TeacherApprovalRecord) => {
         const tId = (t.id || '').toLowerCase().trim();
@@ -1367,6 +878,24 @@ export function saveStoredEnrollments(enrollments: CourseEnrollment[]) {
   } catch (err) {
     console.error(err);
   }
+}
+
+/**
+ * Synchronize enrollments with server disk
+ */
+export async function syncEnrollmentsFromServer(): Promise<CourseEnrollment[]> {
+  if (typeof window === 'undefined') return getStoredEnrollments();
+  try {
+    const res = await fetch('/api/admin/enrollments', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.enrollments)) {
+      saveStoredEnrollments(data.enrollments);
+      return data.enrollments;
+    }
+  } catch (err) {
+    console.warn('Could not sync enrollments from server:', err);
+  }
+  return getStoredEnrollments();
 }
 
 // ----------------------------------------------------------------------------
@@ -1490,41 +1019,135 @@ export function assignCoursesToTeacherAction(teacherId: string, courseIds: strin
 }
 
 /**
- * Student Self-Enrolls in a Course (from Courses page)
+ * Student Self-Enrolls or is Assigned to a Course (by Super Admin or Faculty)
  */
 export function enrollStudentAction(
-  studentId: string,
-  courseId: string,
-  assignedBy: 'self' | 'super-admin' | 'teacher' = 'self',
-  assignedByName?: string,
-  assignedNote?: string,
-  studentPhone?: string,
-  studentName?: string
+  studentIdOrParams:
+    | string
+    | {
+        studentId?: string;
+        studentPhone?: string;
+        studentName?: string;
+        courseId: string;
+        courseTitle?: string;
+        assignedBy?: 'self' | 'super-admin' | 'teacher';
+        assignedByName?: string;
+        assignedByTeacherId?: string;
+        assignedNote?: string;
+        progressPercentage?: number;
+        completedLectureIds?: string[];
+      },
+  courseIdArg?: string,
+  assignedByArg: 'self' | 'super-admin' | 'teacher' = 'self',
+  assignedByNameArg?: string,
+  assignedNoteArg?: string,
+  studentPhoneArg?: string,
+  studentNameArg?: string,
+  assignedByTeacherIdArg?: string,
+  courseTitleArg?: string
 ): CourseEnrollment {
+  let studentId: string;
+  let courseId: string;
+  let assignedBy: 'self' | 'super-admin' | 'teacher';
+  let assignedByName: string | undefined;
+  let assignedNote: string | undefined;
+  let studentPhone: string | undefined;
+  let studentName: string | undefined;
+  let assignedByTeacherId: string | undefined;
+  let courseTitle: string | undefined;
+
+  if (typeof studentIdOrParams === 'object') {
+    studentPhone = studentIdOrParams.studentPhone;
+    studentName = studentIdOrParams.studentName;
+    studentId =
+      studentIdOrParams.studentId ||
+      (studentPhone ? `msi-stu-${studentPhone.replace(/\D/g, '').slice(-4)}` : 'msi-stu-001');
+    courseId = studentIdOrParams.courseId;
+    assignedBy = studentIdOrParams.assignedBy || 'self';
+    assignedByName = studentIdOrParams.assignedByName;
+    assignedNote = studentIdOrParams.assignedNote;
+    assignedByTeacherId = studentIdOrParams.assignedByTeacherId;
+    courseTitle = studentIdOrParams.courseTitle;
+  } else {
+    studentId = studentIdOrParams;
+    courseId = courseIdArg || '';
+    assignedBy = assignedByArg;
+    assignedByName = assignedByNameArg;
+    assignedNote = assignedNoteArg;
+    studentPhone = studentPhoneArg;
+    studentName = studentNameArg;
+    assignedByTeacherId = assignedByTeacherIdArg;
+    courseTitle = courseTitleArg;
+  }
+
   const enrollments = getStoredEnrollments();
+  const cleanPhone = (studentPhone || '').replace(/\D/g, '').slice(-10);
   const existing = enrollments.find(
-    (e) => (e.studentId === studentId || (studentPhone && e.studentPhone === studentPhone)) && e.courseId === courseId
+    (e) =>
+      (e.studentId === studentId || (cleanPhone && (e.studentPhone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) &&
+      e.courseId === courseId
   );
   if (existing) {
+    if (assignedBy !== 'self' && existing.assignedBy === 'self') {
+      existing.assignedBy = assignedBy;
+      existing.assignedByName = assignedByName;
+      existing.assignedByTeacherId = assignedByTeacherId;
+      existing.assignedNote = assignedNote;
+      if (courseTitle) existing.courseTitle = courseTitle;
+      saveStoredEnrollments(enrollments);
+      try {
+        fetch('/api/admin/enrollments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(existing),
+        }).catch(() => {});
+      } catch (_) {}
+    }
     return existing;
   }
 
   const newEnrollment: CourseEnrollment = {
     studentId,
-    studentPhone,
+    studentPhone: cleanPhone || studentPhone,
     studentName,
     courseId,
-    enrolledAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+    courseTitle,
+    enrolledAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     progressPercentage: 0,
     completedLectureIds: [],
     assignedBy,
     assignedByName,
+    assignedByTeacherId,
     assignedNote,
-    certificateIssued: false
+    certificateIssued: false,
   };
 
   const updated = [...enrollments, newEnrollment];
   saveStoredEnrollments(updated);
+
+  try {
+    fetch('/api/admin/enrollments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newEnrollment),
+    }).catch(() => {});
+  } catch (_) {}
+
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const bc = new BroadcastChannel('msi_sync_channel');
+      bc.postMessage({
+        type: 'STUDENT_ENROLLED',
+        studentId,
+        studentPhone: cleanPhone,
+        courseId,
+        assignedBy,
+        assignedByName,
+      });
+      bc.close();
+    }
+  } catch (_) {}
+
   return newEnrollment;
 }
 
@@ -1809,6 +1432,24 @@ export function deleteCourseAction(courseId: string) {
     (c) => c.id !== courseId && c.id.toLowerCase() !== clean && (!c.slug || c.slug.toLowerCase() !== clean)
   );
   saveStoredCourses(updatedCourses);
+
+  // Also remove enrollments for this course
+  const enrollments = getStoredEnrollments();
+  const updatedEnrollments = enrollments.filter(
+    (e) => e.courseId !== courseId && e.courseId.toLowerCase() !== clean
+  );
+  saveStoredEnrollments(updatedEnrollments);
+
+  // Also unassign from teachers in local store
+  const teachers = getStoredTeachers();
+  const updatedTeachers = teachers.map((t) => ({
+    ...t,
+    assignedCourseIds: (t.assignedCourseIds || []).filter(
+      (cid) => cid !== courseId && cid.toLowerCase() !== clean
+    ),
+  }));
+  saveStoredTeachers(updatedTeachers);
+
   notifyLmsStoreChange();
   return updatedCourses;
 }

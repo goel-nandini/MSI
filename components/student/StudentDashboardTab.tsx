@@ -44,6 +44,7 @@ import {
   getStoredCourses,
   getStoredEnrollments,
   syncCoursesFromServer,
+  syncEnrollmentsFromServer,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import StudentActivityHeatmap from './StudentActivityHeatmap';
@@ -113,6 +114,7 @@ export default function StudentDashboardTab({
   const loadEnrolledUdemy = async () => {
     try {
       await syncCoursesFromServer();
+      await syncEnrollmentsFromServer();
     } catch (_) {}
 
     const allCourses = getStoredCourses();
@@ -507,10 +509,15 @@ export default function StudentDashboardTab({
                       {course.category}
                     </span>
 
-                    {isAssignedByAdmin ? (
+                    {enrollment.assignedBy === 'teacher' ? (
+                      <span className="text-[10px] font-mono font-bold uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full flex items-center space-x-1">
+                        <UserCheck className="w-3 h-3 text-indigo-600" />
+                        <span>Assigned by Faculty: {enrollment.assignedByName || course.instructorName}</span>
+                      </span>
+                    ) : isAssignedByAdmin ? (
                       <span className="text-[10px] font-mono font-bold uppercase text-[#89190E] bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full flex items-center space-x-1">
                         <ShieldCheck className="w-3 h-3 text-[#89190E]" />
-                        <span>Assigned by Super Admin</span>
+                        <span>Assigned by Super Admin Directorate</span>
                       </span>
                     ) : (
                       <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center space-x-1">

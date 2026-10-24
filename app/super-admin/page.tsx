@@ -73,12 +73,15 @@ import {
   getStoredTeachers,
   saveStoredTeachers,
   getStoredEnrollments,
+  syncEnrollmentsFromServer,
+  enrollStudentAction,
   approveTeacherAction,
   rejectTeacherAction,
   assignCoursesToTeacherAction,
   assignCourseToFacultyAction,
   findTeacherByIdOrName,
   markCourseDeletedLocally,
+  markTeacherDeletedLocally,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
@@ -164,6 +167,12 @@ export default function SuperAdminMasterDashboard() {
   const toggleStudentPasswordVisibility = (phone: string) => {
     setShowStudentPasswords((prev) => ({ ...prev, [phone]: !prev[phone] }));
   };
+
+  // 3b. Assign Course Directly to Student Modal State
+  const [selectedStudentForCourseAssign, setSelectedStudentForCourseAssign] = useState<RegisteredStudent | null>(null);
+  const [assignCourseTargetCourseId, setAssignCourseTargetCourseId] = useState('');
+  const [assignCourseNote, setAssignCourseNote] = useState('Authorized by MSI Super Admin Directorate');
+  const [isSubmittingCourseAssign, setIsSubmittingCourseAssign] = useState(false);
 
   // 4. Add Lead Modal (Dispatches directly to Reception)
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
@@ -640,6 +649,11 @@ export default function SuperAdminMasterDashboard() {
       const res = await fetch(`/api/admin/students?phone=${phoneParam}&id=${idParam}`, {
         method: 'DELETE',
       });
+      // Cascade delete enrollments
+      fetch(`/api/admin/enrollments?studentPhone=${phoneParam}&studentId=${idParam}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+
       const data = await res.json();
       if (data.success) {
         showToast(`Student account (${studentToDelete.name}) permanently removed from disk.`);
@@ -679,6 +693,83 @@ export default function SuperAdminMasterDashboard() {
       }
     } catch (err) {
       showToast('Network error while deleting student.');
+    }
+  };
+
+  // 2b. Direct Course Assignment to Student
+  const handleAssignCourseToStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudentForCourseAssign || !assignCourseTargetCourseId) {
+      showToast('Please select a course program.');
+      return;
+    }
+
+    const targetCourse = courses.find((c) => c.id === assignCourseTargetCourseId);
+    if (!targetCourse) {
+      showToast('Course not found.');
+      return;
+    }
+
+    setIsSubmittingCourseAssign(true);
+    try {
+      // 1. Record enrollment locally
+      enrollStudentAction(
+        selectedStudentForCourseAssign.id,
+        targetCourse.id,
+        'super-admin',
+        'MSI Super Admin',
+        assignCourseNote.trim() || 'Direct Admission Authorization',
+        selectedStudentForCourseAssign.phone,
+        selectedStudentForCourseAssign.name,
+        undefined,
+        targetCourse.title
+      );
+
+      // 2. Persist to disk via /api/admin/enrollments
+      await fetch('/api/admin/enrollments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: selectedStudentForCourseAssign.id,
+          studentPhone: selectedStudentForCourseAssign.phone,
+          studentName: selectedStudentForCourseAssign.name,
+          courseId: targetCourse.id,
+          courseTitle: targetCourse.title,
+          assignedBy: 'super-admin',
+          assignedByName: 'MSI Super Admin',
+          assignedNote: assignCourseNote.trim() || 'Direct Admission Authorization',
+        }),
+      });
+
+      // 3. Broadcast to all open client sessions
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('msi_sync_channel');
+        bc.postMessage({
+          type: 'STUDENT_ENROLLED',
+          studentId: selectedStudentForCourseAssign.id,
+          studentPhone: selectedStudentForCourseAssign.phone,
+          courseId: targetCourse.id,
+          assignedBy: 'super-admin',
+          assignedByName: 'MSI Super Admin',
+        });
+        bc.close();
+      }
+
+      window.dispatchEvent(new Event('msi_courses_sync'));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event(LMS_SYNC_EVENT));
+
+      showToast(
+        `Course "${targetCourse.title}" successfully assigned to ${selectedStudentForCourseAssign.name}! Immediately visible on their student dashboard.`
+      );
+      setSelectedStudentForCourseAssign(null);
+      setAssignCourseTargetCourseId('');
+      setAssignCourseNote('Authorized by MSI Super Admin Directorate');
+    } catch (err) {
+      console.error(err);
+      showToast('Error assigning course to student.');
+    } finally {
+      setIsSubmittingCourseAssign(false);
     }
   };
 
@@ -874,9 +965,39 @@ export default function SuperAdminMasterDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`Receptionist ${receptionistToDelete.name} removed from system.`);
+        showToast(`Receptionist ${receptionistToDelete.name} removed permanently from system.`);
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({
+            type: 'RECEPTIONIST_DELETED',
+            receptionistId: receptionistToDelete.id,
+            receptionistPhone: receptionistToDelete.phone,
+            receptionistEmail: receptionistToDelete.email,
+            receptionistName: receptionistToDelete.name,
+          });
+          bc.close();
+        }
+
+        // Revoke active session if currently active receptionist is the one deleted
+        if (typeof window !== 'undefined') {
+          const activePhone = (localStorage.getItem('msi_active_staff_phone') || '').replace(/\D/g, '').slice(-10);
+          const targetPhone = (receptionistToDelete.phone || '').replace(/\D/g, '').slice(-10);
+          const activeId = localStorage.getItem('msi_active_staff_id');
+          if ((activePhone && activePhone === targetPhone) || (activeId && activeId === receptionistToDelete.id)) {
+            localStorage.removeItem('msi_reception_logged_in');
+            localStorage.removeItem('msi_active_staff_id');
+            localStorage.removeItem('msi_active_staff_name');
+            localStorage.removeItem('msi_active_staff_phone');
+            localStorage.removeItem('msi_active_staff_email');
+          }
+        }
+
         setReceptionistToDelete(null);
         fetchReceptionists();
+        try {
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
       } else {
         showToast(data.message || 'Could not delete receptionist.');
       }
@@ -1120,13 +1241,19 @@ export default function SuperAdminMasterDashboard() {
     if (!teacherToDelete) return;
     setIsDeletingTeacher(true);
     try {
-      const res = await fetch(`/api/admin/faculty?id=${encodeURIComponent(teacherToDelete.id)}`, {
+      const idParam = encodeURIComponent(teacherToDelete.id || '');
+      const emailParam = encodeURIComponent(teacherToDelete.email || '');
+      const phoneParam = encodeURIComponent(teacherToDelete.phone || '');
+      const res = await fetch(`/api/admin/faculty?id=${idParam}&email=${emailParam}&phone=${phoneParam}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
+        markTeacherDeletedLocally(teacherToDelete.id, teacherToDelete.email, teacherToDelete.phone);
         const remaining = deleteTeacherAction(teacherToDelete.id, teacherToDelete.email, teacherToDelete.phone);
-        setTeachers(remaining);
+        const finalList = data.teachers || remaining;
+        setTeachers(finalList);
+        saveStoredTeachers(finalList);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
@@ -1438,6 +1565,11 @@ export default function SuperAdminMasterDashboard() {
       const res = await fetch(`/api/courses?id=${encodeURIComponent(courseToDelete.id)}`, {
         method: 'DELETE',
       });
+      // Also cleanup enrollments for this course
+      fetch(`/api/admin/enrollments?courseId=${encodeURIComponent(courseToDelete.id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+
       const data = await res.json();
       if (data.success) {
         markCourseDeletedLocally(courseToDelete.id);
@@ -2610,6 +2742,16 @@ export default function SuperAdminMasterDashboard() {
                             </td>
                             <td className="py-3.5 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedStudentForCourseAssign(stu);
+                                    setAssignCourseTargetCourseId(courses[0]?.id || '');
+                                  }}
+                                  className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 transition-colors cursor-pointer"
+                                  title="Assign Course Directly to Student"
+                                >
+                                  <BookOpen className="w-3.5 h-3.5" />
+                                </button>
                                 <button
                                   onClick={() => setSelectedStudentForView(stu)}
                                   className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#89190E] hover:text-white text-gray-600 transition-colors cursor-pointer"
@@ -4088,14 +4230,121 @@ export default function SuperAdminMasterDashboard() {
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end">
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const stu = selectedStudentForView;
+                  setSelectedStudentForView(null);
+                  setSelectedStudentForCourseAssign(stu);
+                  setAssignCourseTargetCourseId(courses[0]?.id || '');
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>+ Assign Course</span>
+              </button>
               <button
                 onClick={() => setSelectedStudentForView(null)}
-                className="px-5 py-2 rounded-xl bg-[#10233F] text-white font-bold text-xs"
+                className="px-5 py-2 rounded-xl bg-[#10233F] text-white font-bold text-xs cursor-pointer"
               >
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2b. Assign Course Directly to Student Modal */}
+      {selectedStudentForCourseAssign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+            <button
+              onClick={() => setSelectedStudentForCourseAssign(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Assign Course Directly to Student
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Direct Super Admin clearance. Course appears immediately on student&apos;s dashboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] mb-4 text-xs">
+              <span className="text-gray-500 block">Assigning to:</span>
+              <strong className="text-sm text-[#10233F] block font-serif">
+                {selectedStudentForCourseAssign.name} (+91 {selectedStudentForCourseAssign.phone})
+              </strong>
+              <span className="text-[11px] text-[#89190E] font-medium block mt-0.5">
+                Current Batch: {selectedStudentForCourseAssign.stream}
+              </span>
+            </div>
+
+            <form onSubmit={handleAssignCourseToStudent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Select Course Program *
+                </label>
+                <select
+                  required
+                  value={assignCourseTargetCourseId}
+                  onChange={(e) => setAssignCourseTargetCourseId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                >
+                  <option value="">-- Choose a course program --</option>
+                  {courses.map((crs) => (
+                    <option key={crs.id} value={crs.id}>
+                      {crs.title} ({crs.category} • {crs.instructorName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Directive / Dean Note (Visible on Student Dashboard)
+                </label>
+                <input
+                  type="text"
+                  value={assignCourseNote}
+                  onChange={(e) => setAssignCourseNote(e.target.value)}
+                  placeholder="e.g. Authorized by Super Admin Directorate for Academic Session 2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudentForCourseAssign(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCourseAssign || !assignCourseTargetCourseId}
+                  className="flex-1 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                >
+                  {isSubmittingCourseAssign ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Confirm Course Assignment</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

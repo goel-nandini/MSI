@@ -14,6 +14,7 @@ import {
   Visitor,
   ReceptionStaff,
 } from '@/components/reception/data/receptionMockData';
+import { AlertTriangle, LogOut } from 'lucide-react';
 
 export default function ReceptionDashboardPage() {
   const router = useRouter();
@@ -25,6 +26,64 @@ export default function ReceptionDashboardPage() {
 
   // Visitors dynamic repository
   const [visitors, setVisitors] = useState<Visitor[]>(INITIAL_VISITORS);
+  const [isAccessRevoked, setIsAccessRevoked] = useState(false);
+  const [revocationCountdown, setRevocationCountdown] = useState(4);
+
+  const triggerInstantRevocation = () => {
+    setIsAccessRevoked(true);
+    try {
+      localStorage.removeItem('msi_reception_logged_in');
+      localStorage.removeItem('msi_active_staff_id');
+      localStorage.removeItem('msi_active_staff_name');
+      localStorage.removeItem('msi_active_staff_phone');
+      localStorage.removeItem('msi_active_staff_email');
+      localStorage.removeItem('msi_reception_user');
+    } catch (_) {}
+  };
+
+  const checkRevocation = async (payload?: { id?: string; phone?: string; username?: string }) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedId = (localStorage.getItem('msi_active_staff_id') || '').toLowerCase().trim();
+      const storedPhone = (localStorage.getItem('msi_active_staff_phone') || '').replace(/\D/g, '').slice(-10);
+      const storedEmail = (localStorage.getItem('msi_active_staff_email') || '').toLowerCase().trim();
+
+      if (payload) {
+        const pId = (payload.id || '').toLowerCase().trim();
+        const pPhone = (payload.phone || '').replace(/\D/g, '').slice(-10);
+        const pUser = (payload.username || '').toLowerCase().trim();
+
+        if (
+          (pId && (pId === storedId || pId === currentStaff.id?.toLowerCase())) ||
+          (pPhone && (pPhone === storedPhone || pPhone === (currentStaff.phone || '').replace(/\D/g, '').slice(-10))) ||
+          (pUser && (pUser === storedEmail || pUser === (currentStaff.email || '').toLowerCase()))
+        ) {
+          triggerInstantRevocation();
+          return;
+        }
+      }
+
+      const res = await fetch('/api/admin/receptionists', { cache: 'no-store' });
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list)) {
+          const exists = list.some((r: any) => {
+            const rId = (r.id || '').toLowerCase().trim();
+            const rPhone = (r.phone || '').replace(/\D/g, '').slice(-10);
+            const rEmail = (r.email || r.username || '').toLowerCase().trim();
+            return (
+              (storedId && rId === storedId) ||
+              (storedPhone && rPhone === storedPhone) ||
+              (storedEmail && rEmail === storedEmail)
+            );
+          });
+          if (!exists && (storedId || storedPhone || storedEmail)) {
+            triggerInstantRevocation();
+          }
+        }
+      }
+    } catch (_) {}
+  };
 
   // Check auth and load persisted visitor logs on mount
   useEffect(() => {
@@ -63,10 +122,49 @@ export default function ReceptionDashboardPage() {
           setVisitors(parsed);
         }
       }
+
+      checkRevocation();
     } catch (err) {
       console.warn('Could not read from localStorage:', err);
     }
   }, [router]);
+
+  // Real-time broadcast channel & heartbeat sync for receptionist deletion
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'RECEPTIONIST_DELETED') {
+            checkRevocation(event.data);
+          }
+        };
+      }
+    } catch (_) {}
+
+    const interval = setInterval(() => {
+      checkRevocation();
+    }, 3000);
+
+    return () => {
+      if (bc) bc.close();
+      clearInterval(interval);
+    };
+  }, [currentStaff]);
+
+  // Automatic logout redirect countdown on revocation
+  useEffect(() => {
+    if (!isAccessRevoked) return;
+    if (revocationCountdown <= 0) {
+      router.push('/reception/login');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRevocationCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [isAccessRevoked, revocationCountdown, router]);
 
   // Save visitors to localStorage on change
   const saveVisitors = (updated: Visitor[]) => {
@@ -185,6 +283,36 @@ export default function ReceptionDashboardPage() {
           )}
         </main>
       </div>
+
+      {/* Immediate Session Revocation Modal on Receptionist Deletion */}
+      {isAccessRevoked && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-red-500 text-center relative overflow-hidden">
+            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-200">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-[10px] font-extrabold uppercase tracking-wider rounded-full mb-3">
+              Access Revoked by Administration
+            </span>
+            <h3 className="font-serif text-xl font-bold text-[#10233F] mb-2">
+              Reception Staff Access Terminated
+            </h3>
+            <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+              Aapka reception staff account MSI Administration dwaara permanently remove / terminate kar diya gaya hai. Portal session band kar diya gaya hai.
+            </p>
+            <div className="bg-red-50 rounded-2xl p-3 border border-red-100 text-xs text-red-700 font-medium mb-5">
+              Redirecting to Reception Login in <strong className="font-mono text-sm">{revocationCountdown}s</strong>...
+            </div>
+            <button
+              onClick={() => router.push('/reception/login')}
+              className="w-full py-3 rounded-xl bg-[#89190E] hover:bg-[#68130B] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Return to Reception Login</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "enr-init-01",
+    "studentId": "msi-stu-3210",
+    "studentPhone": "9876543210",
+    "studentName": "Priya Verma",
+    "courseId": "crs-msi-legstudies",
+    "courseTitle": "Legal Reasoning for CLAT: Foundational Principles & Passage-Based Deduction (MSI/LEGSTUDIES-/01)",
+    "enrolledAt": "18 Oct 2026",
+    "progressPercentage": 42,
+    "completedLectureIds": [
+      "lec-leg-1-1"
+    ],
+    "assignedBy": "super-admin",
+    "assignedByName": "MSI Super Admin",
+    "assignedNote": "Direct Admissions Merit Clearance",
+    "certificateIssued": false
+  },
+  {
+    "id": "enr-init-02",
+    "studentId": "msi-stu-1234",
+    "studentPhone": "9876501234",
+    "studentName": "Rohit Malhotra",
+    "courseId": "crs-msi-775270",
+    "courseTitle": "Supreme Court Constitutional Doctrines & Case Law 2026",
+    "enrolledAt": "23 Oct 2026",
+    "progressPercentage": 15,
+    "completedLectureIds": [
+      "lec-1792755775270-1"
+    ],
+    "assignedBy": "teacher",
+    "assignedByName": "Dr. Ekta Gahlawat",
+    "assignedByTeacherId": "fac-law-ekta",
+    "assignedNote": "Judiciary Cohort Masterclass batch assignment",
+    "certificateIssued": false
+  }
+]

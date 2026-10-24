@@ -96,7 +96,7 @@ export default function CoursesPage() {
   const [selectedBatchCategory, setSelectedBatchCategory] = useState<'all' | 'entrance' | 'judiciary' | 'academics'>('all');
 
   // Udemy LMS State
-  const [udemyCourses, setUdemyCourses] = useState<UdemyCourse[]>([]);
+  const [udemyCourses, setUdemyCourses] = useState<UdemyCourse[]>(() => getStoredCourses());
   const [selectedUdemyCategory, setSelectedUdemyCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeUdemyModalCourse, setActiveUdemyModalCourse] = useState<UdemyCourse | null>(null);

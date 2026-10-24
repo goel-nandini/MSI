@@ -102,6 +102,19 @@ export function writeCoursesToDisk(courses: UdemyCourse[]): void {
  * Adds a new course to the top of data/courses.json.
  */
 export function addCourseToDisk(newCourse: UdemyCourse): UdemyCourse[] {
+  // If this course or its slug was previously deleted, unmark it
+  try {
+    const deleted = readDeletedCourseIds();
+    const cleanId = newCourse.id.toLowerCase().trim();
+    const cleanSlug = (newCourse.slug || '').toLowerCase().trim();
+    const filteredDeleted = deleted.filter((d) => d !== cleanId && d !== cleanSlug);
+    if (filteredDeleted.length !== deleted.length) {
+      fs.writeFileSync(DELETED_COURSES_FILE, JSON.stringify(filteredDeleted, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[CourseStore] Error unmarking deleted course:', err);
+  }
+
   const current = readCoursesFromDisk();
   // Check if existing
   const existingIdx = current.findIndex(
@@ -123,6 +136,7 @@ export function addCourseToDisk(newCourse: UdemyCourse): UdemyCourse[] {
 
 /**
  * Permanently deletes a course from data/courses.json and adds to deleted registry.
+ * Also cascades deletion to remove course from all faculty assignments and student enrollments.
  */
 export function deleteCourseFromDisk(id: string): UdemyCourse[] {
   const clean = id.trim().toLowerCase();
@@ -149,5 +163,59 @@ export function deleteCourseFromDisk(id: string): UdemyCourse[] {
   );
 
   writeCoursesToDisk(updated);
+
+  // 1. Cascade cleanup in teachers.json (remove deleted courseId from assignedCourseIds)
+  try {
+    const TEACHERS_FILE = path.join(DATA_DIR, 'teachers.json');
+    if (fs.existsSync(TEACHERS_FILE)) {
+      const raw = fs.readFileSync(TEACHERS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const teachers = JSON.parse(raw);
+        if (Array.isArray(teachers)) {
+          const updatedTeachers = teachers.map((t: any) => {
+            if (Array.isArray(t.assignedCourseIds)) {
+              return {
+                ...t,
+                assignedCourseIds: t.assignedCourseIds.filter(
+                  (cid: string) =>
+                    cid !== id &&
+                    cid.toLowerCase() !== clean &&
+                    (!toDelete?.slug || cid.toLowerCase() !== toDelete.slug.toLowerCase())
+                ),
+              };
+            }
+            return t;
+          });
+          fs.writeFileSync(TEACHERS_FILE, JSON.stringify(updatedTeachers, null, 2), 'utf-8');
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[CourseStore] Error cascading course deletion to teachers:', err);
+  }
+
+  // 2. Cascade cleanup in enrollments.json (remove all enrollments for this course)
+  try {
+    const ENROLLMENTS_FILE = path.join(DATA_DIR, 'enrollments.json');
+    if (fs.existsSync(ENROLLMENTS_FILE)) {
+      const raw = fs.readFileSync(ENROLLMENTS_FILE, 'utf-8');
+      if (raw && raw.trim()) {
+        const enrollments = JSON.parse(raw);
+        if (Array.isArray(enrollments)) {
+          const updatedEnrollments = enrollments.filter(
+            (e: any) =>
+              e.courseId !== id &&
+              e.courseId.toLowerCase() !== clean &&
+              (!toDelete?.slug || e.courseId.toLowerCase() !== toDelete.slug.toLowerCase())
+          );
+          fs.writeFileSync(ENROLLMENTS_FILE, JSON.stringify(updatedEnrollments, null, 2), 'utf-8');
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[CourseStore] Error cascading course deletion to enrollments:', err);
+  }
+
   return updated;
 }
+

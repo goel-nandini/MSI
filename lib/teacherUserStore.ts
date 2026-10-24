@@ -423,17 +423,27 @@ export function addOrUpdateTeacherOnDisk(
 /**
  * Permanently delete teacher from disk and register in deleted registry
  */
-export function deleteTeacherFromDisk(id: string): { success: boolean; remainingTeachers: TeacherApprovalRecord[]; deletedCount: number } {
+export function deleteTeacherFromDisk(
+  id: string,
+  email?: string,
+  phone?: string
+): { success: boolean; remainingTeachers: TeacherApprovalRecord[]; deletedCount: number } {
   const teachers = readTeachersFromDisk();
   const cleanId = id.trim().toLowerCase();
-  const cleanPhone = id.replace(/\D/g, '').slice(-10);
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanPhone = (phone || id).replace(/\D/g, '').slice(-10);
 
   // Find target teacher before filtering to capture all identifiers
   const target = teachers.find((t) => {
     const tId = (t.id || '').trim().toLowerCase();
     const tEmail = (t.email || '').trim().toLowerCase();
     const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
-    return tId === cleanId || tEmail === cleanId || (cleanPhone.length >= 10 && tPhone === cleanPhone);
+    return (
+      (cleanId && tId === cleanId) ||
+      (cleanEmail && tEmail === cleanEmail) ||
+      (cleanId.includes('@') && tEmail === cleanId) ||
+      (cleanPhone.length >= 10 && tPhone === cleanPhone)
+    );
   });
 
   if (target) {
@@ -444,14 +454,23 @@ export function deleteTeacherFromDisk(id: string): { success: boolean; remaining
       name: target.name,
     });
   } else {
-    markTeacherDeletedOnDisk({ id });
+    markTeacherDeletedOnDisk({
+      id: cleanId,
+      email: cleanEmail || (cleanId.includes('@') ? cleanId : undefined),
+      phone: cleanPhone.length >= 10 ? cleanPhone : undefined,
+    });
   }
 
   const filtered = teachers.filter((t) => {
     const tId = (t.id || '').trim().toLowerCase();
     const tEmail = (t.email || '').trim().toLowerCase();
     const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
-    return tId !== cleanId && tEmail !== cleanId && (cleanPhone.length < 10 || tPhone !== cleanPhone);
+    const matchId = cleanId && tId === cleanId;
+    const matchEmail =
+      (cleanEmail && tEmail === cleanEmail) ||
+      (cleanId.includes('@') && tEmail === cleanId);
+    const matchPhone = cleanPhone.length >= 10 && tPhone === cleanPhone;
+    return !matchId && !matchEmail && !matchPhone;
   });
 
   const deletedCount = teachers.length - filtered.length;

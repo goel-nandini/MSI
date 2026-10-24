@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   UserCheck,
@@ -14,23 +14,72 @@ import {
   Award,
   ChevronRight,
   ShieldCheck,
+  BookOpen,
+  UserPlus,
+  Sparkles,
 } from 'lucide-react';
 import { StudentMonitoringRecord, TeacherCourse } from './data/teacherMockData';
+import { UdemyCourse, CourseEnrollment, getStoredEnrollments, LMS_SYNC_EVENT } from '@/lib/lmsStore';
 
 interface TeacherMonitoringTabProps {
   students: StudentMonitoringRecord[];
   courses: TeacherCourse[];
+  lmsCourses?: UdemyCourse[];
   stream: 'Law' | 'JEE';
+  registeredStudents?: { id: string; name: string; phone: string; stream: string }[];
+  onOpenEnrollModal?: (course?: UdemyCourse) => void;
+  activeTeacherName?: string;
+  activeTeacherId?: string;
 }
 
 export default function TeacherMonitoringTab({
   students,
   courses,
+  lmsCourses = [],
   stream,
+  registeredStudents = [],
+  onOpenEnrollModal,
+  activeTeacherName = 'Dr. Ekta Gahlawat',
+  activeTeacherId = 'fac-law-ekta',
 }: TeacherMonitoringTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState<'All' | 'Safe' | 'Attention' | 'Critical'>('All');
   const [selectedStudent, setSelectedStudent] = useState<StudentMonitoringRecord | null>(null);
+
+  // Real-time enrollments for this faculty
+  const [facultyEnrollments, setFacultyEnrollments] = useState<CourseEnrollment[]>([]);
+
+  const loadFacultyEnrollments = () => {
+    try {
+      const all = getStoredEnrollments();
+      const myCourseIds = lmsCourses.map((c) => c.id);
+      const cleanTeacherName = activeTeacherName.toLowerCase().trim();
+      const cleanTeacherId = activeTeacherId.toLowerCase().trim();
+
+      const matched = all.filter((e) => {
+        // Enrolled in one of this faculty's courses
+        if (myCourseIds.includes(e.courseId)) return true;
+        // Or explicitly assigned by this teacher
+        if (e.assignedByTeacherId && e.assignedByTeacherId.toLowerCase().trim() === cleanTeacherId) return true;
+        if (e.assignedByName && e.assignedByName.toLowerCase().includes(cleanTeacherName)) return true;
+        return false;
+      });
+      setFacultyEnrollments(matched);
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    loadFacultyEnrollments();
+    const handleSync = () => loadFacultyEnrollments();
+    window.addEventListener(LMS_SYNC_EVENT, handleSync);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('msi_courses_sync', handleSync);
+    return () => {
+      window.removeEventListener(LMS_SYNC_EVENT, handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('msi_courses_sync', handleSync);
+    };
+  }, [lmsCourses, activeTeacherId, activeTeacherName]);
 
   const filteredStudents = students.filter((s) => {
     if (riskFilter !== 'All' && s.riskLevel !== riskFilter) return false;
@@ -53,18 +102,33 @@ export default function TeacherMonitoringTab({
             <div className="flex items-center space-x-2">
               <Activity className="w-4 h-4 text-[#EFC988]" />
               <span className="text-[10px] sm:text-xs font-mono tracking-widest text-[#EFC988] uppercase font-bold">
-                Student Progress, Attendance & Risk Diagnostic Cell
+                Student Progress & Faculty Batch Enrollment
               </span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1.5">
               Academic Cohort Monitoring • {stream} Stream
             </h2>
             <p className="text-white/80 text-xs sm:text-sm mt-2 leading-relaxed">
-              Real-time monitoring of lecture attendance, internal test marks, and regulatory Bar Council compliance across enrolled students.
+              Enroll verified students into your courses, monitor classroom attendance, and track regulatory Bar Council compliance in real time.
             </p>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => onOpenEnrollModal?.()}
+                className="px-5 py-2.5 rounded-xl bg-[#EFC988] hover:bg-[#ffe2aa] text-[#10233F] text-xs font-bold flex items-center space-x-2 shadow-md active:scale-98 transition-all cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4 text-[#89190E]" />
+                <span>+ Enroll Student in My Course</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="p-3.5 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-center min-w-[100px]">
+              <span className="text-[10px] font-mono uppercase text-indigo-200 block">Enrolled</span>
+              <span className="font-serif text-2xl font-bold text-white mt-0.5 block">{facultyEnrollments.length}</span>
+            </div>
             <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-center min-w-[100px]">
               <span className="text-[10px] font-mono uppercase text-emerald-200 block">Safe ({'>'}75%)</span>
               <span className="font-serif text-2xl font-bold text-white mt-0.5 block">{safeCount}</span>
@@ -73,15 +137,111 @@ export default function TeacherMonitoringTab({
               <span className="text-[10px] font-mono uppercase text-amber-200 block">Borderline</span>
               <span className="font-serif text-2xl font-bold text-white mt-0.5 block">{attentionCount}</span>
             </div>
-            <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-400/30 text-center min-w-[100px]">
-              <span className="text-[10px] font-mono uppercase text-rose-200 block">Critical</span>
-              <span className="font-serif text-2xl font-bold text-white mt-0.5 block">{criticalCount}</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Search & Filter Bar */}
+      {/* 2. REAL ENROLLED STUDENTS TABLE (Assigned by Faculty / Super Admin) */}
+      <div className="p-6 sm:p-7 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#E8DCCB]">
+          <div className="flex items-center space-x-2.5">
+            <BookOpen className="w-5 h-5 text-[#89190E]" />
+            <div>
+              <h3 className="font-serif text-base sm:text-lg font-bold text-[#10233F]">
+                Students Enrolled in My Courses ({facultyEnrollments.length})
+              </h3>
+              <p className="text-xs text-[#526174]">
+                Students actively enrolled in your curriculum courses. They see your course on their student dashboard.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onOpenEnrollModal?.()}
+            className="px-4 py-2 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+          >
+            <UserPlus className="w-4 h-4 text-[#EFC988]" />
+            <span>+ Enroll Student</span>
+          </button>
+        </div>
+
+        {facultyEnrollments.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#526174] bg-[#FFF9EF]/40 rounded-2xl border border-[#E8DCCB] mt-4">
+            <UserCheck className="w-8 h-8 text-[#89190E]/60 mx-auto mb-2" />
+            <p className="font-bold text-[#10233F]">No students enrolled yet in your courses.</p>
+            <p className="mt-1">Click &quot;+ Enroll Student in My Course&quot; above to assign any registered student to your batch.</p>
+          </div>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#FFF9EF] text-[#10233F] border-b border-[#E8DCCB]">
+                <tr>
+                  <th className="p-3 font-serif font-bold">Student Name</th>
+                  <th className="p-3 font-serif font-bold">Mobile Number</th>
+                  <th className="p-3 font-serif font-bold">Enrolled Course</th>
+                  <th className="p-3 font-serif font-bold">Enrolled At</th>
+                  <th className="p-3 font-serif font-bold">Assignment Source</th>
+                  <th className="p-3 font-serif font-bold text-right">Progress</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E8DCCB]/60">
+                {facultyEnrollments.map((enr) => {
+                  const courseObj = lmsCourses.find((c) => c.id === enr.courseId);
+                  const isAssignedByMe =
+                    (enr.assignedByTeacherId && enr.assignedByTeacherId.toLowerCase() === activeTeacherId.toLowerCase()) ||
+                    (enr.assignedByName && enr.assignedByName.toLowerCase().includes(activeTeacherName.toLowerCase()));
+
+                  return (
+                    <tr key={`${enr.studentId}-${enr.courseId}`} className="hover:bg-[#FFF9EF]/30 transition-colors">
+                      <td className="p-3 font-bold text-[#10233F]">
+                        {enr.studentName || `Student ${enr.studentId.slice(-4)}`}
+                      </td>
+                      <td className="p-3 font-mono text-gray-600">
+                        +91 {enr.studentPhone || '—'}
+                      </td>
+                      <td className="p-3">
+                        <span className="font-semibold text-[#89190E] block line-clamp-1">
+                          {courseObj?.title || enr.courseTitle || enr.courseId}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          ID: {enr.courseId}
+                        </span>
+                      </td>
+                      <td className="p-3 text-gray-500">{enr.enrolledAt}</td>
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            isAssignedByMe
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                              : enr.assignedBy === 'super-admin'
+                              ? 'bg-rose-50 text-[#89190E] border border-rose-200'
+                              : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          }`}
+                        >
+                          <UserCheck className="w-3 h-3" />
+                          <span>
+                            {isAssignedByMe
+                              ? `Assigned by You (${activeTeacherName})`
+                              : enr.assignedBy === 'super-admin'
+                              ? 'Super Admin Assignment'
+                              : 'Self Enrolled'}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="p-3 text-right font-mono font-bold text-[#89190E]">
+                        {enr.progressPercentage}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Search & Filter Bar */}
       <div className="p-5 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-[#526174] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -112,11 +272,11 @@ export default function TeacherMonitoringTab({
         </div>
       </div>
 
-      {/* 3. Student Roster Table */}
+      {/* 4. Student Roster Table */}
       <div className="p-6 sm:p-7 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#E8DCCB]">
           <h3 className="font-serif text-base sm:text-lg font-bold text-[#10233F]">
-            Enrolled Student Performance Ledger ({filteredStudents.length})
+            Batch Performance Ledger ({filteredStudents.length})
           </h3>
           <span className="text-xs text-[#526174]">
             Enforcing stream isolation: {stream} students only
@@ -187,7 +347,7 @@ export default function TeacherMonitoringTab({
         </div>
       </div>
 
-      {/* 4. Student History Drawer Modal */}
+      {/* 5. Student History Drawer Modal */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#10233F]/75 backdrop-blur-md animate-fadeIn">
           <div className="relative w-full max-w-lg bg-white border border-[#E8DCCB] rounded-3xl p-6 shadow-2xl space-y-4">

@@ -15,6 +15,7 @@ import ScheduleClassModal from '@/components/teacher/ScheduleClassModal';
 import MarkAttendanceModal from '@/components/teacher/MarkAttendanceModal';
 import ScheduleOneToOneModal from '@/components/teacher/ScheduleOneToOneModal';
 import TeacherLectureModal from '@/components/teacher/TeacherLectureModal';
+import EnrollStudentModal from '@/components/teacher/EnrollStudentModal';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import {
   getStoredCourses,
@@ -24,6 +25,7 @@ import {
   buildTeacherProfileFromRecord,
   UdemyCourse,
   LMS_SYNC_EVENT,
+  enrollStudentAction,
 } from '@/lib/lmsStore';
 import {
   TEACHER_PROFILES,
@@ -68,6 +70,9 @@ export default function TeacherDashboardPage() {
   const [isScheduleClassOpen, setIsScheduleClassOpen] = useState(false);
   const [activeAttendanceSession, setActiveAttendanceSession] = useState<TeacherClassSchedule | null>(null);
   const [isScheduleOneToOneOpen, setIsScheduleOneToOneOpen] = useState(false);
+  const [isEnrollStudentOpen, setIsEnrollStudentOpen] = useState(false);
+  const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState<UdemyCourse | null>(null);
+  const [registeredStudents, setRegisteredStudents] = useState<{ id: string; name: string; phone: string; stream: string }[]>([]);
   const [isAccessRevoked, setIsAccessRevoked] = useState(false);
 
   // Synchronize LMS Courses assigned to this teacher from central store
@@ -185,14 +190,39 @@ export default function TeacherDashboardPage() {
   useEffect(() => {
     const initTeacher = async () => {
       if (typeof window !== 'undefined') {
-        try {
-          await syncTeachersFromServer();
-        } catch (_) {}
-
+        const storedLoggedIn = localStorage.getItem('msi_teacher_logged_in') === 'true';
         const storedEmail = (localStorage.getItem('msi_active_teacher_email') || '').toLowerCase().trim();
         const storedName = (localStorage.getItem('msi_active_teacher_name') || '').trim();
         const storedPhone = (localStorage.getItem('msi_active_teacher_phone') || '').replace(/\D/g, '');
         const storedId = localStorage.getItem('msi_active_teacher_id') || '';
+
+        // If not logged in and no teacher credentials, redirect to login
+        if (!storedLoggedIn && !storedEmail && !storedName && !storedId) {
+          router.push('/teacher/login');
+          return;
+        }
+
+        try {
+          await syncTeachersFromServer();
+        } catch (_) {}
+
+        // Load all registered students for faculty course enrollment
+        try {
+          const res = await fetch('/api/admin/students');
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setRegisteredStudents(
+                data.map((s: any) => ({
+                  id: s.id || s.rollNo || s.phone,
+                  name: s.name,
+                  phone: s.phone,
+                  stream: s.stream || 'Law',
+                }))
+              );
+            }
+          }
+        } catch (_) {}
 
         // First check stored teachers (includes newly created faculty from Super Admin / disk)
         const storedRecs = getStoredTeachers();
@@ -405,6 +435,10 @@ export default function TeacherDashboardPage() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               onLaunchAttendance={(session) => setActiveAttendanceSession(session)}
               onOpenLectureModal={(crs) => setSelectedCourseForLectures(crs)}
+              onOpenEnrollModal={(crs) => {
+                setSelectedCourseForEnroll(crs || null);
+                setIsEnrollStudentOpen(true);
+              }}
             />
           )}
 
@@ -432,7 +466,15 @@ export default function TeacherDashboardPage() {
             <TeacherMonitoringTab
               students={filteredStudents}
               courses={filteredCourses}
+              lmsCourses={lmsCourses}
               stream={activeTeacher.stream}
+              registeredStudents={registeredStudents}
+              onOpenEnrollModal={(crs) => {
+                setSelectedCourseForEnroll(crs || null);
+                setIsEnrollStudentOpen(true);
+              }}
+              activeTeacherName={activeTeacher.name}
+              activeTeacherId={activeTeacher.id}
             />
           )}
 
@@ -514,6 +556,49 @@ export default function TeacherDashboardPage() {
           stream={activeTeacher.stream}
           onClose={() => setIsScheduleOneToOneOpen(false)}
           onSchedule={handleScheduleOneToOne}
+        />
+      )}
+
+      {/* Enroll Student into Faculty Course Modal */}
+      {isEnrollStudentOpen && (
+        <EnrollStudentModal
+          isOpen={isEnrollStudentOpen}
+          onClose={() => setIsEnrollStudentOpen(false)}
+          courses={lmsCourses}
+          preselectedCourseId={selectedCourseForEnroll?.id}
+          students={registeredStudents}
+          facultyName={activeTeacher.name}
+          onEnroll={async (studentPhone, courseId, note) => {
+            const crs = lmsCourses.find((c) => c.id === courseId) || getStoredCourses().find((c) => c.id === courseId);
+            const matchedStudent = registeredStudents.find((s) => s.phone === studentPhone);
+            await enrollStudentAction({
+              studentPhone,
+              studentName: matchedStudent?.name || '',
+              courseId,
+              courseTitle: crs?.title || '',
+              assignedBy: 'teacher',
+              assignedByName: activeTeacher.name,
+              assignedByTeacherId: activeTeacher.id,
+              progressPercentage: 0,
+              completedLectureIds: [],
+            });
+            try {
+              if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+                const bc = new BroadcastChannel('msi_sync_channel');
+                bc.postMessage({
+                  type: 'STUDENT_ENROLLED',
+                  studentPhone,
+                  courseId,
+                  assignedBy: 'teacher',
+                  assignedByName: activeTeacher.name,
+                });
+                bc.close();
+              }
+            } catch (_) {}
+            alert(`Student successfully enrolled into "${crs?.title || 'Course'}"!`);
+            setIsEnrollStudentOpen(false);
+            loadLmsCourses();
+          }}
         />
       )}
 

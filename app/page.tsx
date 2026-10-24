@@ -99,7 +99,7 @@ export default function HomePage() {
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState('PCS J — Punjab Civil Judge Coaching');
-  const [dynamicCourses, setDynamicCourses] = useState<UdemyCourse[]>([]);
+  const [dynamicCourses, setDynamicCourses] = useState<UdemyCourse[]>(() => getStoredCourses());
 
   // Synchronize courses dynamically from local store & server disk
   useEffect(() => {
