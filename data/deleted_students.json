@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "msi-stu-6655",
+    "phone": "9988776655",
+    "email": "testauto@msi.edu.in",
+    "name": "Test Student Auto",
+    "deletedAt": "2026-10-24T16:17:44.611Z"
+  },
+  {
+    "id": "msi-stu-3210",
+    "phone": "9876543210",
+    "email": "priya.verma@example.com",
+    "name": "Priya Verma",
+    "deletedAt": "2026-10-24T16:58:12.417Z"
+  },
+  {
+    "id": "msi-stu-7777",
+    "phone": "9888877777",
+    "email": "student.7777@msi-institutes.edu.in",
+    "name": "Rohit Kalia",
+    "deletedAt": "2026-10-24T16:58:15.647Z"
+  },
+  {
+    "id": "msi-stu-4455",
+    "phone": "9822334455",
+    "email": "student.4455@msi-institutes.edu.in",
+    "name": "Aditya Roy",
+    "deletedAt": "2026-10-24T16:58:19.166Z"
+  }
+]

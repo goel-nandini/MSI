@@ -132,3 +132,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: false, message: err?.message || 'Error deleting course' }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  return POST(req);
+}
+
+export async function PATCH(req: NextRequest) {
+  return POST(req);
+}

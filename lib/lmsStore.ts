@@ -544,14 +544,16 @@ const BASE_DELETED_COURSE_IDS = [
 ];
 
 export function getDeletedCourseIds(): string[] {
-  const base = [...BASE_DELETED_COURSE_IDS];
-  if (typeof window === 'undefined') return base;
+  if (typeof window === 'undefined') return [...BASE_DELETED_COURSE_IDS];
   try {
+    const unmarkRaw = localStorage.getItem('msi_unmarked_courses');
+    const unmarked: string[] = unmarkRaw ? JSON.parse(unmarkRaw) : [];
     const raw = localStorage.getItem(STORAGE_KEY_DELETED_COURSES);
-    const stored: string[] = raw ? JSON.parse(raw) : [];
-    return Array.from(new Set([...base, ...stored]));
+    const stored: string[] = raw ? JSON.parse(raw) : [...BASE_DELETED_COURSE_IDS];
+    const combined = Array.from(new Set([...BASE_DELETED_COURSE_IDS, ...stored]));
+    return combined.filter((id) => !unmarked.includes(id.toLowerCase().trim()));
   } catch {
-    return base;
+    return [...BASE_DELETED_COURSE_IDS];
   }
 }
 
@@ -564,6 +566,54 @@ export function markCourseDeletedLocally(courseId: string) {
       list.push(clean);
       localStorage.setItem(STORAGE_KEY_DELETED_COURSES, JSON.stringify(list));
     }
+    // Remove from unmarked list
+    const unmarkRaw = localStorage.getItem('msi_unmarked_courses');
+    if (unmarkRaw) {
+      const unmarked: string[] = JSON.parse(unmarkRaw);
+      const filtered = unmarked.filter((id) => id !== clean);
+      localStorage.setItem('msi_unmarked_courses', JSON.stringify(filtered));
+    }
+  } catch (_) {}
+}
+
+export function unmarkCourseDeletedLocally(courseId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const clean = courseId.trim().toLowerCase();
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_COURSES);
+    const stored: string[] = raw ? JSON.parse(raw) : [...BASE_DELETED_COURSE_IDS];
+    const updated = stored.filter((id) => id.toLowerCase().trim() !== clean);
+    localStorage.setItem(STORAGE_KEY_DELETED_COURSES, JSON.stringify(updated));
+
+    const unmarkRaw = localStorage.getItem('msi_unmarked_courses');
+    const unmarked: string[] = unmarkRaw ? JSON.parse(unmarkRaw) : [];
+    if (!unmarked.includes(clean)) {
+      unmarked.push(clean);
+      localStorage.setItem('msi_unmarked_courses', JSON.stringify(unmarked));
+    }
+  } catch (_) {}
+}
+
+export function unmarkTeacherDeletedLocally(id?: string, email?: string, phone?: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const toRemove = [
+      (id || '').toLowerCase().trim(),
+      (email || '').toLowerCase().trim(),
+      (phone || '').replace(/\D/g, '').slice(-10),
+    ].filter(Boolean);
+
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_TEACHERS);
+    const stored: string[] = raw ? JSON.parse(raw) : [...BASE_DELETED_TEACHER_IDS];
+    const updated = stored.filter((item) => !toRemove.includes(item.toLowerCase().trim()));
+    localStorage.setItem(STORAGE_KEY_DELETED_TEACHERS, JSON.stringify(updated));
+
+    const unmarkRaw = localStorage.getItem('msi_unmarked_teachers');
+    const unmarked: string[] = unmarkRaw ? JSON.parse(unmarkRaw) : [];
+    for (const item of toRemove) {
+      if (!unmarked.includes(item)) unmarked.push(item);
+    }
+    localStorage.setItem('msi_unmarked_teachers', JSON.stringify(unmarked));
   } catch (_) {}
 }
 
@@ -578,14 +628,16 @@ const BASE_DELETED_TEACHER_IDS = [
 ];
 
 export function getDeletedTeacherIds(): string[] {
-  const base = [...BASE_DELETED_TEACHER_IDS];
-  if (typeof window === 'undefined') return base;
+  if (typeof window === 'undefined') return [...BASE_DELETED_TEACHER_IDS];
   try {
+    const unmarkRaw = localStorage.getItem('msi_unmarked_teachers');
+    const unmarked: string[] = unmarkRaw ? JSON.parse(unmarkRaw) : [];
     const raw = localStorage.getItem(STORAGE_KEY_DELETED_TEACHERS);
-    const stored: string[] = raw ? JSON.parse(raw) : [];
-    return Array.from(new Set([...base, ...stored]));
+    const stored: string[] = raw ? JSON.parse(raw) : [...BASE_DELETED_TEACHER_IDS];
+    const combined = Array.from(new Set([...BASE_DELETED_TEACHER_IDS, ...stored]));
+    return combined.filter((item) => !unmarked.includes(item.toLowerCase().trim()));
   } catch {
-    return base;
+    return [...BASE_DELETED_TEACHER_IDS];
   }
 }
 
@@ -608,6 +660,14 @@ export function markTeacherDeletedLocally(teacherId: string, email?: string, pho
     }
     if (changed) {
       localStorage.setItem(STORAGE_KEY_DELETED_TEACHERS, JSON.stringify(list));
+    }
+
+    // Remove from unmarked list
+    const unmarkRaw = localStorage.getItem('msi_unmarked_teachers');
+    if (unmarkRaw) {
+      const unmarked: string[] = JSON.parse(unmarkRaw);
+      const filtered = unmarked.filter((item) => !toAdd.includes(item));
+      localStorage.setItem('msi_unmarked_teachers', JSON.stringify(filtered));
     }
   } catch (_) {}
 }
@@ -680,7 +740,7 @@ export function getStoredCourses(): UdemyCourse[] {
   }
 }
 
-export function saveStoredCourses(courses: UdemyCourse[]) {
+export function saveStoredCourses(courses: UdemyCourse[], emitEvent = true) {
   if (typeof window === 'undefined') return;
   try {
     const deleted = getDeletedCourseIds();
@@ -689,7 +749,9 @@ export function saveStoredCourses(courses: UdemyCourse[]) {
       (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
     const valid = courses.filter((c) => !isDeleted(c));
     localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(valid));
-    notifyLmsStoreChange();
+    if (emitEvent) {
+      notifyLmsStoreChange();
+    }
   } catch (err) {
     console.error(err);
   }
@@ -712,8 +774,7 @@ export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
         deleted.includes(c.id.toLowerCase().trim()) ||
         (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
       const validCourses = data.courses.filter((c: UdemyCourse) => !isDeleted(c));
-      saveStoredCourses(validCourses);
-      notifyLmsStoreChange();
+      saveStoredCourses(validCourses, false);
       return validCourses;
     }
   } catch (err) {
@@ -777,7 +838,7 @@ export function getStoredTeachers(): TeacherApprovalRecord[] {
   }
 }
 
-export function saveStoredTeachers(teachers: TeacherApprovalRecord[]) {
+export function saveStoredTeachers(teachers: TeacherApprovalRecord[], emitEvent = true) {
   if (typeof window === 'undefined') return;
   try {
     const deleted = getDeletedTeacherIds();
@@ -793,7 +854,9 @@ export function saveStoredTeachers(teachers: TeacherApprovalRecord[]) {
     };
     const valid = teachers.filter((t) => !isDeleted(t));
     localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(valid));
-    notifyLmsStoreChange();
+    if (emitEvent) {
+      notifyLmsStoreChange();
+    }
   } catch (err) {
     console.error(err);
   }
@@ -826,8 +889,7 @@ export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]>
         );
       };
       const authoritativeTeachers = data.teachers.filter((t: TeacherApprovalRecord) => !isDeleted(t));
-      localStorage.setItem(STORAGE_KEY_TEACHERS, JSON.stringify(authoritativeTeachers));
-      notifyLmsStoreChange();
+      saveStoredTeachers(authoritativeTeachers, false);
       return authoritativeTeachers;
     }
   } catch (err) {
@@ -870,11 +932,13 @@ export function getStoredEnrollments(): CourseEnrollment[] {
   }
 }
 
-export function saveStoredEnrollments(enrollments: CourseEnrollment[]) {
+export function saveStoredEnrollments(enrollments: CourseEnrollment[], emitEvent = true) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY_ENROLLMENTS, JSON.stringify(enrollments));
-    notifyLmsStoreChange();
+    if (emitEvent) {
+      notifyLmsStoreChange();
+    }
   } catch (err) {
     console.error(err);
   }
@@ -889,7 +953,7 @@ export async function syncEnrollmentsFromServer(): Promise<CourseEnrollment[]> {
     const res = await fetch('/api/admin/enrollments', { cache: 'no-store' });
     const data = await res.json();
     if (data.success && Array.isArray(data.enrollments)) {
-      saveStoredEnrollments(data.enrollments);
+      saveStoredEnrollments(data.enrollments, false);
       return data.enrollments;
     }
   } catch (err) {

@@ -127,6 +127,35 @@ export function isStudentDeleted(identifier: string): boolean {
 }
 
 /**
+ * Unmarks a student from deleted_students.json when re-enrolled or re-created
+ */
+export function unmarkStudentDeletedOnDisk(phoneOrId: string, email?: string): void {
+  try {
+    if (!fs.existsSync(DELETED_STUDENTS_FILE)) return;
+    const deletedList = readDeletedStudentsFromDisk();
+    const cleanPhone = phoneOrId.replace(/\D/g, '').slice(-10);
+    const cleanId = phoneOrId.trim().toLowerCase();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    const filtered = deletedList.filter((d) => {
+      const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+      const dId = (d.id || '').trim().toLowerCase();
+      const dEmail = (d.email || '').trim().toLowerCase();
+      if (cleanPhone.length >= 10 && dPhone === cleanPhone) return false;
+      if (cleanId && dId === cleanId) return false;
+      if (cleanEmail && dEmail === cleanEmail) return false;
+      return true;
+    });
+
+    if (filtered.length !== deletedList.length) {
+      fs.writeFileSync(DELETED_STUDENTS_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[StudentStore] Error unmarking deleted student:', err);
+  }
+}
+
+/**
  * Reads all students directly from data/students.json, strictly filtering out any deleted students.
  */
 export function readStudentsFromDisk(): RegisteredStudentUser[] {

@@ -3,6 +3,7 @@ import {
   readStudentsFromDisk,
   writeStudentsToDisk,
   deleteStudentFromDisk,
+  unmarkStudentDeletedOnDisk,
   buildDefaultStudentProfile,
   RegisteredStudentUser,
 } from '@/lib/studentUserStore';
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Unmark any prior deletion of this phone / email
+    unmarkStudentDeletedOnDisk(cleanPhone, email?.trim());
 
     const students = readStudentsFromDisk();
     const existingIndex = students.findIndex((s) => s.phone === cleanPhone);

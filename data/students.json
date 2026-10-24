@@ -10,37 +10,6 @@
     "role": "reception"
   },
   {
-    "id": "msi-stu-3210",
-    "phone": "9876543210",
-    "name": "Priya Verma",
-    "stream": "CLAT Foundation",
-    "password": "Student@Pass2026",
-    "email": "priya.verma@example.com",
-    "registeredAt": "2026-10-18T16:14:51.452Z",
-    "profile": {
-      "id": "msi-stu-3210",
-      "name": "Priya Verma",
-      "email": "priya.verma@example.com",
-      "phone": "+91 98765 43210",
-      "dob": "2003-01-15",
-      "age": 22,
-      "gender": "Male",
-      "enrollmentNo": "MSI/2026/3210",
-      "rollNo": "26-MSI-3210",
-      "batch": "CLAT Foundation, 2026–2027",
-      "courseTitle": "CLAT Foundation",
-      "semester": "Academic Year 2026–2027",
-      "avatarUrl": "/images/avatars/avatar-1.webp",
-      "bloodGroup": "B+",
-      "address": "Kharar, Mohali, Punjab",
-      "guardianName": "Guardian",
-      "guardianContact": "+91 98765 00000",
-      "admissionDate": "01 July 2026",
-      "validUntil": "30 June 2028"
-    },
-    "lastLoginAt": "2026-10-18T16:14:51.474Z"
-  },
-  {
     "id": "msi-stu-1234",
     "phone": "9876501234",
     "name": "Rohit Malhotra",
@@ -82,68 +51,6 @@
           "trackingNumber": "MSI-EXP-727595"
         }
       ]
-    }
-  },
-  {
-    "id": "msi-stu-7777",
-    "phone": "9888877777",
-    "name": "Rohit Kalia",
-    "stream": "PCS-J Punjab Judicial Services",
-    "password": "Rohit@MSI2026",
-    "email": "student.7777@msi-institutes.edu.in",
-    "registeredAt": "2026-10-23T11:39:15.524Z",
-    "role": "student",
-    "profile": {
-      "id": "msi-stu-7777",
-      "name": "Rohit Kalia",
-      "email": "student.7777@msi-institutes.edu.in",
-      "phone": "+91 98888 77777",
-      "dob": "2003-01-15",
-      "age": 22,
-      "gender": "Male",
-      "enrollmentNo": "MSI/2026/7777",
-      "rollNo": "26-MSI-7777",
-      "batch": "PCS-J Punjab Judicial Services, 2026–2027",
-      "courseTitle": "PCS-J Punjab Judicial Services",
-      "semester": "Academic Year 2026–2027",
-      "avatarUrl": "/images/avatars/avatar-1.webp",
-      "bloodGroup": "B+",
-      "address": "Kharar, Mohali, Punjab",
-      "guardianName": "Guardian",
-      "guardianContact": "+91 98888 00000",
-      "admissionDate": "01 July 2026",
-      "validUntil": "30 June 2028"
-    }
-  },
-  {
-    "id": "msi-stu-4455",
-    "phone": "9822334455",
-    "name": "Aditya Roy",
-    "stream": "PCS-J Punjab Judicial Services",
-    "password": "Student@MSI2026",
-    "email": "student.4455@msi-institutes.edu.in",
-    "registeredAt": "2026-10-23T12:52:50.248Z",
-    "role": "student",
-    "profile": {
-      "id": "msi-stu-4455",
-      "name": "Aditya Roy",
-      "email": "student.4455@msi-institutes.edu.in",
-      "phone": "+91 98223 34455",
-      "dob": "2003-01-15",
-      "age": 22,
-      "gender": "Male",
-      "enrollmentNo": "MSI/2026/4455",
-      "rollNo": "26-MSI-4455",
-      "batch": "PCS-J Punjab Judicial Services, 2026–2027",
-      "courseTitle": "PCS-J Punjab Judicial Services",
-      "semester": "Academic Year 2026–2027",
-      "avatarUrl": "/images/avatars/avatar-1.webp",
-      "bloodGroup": "B+",
-      "address": "Kharar, Mohali, Punjab",
-      "guardianName": "Guardian",
-      "guardianContact": "+91 98223 00000",
-      "admissionDate": "01 July 2026",
-      "validUntil": "30 June 2028"
     }
   }
 ]

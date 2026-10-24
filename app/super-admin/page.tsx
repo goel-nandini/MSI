@@ -59,6 +59,8 @@ import {
   Globe,
   ExternalLink,
   EyeOff,
+  Pencil,
+  Edit3,
 } from 'lucide-react';
 import {
   UdemyCourse,
@@ -81,7 +83,9 @@ import {
   assignCourseToFacultyAction,
   findTeacherByIdOrName,
   markCourseDeletedLocally,
+  unmarkCourseDeletedLocally,
   markTeacherDeletedLocally,
+  unmarkTeacherDeletedLocally,
   LMS_SYNC_EVENT,
 } from '@/lib/lmsStore';
 import { Lead } from '@/components/reception/data/leadsMockData';
@@ -156,6 +160,7 @@ export default function SuperAdminMasterDashboard() {
 
   // 3. Delete Student Confirmation Modal
   const [studentToDelete, setStudentToDelete] = useState<RegisteredStudent | null>(null);
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
   const [createdStudentCredentials, setCreatedStudentCredentials] = useState<{
     name: string;
     phone: string;
@@ -233,6 +238,7 @@ export default function SuperAdminMasterDashboard() {
 
   // 8. Add Faculty Modal
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
+  const [isSubmittingTeacher, setIsSubmittingTeacher] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherPhone, setNewTeacherPhone] = useState('');
@@ -243,6 +249,7 @@ export default function SuperAdminMasterDashboard() {
     name: string;
     email: string;
     phone?: string;
+    specialization?: string;
     pass: string;
   } | null>(null);
 
@@ -264,7 +271,50 @@ export default function SuperAdminMasterDashboard() {
   const [newCourseLectureVideo, setNewCourseLectureVideo] = useState('https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc');
   const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
 
-  // 9b. Delete Course Modal
+  // 9a. Course Edit Modal State
+  const [courseToEdit, setCourseToEdit] = useState<UdemyCourse | null>(null);
+  const [editCourseTitle, setEditCourseTitle] = useState('');
+  const [editCourseHeadline, setEditCourseHeadline] = useState('');
+  const [editCourseCategory, setEditCourseCategory] = useState<'Judiciary' | 'Law Entrance' | 'Criminal Law' | 'Constitutional Law' | 'Cyber Law' | 'Postgraduate'>('Judiciary');
+  const [editCourseLevel, setEditCourseLevel] = useState<'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced'>('All Levels');
+  const [editCoursePrice, setEditCoursePrice] = useState('4999');
+  const [editCourseOriginalPrice, setEditCourseOriginalPrice] = useState('14999');
+  const [editCourseTeacherId, setEditCourseTeacherId] = useState('');
+  const [editCourseDesc, setEditCourseDesc] = useState('');
+  const [editCourseThumbnail, setEditCourseThumbnail] = useState('');
+  const [editCourseBadge, setEditCourseBadge] = useState<string>('Hot & New');
+  const [isSubmittingEditCourse, setIsSubmittingEditCourse] = useState(false);
+
+  // 9b. Faculty Edit Modal State
+  const [facultyToEdit, setFacultyToEdit] = useState<TeacherApprovalRecord | null>(null);
+  const [editFacultyName, setEditFacultyName] = useState('');
+  const [editFacultyEmail, setEditFacultyEmail] = useState('');
+  const [editFacultyPhone, setEditFacultyPhone] = useState('');
+  const [editFacultySpecialization, setEditFacultySpecialization] = useState('');
+  const [editFacultyDesignation, setEditFacultyDesignation] = useState('');
+  const [editFacultyDepartment, setEditFacultyDepartment] = useState('');
+  const [editFacultyExp, setEditFacultyExp] = useState('8');
+  const [editFacultyPassword, setEditFacultyPassword] = useState('');
+  const [isSubmittingEditFaculty, setIsSubmittingEditFaculty] = useState(false);
+
+  // 9c. Student Edit Modal State
+  const [studentToEdit, setStudentToEdit] = useState<RegisteredStudent | null>(null);
+  const [editStudentName, setEditStudentName] = useState('');
+  const [editStudentPhone, setEditStudentPhone] = useState('');
+  const [editStudentStream, setEditStudentStream] = useState('');
+  const [editStudentEmail, setEditStudentEmail] = useState('');
+  const [editStudentPassword, setEditStudentPassword] = useState('');
+  const [isSubmittingEditStudent, setIsSubmittingEditStudent] = useState(false);
+
+  // 9d. Receptionist Edit Modal State
+  const [receptionistToEdit, setReceptionistToEdit] = useState<ReceptionistRecord | null>(null);
+  const [editReceptionistName, setEditReceptionistName] = useState('');
+  const [editReceptionistPhone, setEditReceptionistPhone] = useState('');
+  const [editReceptionistEmail, setEditReceptionistEmail] = useState('');
+  const [editReceptionistPassword, setEditReceptionistPassword] = useState('');
+  const [isSubmittingEditReceptionist, setIsSubmittingEditReceptionist] = useState(false);
+
+  // 9e. Delete Course Modal
   const [courseToDelete, setCourseToDelete] = useState<UdemyCourse | null>(null);
   const [isDeletingCourse, setIsDeletingCourse] = useState(false);
 
@@ -486,7 +536,7 @@ export default function SuperAdminMasterDashboard() {
       const data = await res.json();
       if (data.success && Array.isArray(data.teachers)) {
         setTeachers(data.teachers);
-        saveStoredTeachers(data.teachers);
+        saveStoredTeachers(data.teachers, false);
       }
     } catch (err) {
       console.warn('Could not fetch faculty from disk:', err);
@@ -511,7 +561,7 @@ export default function SuperAdminMasterDashboard() {
       const data = await res.json();
       if (data.success && Array.isArray(data.courses)) {
         setCourses(data.courses);
-        saveStoredCourses(data.courses);
+        saveStoredCourses(data.courses, false);
       }
     } catch (err) {
       console.warn('Could not fetch courses from disk:', err);
@@ -549,23 +599,23 @@ export default function SuperAdminMasterDashboard() {
         fetchTransactions();
       }, 5000);
 
-      const handleSync = () => {
-        refreshAllData();
-      };
-
-      window.addEventListener(LMS_SYNC_EVENT, handleSync);
-      window.addEventListener('msi_leads_sync', handleSync);
-      window.addEventListener('msi_gallery_sync', handleSync);
-      window.addEventListener('msi_courses_sync', handleSync);
-      window.addEventListener('storage', handleSync);
+      let bc: BroadcastChannel | null = null;
+      try {
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          bc = new BroadcastChannel('msi_sync_channel');
+          bc.onmessage = (event) => {
+            const t = event.data?.type;
+            if (t === 'STUDENT_ENROLLED' || t === 'COURSE_ASSIGNED') {
+              fetchCourses();
+              fetchStudents();
+            }
+          };
+        }
+      } catch (_) {}
 
       return () => {
         clearInterval(pollInterval);
-        window.removeEventListener(LMS_SYNC_EVENT, handleSync);
-        window.removeEventListener('msi_leads_sync', handleSync);
-        window.removeEventListener('msi_gallery_sync', handleSync);
-        window.removeEventListener('msi_courses_sync', handleSync);
-        window.removeEventListener('storage', handleSync);
+        if (bc) bc.close();
       };
     }
   }, [isAuthenticated, refreshAllData, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchCourses, fetchTransactions]);
@@ -643,6 +693,7 @@ export default function SuperAdminMasterDashboard() {
   // 2. Delete Student
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return;
+    setIsDeletingStudent(true);
     try {
       const phoneParam = encodeURIComponent(studentToDelete.phone || '');
       const idParam = encodeURIComponent(studentToDelete.id || '');
@@ -683,6 +734,9 @@ export default function SuperAdminMasterDashboard() {
           }
         }
 
+        if (data.students) {
+          setStudents(data.students);
+        }
         setStudentToDelete(null);
         fetchStudents();
         try {
@@ -693,6 +747,8 @@ export default function SuperAdminMasterDashboard() {
       }
     } catch (err) {
       showToast('Network error while deleting student.');
+    } finally {
+      setIsDeletingStudent(false);
     }
   };
 
@@ -757,7 +813,6 @@ export default function SuperAdminMasterDashboard() {
 
       window.dispatchEvent(new Event('msi_courses_sync'));
       window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event(LMS_SYNC_EVENT));
 
       showToast(
         `Course "${targetCourse.title}" successfully assigned to ${selectedStudentForCourseAssign.name}! Immediately visible on their student dashboard.`
@@ -993,6 +1048,9 @@ export default function SuperAdminMasterDashboard() {
           }
         }
 
+        if (data.receptionists) {
+          setReceptionists(data.receptionists);
+        }
         setReceptionistToDelete(null);
         fetchReceptionists();
         try {
@@ -1168,6 +1226,7 @@ export default function SuperAdminMasterDashboard() {
     const cleanEmail = newTeacherEmail.trim().toLowerCase();
     const cleanPhone = newTeacherPhone.trim() || '+91 98000 00000';
 
+    setIsSubmittingTeacher(true);
     try {
       // 1. Persist to server disk data/teachers.json
       const res = await fetch('/api/admin/faculty', {
@@ -1185,55 +1244,41 @@ export default function SuperAdminMasterDashboard() {
       });
 
       const data = await res.json();
-      const savedTeacher: TeacherApprovalRecord = data.success && data.teacher
-        ? data.teacher
-        : {
-            id: `fac-${Date.now()}`,
-            name: newTeacherName.trim(),
-            email: cleanEmail,
-            phone: cleanPhone,
-            avatarUrl: '/images/faculty/faculty-1.webp',
-            department: 'School of Law & Judicial Studies',
-            designation: 'Professor of Law / Senior Jurist',
-            qualifications: 'LL.M / Ph.D in Law',
-            experienceYears: Number(newTeacherExp) || 8,
-            stream: 'Law',
-            bio: `Distinguished faculty member specializing in ${newTeacherSpecialization}.`,
-            specialization: newTeacherSpecialization,
-            sampleLectureTitle: `${newTeacherSpecialization} — Landmark Case Briefs`,
-            sampleLectureDuration: '45m',
-            status: 'approved',
-            assignedCourseIds: ['crs-udemy-pcsj', 'crs-udemy-clat'],
-            applicationDate: new Date().toISOString(),
-            approvedAt: new Date().toISOString(),
-            approvedBy: 'MSI Super Admin',
-            rating: 4.9,
-            studentsCount: 120,
-            password: tempPassword,
-            temporaryPassword: tempPassword,
-            mustChangePassword: false,
-          };
+      if (data.success && data.teacher) {
+        unmarkTeacherDeletedLocally(data.teacher.id, data.teacher.email, data.teacher.phone);
+        const current = getStoredTeachers();
+        const updated = [
+          data.teacher,
+          ...current.filter((t) => t.id !== data.teacher.id && t.email.toLowerCase() !== cleanEmail),
+        ];
+        saveStoredTeachers(updated, false);
+        setTeachers(updated);
+        setShowAddTeacherModal(false);
+        setNewTeacherName('');
+        setNewTeacherEmail('');
+        setNewTeacherPhone('');
+        setCreatedFacultyCredentials({
+          name: data.teacher.name,
+          email: data.teacher.email,
+          phone: data.teacher.phone,
+          specialization: data.teacher.specialization,
+          pass: tempPassword,
+        });
 
-      const current = getStoredTeachers();
-      const updated = [
-        savedTeacher,
-        ...current.filter((t) => t.id !== savedTeacher.id && t.email.toLowerCase() !== cleanEmail),
-      ];
-      saveStoredTeachers(updated);
-      setTeachers(updated);
-      setShowAddTeacherModal(false);
-      setNewTeacherName('');
-      setNewTeacherEmail('');
-      setNewTeacherPhone('');
-      setCreatedFacultyCredentials({
-        name: savedTeacher.name,
-        email: savedTeacher.email,
-        phone: savedTeacher.phone,
-        pass: tempPassword,
-      });
-      showToast(`Faculty member ${savedTeacher.name} created! Authorized for immediate login.`);
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({ type: 'FACULTY_CREATED', teacherId: data.teacher.id });
+          bc.close();
+        }
+
+        showToast(`Faculty member ${data.teacher.name} created! Authorized for immediate login.`);
+      } else {
+        showToast(data.message || 'Error saving faculty member.');
+      }
     } catch (err) {
       showToast('Error saving faculty member.');
+    } finally {
+      setIsSubmittingTeacher(false);
     }
   };
 
@@ -1253,7 +1298,7 @@ export default function SuperAdminMasterDashboard() {
         const remaining = deleteTeacherAction(teacherToDelete.id, teacherToDelete.email, teacherToDelete.phone);
         const finalList = data.teachers || remaining;
         setTeachers(finalList);
-        saveStoredTeachers(finalList);
+        saveStoredTeachers(finalList, false);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
@@ -1266,8 +1311,6 @@ export default function SuperAdminMasterDashboard() {
           });
           bc.close();
         }
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new Event(LMS_SYNC_EVENT));
 
         showToast(`Faculty member (${teacherToDelete.name}) permanently removed from disk and session revoked.`);
         setTeacherToDelete(null);
@@ -1282,7 +1325,7 @@ export default function SuperAdminMasterDashboard() {
   };
 
   // 7. Create Course & Assign Faculty (LMS)
-  const handleCreateCourse = (e: React.FormEvent) => {
+  const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourseTitle.trim()) {
       showToast('Please provide course program title.');
@@ -1291,7 +1334,6 @@ export default function SuperAdminMasterDashboard() {
 
     setIsSubmittingCourse(true);
     try {
-      const currentCourses = getStoredCourses();
       const assignedFaculty =
         teachers.find((t) => t.id === newCourseTeacherId) || teachers[0] || {
           id: 'fac-01',
@@ -1301,9 +1343,10 @@ export default function SuperAdminMasterDashboard() {
         };
 
       const courseId = `crs-msi-${Date.now().toString().slice(-6)}`;
+      const slug = newCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const newCourse: UdemyCourse = {
         id: courseId,
-        slug: newCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        slug,
         title: newCourseTitle.trim(),
         headline: newCourseHeadline.trim() || 'Comprehensive Curriculum & Judicial Practice',
         description: newCourseDesc.trim() || 'Official curriculum accredited by MSI Group of Institutes.',
@@ -1360,20 +1403,28 @@ export default function SuperAdminMasterDashboard() {
         isPublished: true,
       };
 
-      const updatedCourses = [newCourse, ...currentCourses];
-      saveStoredCourses(updatedCourses);
-      setCourses(updatedCourses);
+      // Unmark local deletions for this id/slug
+      unmarkCourseDeletedLocally(courseId);
+      unmarkCourseDeletedLocally(slug);
 
-      // Persist permanently to server disk so it appears immediately on Home Screen & Courses page
-      try {
-        fetch('/api/courses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newCourse),
-        }).catch((err) => console.warn('Server course sync error:', err));
-      } catch (_) {}
+      // 1. Persist to server disk data/courses.json
+      const res = await fetch('/api/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCourse),
+      });
 
-      // Auto-assign to faculty
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || 'Error creating course on server disk.');
+        return;
+      }
+
+      const serverCourses = data.courses || [newCourse, ...courses.filter((c) => c.id !== newCourse.id)];
+      saveStoredCourses(serverCourses, false);
+      setCourses(serverCourses);
+
+      // 2. Auto-assign to faculty
       if (assignedFaculty) {
         const currentTeachers = getStoredTeachers();
         let targetUpdatedTeacher: TeacherApprovalRecord | null = null;
@@ -1387,15 +1438,19 @@ export default function SuperAdminMasterDashboard() {
           }
           return t;
         });
-        saveStoredTeachers(updatedTeachers);
+        saveStoredTeachers(updatedTeachers, false);
         setTeachers(updatedTeachers);
 
         if (targetUpdatedTeacher) {
-          fetch('/api/admin/faculty', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(targetUpdatedTeacher),
-          }).catch((err) => console.warn('Failed to sync faculty to server disk:', err));
+          try {
+            await fetch('/api/admin/faculty', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(targetUpdatedTeacher),
+            });
+          } catch (err) {
+            console.warn('Failed to sync faculty to server disk:', err);
+          }
         }
       }
 
@@ -1405,13 +1460,17 @@ export default function SuperAdminMasterDashboard() {
       setNewCourseDesc('');
       setNewCourseThumbnail('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80');
       setNewCourseThumbnailPreview(null);
+
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         const bc = new BroadcastChannel('msi_sync_channel');
         bc.postMessage({ type: 'COURSE_PUBLISHED', courseId: newCourse.id });
+        bc.postMessage({ type: 'COURSE_CREATED', courseId: newCourse.id });
         bc.close();
       }
-      window.dispatchEvent(new Event('msi_courses_sync'));
-      window.dispatchEvent(new Event('storage'));
+      try {
+        window.dispatchEvent(new Event('msi_courses_sync'));
+        window.dispatchEvent(new Event('storage'));
+      } catch (_) {}
 
       showToast(`Course "${newCourse.title}" published and assigned to ${assignedFaculty.name}!`);
     } catch (err) {
@@ -1421,8 +1480,252 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
+  // 7b. Open Edit Course
+  const handleOpenEditCourse = (crs: UdemyCourse) => {
+    setCourseToEdit(crs);
+    setEditCourseTitle(crs.title || '');
+    setEditCourseHeadline(crs.headline || '');
+    setEditCourseCategory(crs.category || 'Judiciary');
+    setEditCourseLevel(crs.level || 'All Levels');
+    setEditCoursePrice(String(crs.price || 4999));
+    setEditCourseOriginalPrice(String(crs.originalPrice || 14999));
+    setEditCourseTeacherId(crs.instructorId || (teachers[0]?.id || ''));
+    setEditCourseDesc(crs.description || '');
+    setEditCourseThumbnail(crs.thumbnail || '');
+    setEditCourseBadge(crs.badge || 'Hot & New');
+  };
+
+  // 7c. Submit Course Update
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseToEdit || !editCourseTitle.trim()) {
+      showToast('Course title is required.');
+      return;
+    }
+    setIsSubmittingEditCourse(true);
+    try {
+      const assignedTeacher = teachers.find((t) => t.id === editCourseTeacherId) || {
+        id: courseToEdit.instructorId,
+        name: courseToEdit.instructorName,
+        designation: courseToEdit.instructorTitle,
+        avatarUrl: courseToEdit.instructorAvatar,
+      };
+
+      const updatedCourse: UdemyCourse = {
+        ...courseToEdit,
+        title: editCourseTitle.trim(),
+        headline: editCourseHeadline.trim() || courseToEdit.headline,
+        category: editCourseCategory,
+        level: editCourseLevel,
+        price: Number(editCoursePrice) || courseToEdit.price,
+        originalPrice: Number(editCourseOriginalPrice) || courseToEdit.originalPrice,
+        description: editCourseDesc.trim() || courseToEdit.description,
+        thumbnail: editCourseThumbnail.trim() || courseToEdit.thumbnail,
+        badge: (editCourseBadge as any) || undefined,
+        instructorId: assignedTeacher.id,
+        instructorName: assignedTeacher.name,
+        instructorTitle: assignedTeacher.designation || 'Professor of Law',
+        instructorAvatar: assignedTeacher.avatarUrl || '/images/avatars/avatar-1.webp',
+        updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      };
+
+      // 1. Persist to API
+      const res = await fetch('/api/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCourse),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || 'Error updating course.');
+        return;
+      }
+
+      // 2. Update local storage & state
+      const currentCourses = getStoredCourses();
+      const updatedList = (data.courses || currentCourses).map((c: UdemyCourse) => (c.id === updatedCourse.id ? updatedCourse : c));
+      saveStoredCourses(updatedList, false);
+      setCourses(updatedList);
+
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('msi_sync_channel');
+        bc.postMessage({ type: 'COURSE_PUBLISHED', courseId: updatedCourse.id });
+        bc.close();
+      }
+      try {
+        window.dispatchEvent(new Event('msi_courses_sync'));
+        window.dispatchEvent(new Event('storage'));
+      } catch (_) {}
+
+      setCourseToEdit(null);
+      showToast(`Course "${updatedCourse.title}" updated successfully.`);
+    } catch (err) {
+      showToast('Error updating course.');
+    } finally {
+      setIsSubmittingEditCourse(false);
+    }
+  };
+
+  // 7d. Open Edit Faculty
+  const handleOpenEditFaculty = (tc: TeacherApprovalRecord) => {
+    setFacultyToEdit(tc);
+    setEditFacultyName(tc.name || '');
+    setEditFacultyEmail(tc.email || '');
+    setEditFacultyPhone(tc.phone || '');
+    setEditFacultySpecialization(tc.specialization || '');
+    setEditFacultyDesignation(tc.designation || 'Professor of Law & Faculty Jurist');
+    setEditFacultyDepartment(tc.department || 'School of Law & Judicial Studies');
+    setEditFacultyExp(String(tc.experienceYears || 8));
+    setEditFacultyPassword(tc.password || tc.temporaryPassword || 'Faculty@MSI2026');
+  };
+
+  // 7e. Submit Faculty Update
+  const handleUpdateFaculty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!facultyToEdit || !editFacultyName.trim() || !editFacultyEmail.trim()) {
+      showToast('Faculty name and email are required.');
+      return;
+    }
+    setIsSubmittingEditFaculty(true);
+    try {
+      const updatedData = {
+        ...facultyToEdit,
+        name: editFacultyName.trim(),
+        email: editFacultyEmail.trim().toLowerCase(),
+        phone: editFacultyPhone.trim() || facultyToEdit.phone,
+        specialization: editFacultySpecialization.trim() || facultyToEdit.specialization,
+        designation: editFacultyDesignation.trim() || facultyToEdit.designation,
+        department: editFacultyDepartment.trim() || facultyToEdit.department,
+        experienceYears: Number(editFacultyExp) || facultyToEdit.experienceYears,
+        password: editFacultyPassword.trim() || facultyToEdit.password,
+        temporaryPassword: editFacultyPassword.trim() || facultyToEdit.temporaryPassword,
+      };
+
+      const res = await fetch('/api/admin/faculty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
+      const data = await res.json();
+      if (data.success && data.teacher) {
+        const currentTeachers = getStoredTeachers();
+        const updatedList = currentTeachers.map((t) => (t.id === data.teacher.id ? data.teacher : t));
+        saveStoredTeachers(updatedList, false);
+        setTeachers(updatedList);
+        setFacultyToEdit(null);
+        showToast(`Faculty member "${data.teacher.name}" updated successfully.`);
+        fetchFaculty();
+      } else {
+        showToast(data.message || 'Error updating faculty.');
+      }
+    } catch (err) {
+      showToast('Error updating faculty member.');
+    } finally {
+      setIsSubmittingEditFaculty(false);
+    }
+  };
+
+  // 7f. Open Edit Student
+  const handleOpenEditStudent = (stu: RegisteredStudent) => {
+    setStudentToEdit(stu);
+    setEditStudentName(stu.name || '');
+    setEditStudentPhone(stu.phone || '');
+    setEditStudentStream(stu.stream || 'PCS-J Punjab Judicial Services');
+    setEditStudentEmail(stu.email || '');
+    setEditStudentPassword(stu.password || 'Student@MSI2026');
+  };
+
+  // 7g. Submit Student Update
+  const handleUpdateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentToEdit || !editStudentName.trim() || !editStudentPhone.trim()) {
+      showToast('Student name and mobile number are required.');
+      return;
+    }
+    setIsSubmittingEditStudent(true);
+    try {
+      const res = await fetch('/api/admin/students', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: studentToEdit.phone,
+          updates: {
+            name: editStudentName.trim(),
+            stream: editStudentStream.trim(),
+            email: editStudentEmail.trim(),
+            password: editStudentPassword.trim() || 'Student@MSI2026',
+            profile: {
+              name: editStudentName.trim(),
+              courseTitle: editStudentStream.trim(),
+              email: editStudentEmail.trim(),
+            },
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Student "${editStudentName}" updated successfully.`);
+        setStudentToEdit(null);
+        fetchStudents();
+        try {
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
+      } else {
+        showToast(data.message || 'Error updating student.');
+      }
+    } catch (err) {
+      showToast('Network error while updating student.');
+    } finally {
+      setIsSubmittingEditStudent(false);
+    }
+  };
+
+  // 7h. Open Edit Receptionist
+  const handleOpenEditReceptionist = (rec: ReceptionistRecord) => {
+    setReceptionistToEdit(rec);
+    setEditReceptionistName(rec.name || '');
+    setEditReceptionistPhone(rec.phone || '');
+    setEditReceptionistEmail(rec.email || '');
+    setEditReceptionistPassword(rec.password || 'Harshit@reception');
+  };
+
+  // 7i. Submit Receptionist Update
+  const handleUpdateReceptionist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receptionistToEdit || !editReceptionistName.trim() || !editReceptionistPhone.trim()) {
+      showToast('Receptionist name and mobile number are required.');
+      return;
+    }
+    setIsSubmittingEditReceptionist(true);
+    try {
+      const res = await fetch('/api/admin/receptionists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: receptionistToEdit.id,
+          name: editReceptionistName.trim(),
+          phone: editReceptionistPhone.trim(),
+          email: editReceptionistEmail.trim(),
+          password: editReceptionistPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Receptionist "${editReceptionistName}" updated successfully.`);
+        setReceptionistToEdit(null);
+        fetchReceptionists();
+      } else {
+        showToast(data.message || 'Error updating receptionist.');
+      }
+    } catch (err) {
+      showToast('Network error while updating receptionist.');
+    } finally {
+      setIsSubmittingEditReceptionist(false);
+    }
+  };
+
   // 8. Add Lecture to existing Course
-  const handleAddLectureToCourse = (e: React.FormEvent) => {
+  const handleAddLectureToCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCourseForLecture || !newLectureTitle.trim()) {
       showToast('Please specify lecture title.');
@@ -1432,6 +1735,7 @@ export default function SuperAdminMasterDashboard() {
     setIsSubmittingLecture(true);
     try {
       const currentCourses = getStoredCourses();
+      let updatedTargetCourse: UdemyCourse | null = null;
       const updatedCourses = currentCourses.map((crs) => {
         if (crs.id === selectedCourseForLecture.id) {
           const sections =
@@ -1467,18 +1771,42 @@ export default function SuperAdminMasterDashboard() {
           sections[0].lectures.push(newLec);
           const totalLecs = sections.reduce((acc, s) => acc + s.lectures.length, 0);
 
-          return {
+          updatedTargetCourse = {
             ...crs,
             sections,
             totalLectures: totalLecs,
             updatedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
           };
+          return updatedTargetCourse;
         }
         return crs;
       });
 
-      saveStoredCourses(updatedCourses);
+      if (updatedTargetCourse) {
+        try {
+          await fetch('/api/courses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedTargetCourse),
+          });
+        } catch (err) {
+          console.warn('Failed to sync added lecture to server disk:', err);
+        }
+      }
+
+      saveStoredCourses(updatedCourses, false);
       setCourses(updatedCourses);
+
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('msi_sync_channel');
+        bc.postMessage({ type: 'COURSE_PUBLISHED', courseId: selectedCourseForLecture.id });
+        bc.close();
+      }
+      try {
+        window.dispatchEvent(new Event('msi_courses_sync'));
+        window.dispatchEvent(new Event('storage'));
+      } catch (_) {}
+
       setSelectedCourseForLecture(null);
       setNewLectureTitle('');
       setNewLectureVideoUrl('');
@@ -1492,7 +1820,7 @@ export default function SuperAdminMasterDashboard() {
   };
 
   // 8b. Assign Faculty to Course
-  const handleAssignCourseToFaculty = (e: React.FormEvent) => {
+  const handleAssignCourseToFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCourseForFacultyAssign) return;
 
@@ -1511,6 +1839,8 @@ export default function SuperAdminMasterDashboard() {
       );
 
       if (res) {
+        saveStoredCourses(getStoredCourses(), false);
+        saveStoredTeachers(getStoredTeachers(), false);
         setCourses(getStoredCourses());
         setTeachers(getStoredTeachers());
 
@@ -1520,17 +1850,17 @@ export default function SuperAdminMasterDashboard() {
           selectedCourseForFacultyAssign;
 
         try {
-          fetch('/api/courses', {
+          await fetch('/api/courses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(assignedCourse),
-          }).catch((err) => console.warn('Failed to sync assigned course to server disk:', err));
+          });
 
-          fetch('/api/admin/faculty', {
+          await fetch('/api/admin/faculty', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(res.teacher),
-          }).catch((err) => console.warn('Failed to sync faculty assigned courses to server disk:', err));
+          });
 
           if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
             const bc = new BroadcastChannel('msi_sync_channel');
@@ -1575,7 +1905,9 @@ export default function SuperAdminMasterDashboard() {
         markCourseDeletedLocally(courseToDelete.id);
         if (courseToDelete.slug) markCourseDeletedLocally(courseToDelete.slug);
         const remaining = deleteCourseAction(courseToDelete.id);
-        setCourses(data.courses || remaining);
+        const finalCourses = data.courses || remaining;
+        saveStoredCourses(finalCourses, false);
+        setCourses(finalCourses);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
@@ -1586,9 +1918,10 @@ export default function SuperAdminMasterDashboard() {
           });
           bc.close();
         }
-        window.dispatchEvent(new Event('msi_courses_sync'));
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new Event(LMS_SYNC_EVENT));
+        try {
+          window.dispatchEvent(new Event('msi_courses_sync'));
+          window.dispatchEvent(new Event('storage'));
+        } catch (_) {}
 
         showToast(`Course "${courseToDelete.title}" removed permanently from public website and server disk.`);
         setCourseToDelete(null);
@@ -2760,6 +3093,13 @@ export default function SuperAdminMasterDashboard() {
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  onClick={() => handleOpenEditStudent(stu)}
+                                  className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 transition-colors cursor-pointer"
+                                  title="Edit Student Profile & Stream"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   onClick={() => setStudentToDelete(stu)}
                                   className="p-1.5 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white text-red-600 transition-colors cursor-pointer"
                                   title="Permanently Delete Student"
@@ -3028,13 +3368,22 @@ export default function SuperAdminMasterDashboard() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => setReceptionistToDelete(rec)}
-                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                              title="Delete Receptionist Account"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditReceptionist(rec)}
+                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                title="Edit Receptionist Account"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setReceptionistToDelete(rec)}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Delete Receptionist Account"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -3151,6 +3500,15 @@ export default function SuperAdminMasterDashboard() {
                           </button>
                         </>
                       )}
+
+                      <button
+                        onClick={() => handleOpenEditFaculty(tc)}
+                        className="py-1.5 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-[11px] transition-colors cursor-pointer flex items-center justify-center gap-1"
+                        title={`Edit ${tc.name}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Edit</span>
+                      </button>
 
                       <button
                         onClick={() => setTeacherToDelete(tc)}
@@ -3300,6 +3658,15 @@ export default function SuperAdminMasterDashboard() {
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>+ Add Lecture</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenEditCourse(crs)}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                          title="Edit Course Details & Price"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Edit</span>
                         </button>
                       </div>
 
@@ -4364,16 +4731,27 @@ export default function SuperAdminMasterDashboard() {
             </p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setStudentToDelete(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
+                disabled={isDeletingStudent}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDeleteStudent}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                disabled={isDeletingStudent}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Confirm Delete
+                {isDeletingStudent ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Confirm Delete</span>
+                )}
               </button>
             </div>
           </div>
@@ -6186,6 +6564,559 @@ export default function SuperAdminMasterDashboard() {
                     <Plus className="w-4 h-4" />
                   )}
                   <span>Upload & Attach Lecture</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 1: EDIT COURSE ────────────────────────────────────────── */}
+      {courseToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setCourseToEdit(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <Pencil className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  Course Editor
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Update Course Program & Details
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Modify title, pricing, assigned faculty instructor, and curriculum specs.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateCourse} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Course Program Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editCourseTitle}
+                  onChange={(e) => setEditCourseTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Headline / Catchphrase
+                </label>
+                <input
+                  type="text"
+                  value={editCourseHeadline}
+                  onChange={(e) => setEditCourseHeadline(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Academic Stream / Category
+                  </label>
+                  <select
+                    value={editCourseCategory}
+                    onChange={(e) => setEditCourseCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="Judiciary">Judiciary (PCS-J / HJS)</option>
+                    <option value="Law Entrance">Law Entrance (CLAT / AILET)</option>
+                    <option value="Criminal Law">Criminal Law & CrPC / BNS</option>
+                    <option value="Constitutional Law">Constitutional Law & Doctrines</option>
+                    <option value="Cyber Law">Cyber Law & Digital Evidence</option>
+                    <option value="Postgraduate">Postgraduate LL.M Specialization</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Assign Faculty Instructor *
+                  </label>
+                  <select
+                    value={editCourseTeacherId}
+                    onChange={(e) => setEditCourseTeacherId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="">-- Choose Instructor --</option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.designation || 'Faculty'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Offer Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={editCoursePrice}
+                    onChange={(e) => setEditCoursePrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Original Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={editCourseOriginalPrice}
+                    onChange={(e) => setEditCourseOriginalPrice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-gray-500 focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Level
+                  </label>
+                  <select
+                    value={editCourseLevel}
+                    onChange={(e) => setEditCourseLevel(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="All Levels">All Levels</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced Judicial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Thumbnail Image URL
+                </label>
+                <input
+                  type="url"
+                  value={editCourseThumbnail}
+                  onChange={(e) => setEditCourseThumbnail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Course Synopsis & Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={editCourseDesc}
+                  onChange={(e) => setEditCourseDesc(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCourseToEdit(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditCourse}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingEditCourse ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Save Course Updates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 2: EDIT FACULTY ───────────────────────────────────────── */}
+      {facultyToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setFacultyToEdit(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  Faculty Administration
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Update Faculty Member Profile
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Edit name, login credentials, specialization, and department designation.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateFaculty} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Faculty Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFacultyName}
+                  onChange={(e) => setEditFacultyName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Official / Gmail Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={editFacultyEmail}
+                    onChange={(e) => setEditFacultyEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={editFacultyPhone}
+                    onChange={(e) => setEditFacultyPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Specialization / Core Subjects
+                </label>
+                <input
+                  type="text"
+                  value={editFacultySpecialization}
+                  onChange={(e) => setEditFacultySpecialization(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Designation
+                  </label>
+                  <input
+                    type="text"
+                    value={editFacultyDesignation}
+                    onChange={(e) => setEditFacultyDesignation(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Experience (Years)
+                  </label>
+                  <input
+                    type="number"
+                    value={editFacultyExp}
+                    onChange={(e) => setEditFacultyExp(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Login Password
+                </label>
+                <input
+                  type="text"
+                  value={editFacultyPassword}
+                  onChange={(e) => setEditFacultyPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFacultyToEdit(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditFaculty}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingEditFaculty ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Save Faculty Updates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 3: EDIT STUDENT ───────────────────────────────────────── */}
+      {studentToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setStudentToEdit(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  Student Database
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Update Student Record & Password
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Modify registered student details, batch, and portal login credentials.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateStudent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Student Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editStudentName}
+                  onChange={(e) => setEditStudentName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  10-Digit Mobile Number (Login ID)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={editStudentPhone}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-xs font-mono font-bold text-gray-500 cursor-not-allowed"
+                />
+                <span className="text-[10px] text-gray-400 mt-0.5 block">Mobile number is the unique key.</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Enrolled Stream / Course Batch *
+                </label>
+                <select
+                  value={editStudentStream}
+                  onChange={(e) => setEditStudentStream(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                >
+                  <option value="PCS-J Punjab Judicial Services">PCS-J Punjab Judicial Services</option>
+                  <option value="CLAT Foundation">CLAT Foundation (UG / PG)</option>
+                  <option value="Delhi Judicial Services (DJS)">Delhi Judicial Services (DJS)</option>
+                  <option value="Haryana Judicial Services (HCS-JB)">Haryana Judicial Services (HCS-JB)</option>
+                  <option value="AILET & SLAT National Law Batch">AILET & SLAT National Law Batch</option>
+                  <option value="LL.M Entrance & UGC-NET Law">LL.M Entrance & UGC-NET Law</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editStudentEmail}
+                  onChange={(e) => setEditStudentEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Portal Login Password
+                </label>
+                <input
+                  type="text"
+                  value={editStudentPassword}
+                  onChange={(e) => setEditStudentPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStudentToEdit(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditStudent}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingEditStudent ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Save Student Updates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 4: EDIT RECEPTIONIST ───────────────────────────────────── */}
+      {receptionistToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setReceptionistToEdit(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  Front Desk Staff
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Update Receptionist Credentials
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Update receptionist staff login credentials and contact details.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateReceptionist} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Receptionist Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editReceptionistName}
+                  onChange={(e) => setEditReceptionistName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  10-Digit Mobile Number (Login ID) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editReceptionistPhone}
+                  onChange={(e) => setEditReceptionistPhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Official Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editReceptionistEmail}
+                  onChange={(e) => setEditReceptionistEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Login Password
+                </label>
+                <input
+                  type="text"
+                  value={editReceptionistPassword}
+                  onChange={(e) => setEditReceptionistPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReceptionistToEdit(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditReceptionist}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSubmittingEditReceptionist ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Save Receptionist Updates</span>
                 </button>
               </div>
             </form>
