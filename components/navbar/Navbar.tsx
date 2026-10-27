@@ -211,6 +211,7 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
                 alt="MSI Official Seal"
                 fill
                 priority
+                sizes="(max-width: 640px) 50px, 66px"
                 className="object-contain drop-shadow-sm group-hover:brightness-105"
               />
             </div>

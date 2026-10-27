@@ -16,15 +16,15 @@ import {
   Download,
 } from 'lucide-react';
 import { TeacherContentItem, TeacherCourse } from './data/teacherMockData';
-import { UdemyCourse } from '@/lib/lmsStore';
+import { MSICourse } from '@/lib/lmsStore';
 
 interface TeacherContentTabProps {
   content: TeacherContentItem[];
   courses: TeacherCourse[];
-  lmsCourses?: UdemyCourse[];
+  lmsCourses?: MSICourse[];
   stream: 'Law' | 'JEE';
   onTogglePublish: (contentId: string) => void;
-  onOpenLectureModal?: (course: UdemyCourse) => void;
+  onOpenLectureModal?: (course: MSICourse) => void;
 }
 
 export default function TeacherContentTab({

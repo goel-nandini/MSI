@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Check, UserPlus, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
-import { UdemyCourse } from '@/lib/lmsStore';
+import { MSICourse } from '@/lib/lmsStore';
 
 interface RegisteredStudentSummary {
   id: string;
@@ -14,7 +14,7 @@ interface RegisteredStudentSummary {
 interface EnrollStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  courses: UdemyCourse[];
+  courses: MSICourse[];
   students: RegisteredStudentSummary[];
   onEnroll: (studentPhone: string, courseId: string, note: string) => Promise<void>;
   preselectedCourseId?: string;

@@ -16,13 +16,13 @@ import {
   Sparkles,
   BookOpen,
 } from 'lucide-react';
-import { UdemyCourse } from '@/lib/lmsStore';
+import { MSICourse } from '@/lib/lmsStore';
 
 interface StudentEnrollLoginModalProps {
   isOpen: boolean;
-  course: UdemyCourse | null;
+  course: MSICourse | null;
   onClose: () => void;
-  onLoginSuccess: (course: UdemyCourse, student: { name: string; phone: string }) => void;
+  onLoginSuccess: (course: MSICourse, student: { name: string; phone: string }) => void;
 }
 
 export default function StudentEnrollLoginModal({

@@ -23,30 +23,32 @@ import {
   Lock,
 } from 'lucide-react';
 import {
-  UdemyCourse,
+  MSICourse,
   enrollStudentAction,
   getStoredEnrollments,
 } from '@/lib/lmsStore';
 import RazorpayCheckoutModal, { RazorpayPaymentSuccessInfo } from '@/components/payments/RazorpayCheckoutModal';
 import StudentEnrollLoginModal from '@/components/courses/StudentEnrollLoginModal';
 
-interface UdemyCourseModalProps {
-  course: UdemyCourse | null;
+interface MSICourseModalProps {
+  course: MSICourse | null;
   isOpen: boolean;
   onClose: () => void;
   activeStudentId?: string;
-  onEnrollSuccess?: (course: UdemyCourse) => void;
-  onRequireLogin?: (course: UdemyCourse) => void;
+  onEnrollSuccess?: (course: MSICourse) => void;
+  onRequireLogin?: (course: MSICourse) => void;
 }
 
-export default function UdemyCourseModal({
+
+
+export default function MSICourseModal({
   course,
   isOpen,
   onClose,
   activeStudentId = 'msi-stu-001',
   onEnrollSuccess,
   onRequireLogin,
-}: UdemyCourseModalProps) {
+}: MSICourseModalProps) {
   const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'sec-1': true,
@@ -95,7 +97,7 @@ export default function UdemyCourseModal({
     setShowRazorpayCheckout(true);
   };
 
-  const handleLoginEnrollSuccess = (c: UdemyCourse, studentData: { name: string; phone: string }) => {
+  const handleLoginEnrollSuccess = (c: MSICourse, studentData: { name: string; phone: string }) => {
     setShowLoginModal(false);
     setShowRazorpayCheckout(true);
   };
@@ -140,7 +142,7 @@ export default function UdemyCourseModal({
 
         {/* Scrollable Container */}
         <div className="overflow-y-auto flex-1">
-          {/* 1. Dark Top Banner (Udemy Style) */}
+          {/* 1. Dark Top Banner (MSI Style) */}
           <div className="bg-gradient-to-r from-[#10233F] via-[#1a345c] to-[#10233F] text-white p-6 sm:p-10 relative overflow-hidden">
             <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-[#EFC988]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -233,7 +235,7 @@ export default function UdemyCourseModal({
                 </div>
               )}
 
-              {/* What You'll Learn (Udemy iconic 2-column box) */}
+              {/* What You'll Learn (MSI iconic 2-column box) */}
               <div className="p-6 rounded-3xl border-2 border-[#E8DCCB] bg-[#FFF9EF]/60">
                 <h3 className="font-serif text-xl font-bold text-[#10233F] mb-4 flex items-center space-x-2">
                   <CheckCircle2 className="w-5 h-5 text-[#89190E]" />
@@ -399,7 +401,7 @@ export default function UdemyCourseModal({
               </div>
             </div>
 
-            {/* Right Column: Sticky Enrollment Box (Udemy Card) */}
+            {/* Right Column: Sticky Enrollment Box (MSI Card) */}
             <div>
               <div className="bg-white rounded-3xl border-2 border-[#E8DCCB] shadow-xl p-6 sticky top-6 space-y-6">
                 

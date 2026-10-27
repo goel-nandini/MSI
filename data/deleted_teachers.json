@@ -25,17 +25,24 @@
     "deletedAt": "2026-10-24T16:17:45.158Z"
   },
   {
-    "id": "fac-harshit-01",
-    "email": "harshit@gmail.com",
-    "phone": "+91 97923 03434",
-    "name": "Harshit Singh",
-    "deletedAt": "2026-10-24T16:57:59.378Z"
-  },
-  {
     "id": "fac-law-anurag",
     "email": "anurag.dwivedi@msigroup.edu.in",
     "phone": "+91 98144 23002",
     "name": "Mr. Anurag Dwivedi",
     "deletedAt": "2026-10-24T16:58:04.182Z"
+  },
+  {
+    "id": "fac-1792928719479",
+    "email": "harsh@faculty.msi.in",
+    "phone": "97923034324",
+    "name": "harshit",
+    "deletedAt": "2026-10-25T11:51:40.907Z"
+  },
+  {
+    "id": "fac-law-riya",
+    "email": "msifaculty009@gmail.com",
+    "phone": "+91 98144 23003",
+    "name": "Ms. Riya Hooda",
+    "deletedAt": "2026-10-25T11:52:03.477Z"
   }
 ]

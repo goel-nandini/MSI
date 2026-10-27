@@ -52,6 +52,7 @@ export default function TeacherHeader({
               src="/images/msi-crest.png"
               alt="MSI Official Seal"
               fill
+              sizes="44px"
               className="object-contain"
             />
           </div>

@@ -15,7 +15,7 @@ import TimedTestModal from '@/components/student/TimedTestModal';
 import VideoPlayerModal from '@/components/student/VideoPlayerModal';
 import FeeReceiptModal from '@/components/student/FeeReceiptModal';
 import SubmitAssignmentModal from '@/components/student/SubmitAssignmentModal';
-import UdemyPlayerModal from '@/components/student/UdemyPlayerModal';
+import MSIPlayerModal from '@/components/student/MSIPlayerModal';
 import RazorpayCheckoutModal, { RazorpayPaymentSuccessInfo } from '@/components/payments/RazorpayCheckoutModal';
 import {
   INITIAL_STUDENT_PROFILE,
@@ -38,64 +38,13 @@ import {
   FeeBreakdownItem,
   AssignmentItem,
 } from '@/components/student/data/studentMockData';
-import { UdemyCourse, syncEnrollmentsFromServer } from '@/lib/lmsStore';
+import { MSICourse, syncEnrollmentsFromServer } from '@/lib/lmsStore';
 
 export default function StudentDashboardPage() {
   const router = useRouter();
 
-  // Active student state: lazy initializer prevents "Aarav Sharma" dummy flash when logged in as another student
-  const [student, setStudent] = useState<StudentProfile>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const storedPhone = localStorage.getItem('msi_active_student_phone') || '';
-        const cleanPhone = storedPhone.replace(/\D/g, '').slice(-10);
-
-        if (cleanPhone) {
-          const cachedProfileStr = localStorage.getItem(`msi_student_profile_${cleanPhone}`);
-          if (cachedProfileStr) {
-            const cached = JSON.parse(cachedProfileStr);
-            if (cached && (cached.name || cached.phone)) {
-              return cached;
-            }
-          }
-
-          const storedName = localStorage.getItem('msi_active_student_name');
-          const storedStream = localStorage.getItem('msi_active_student_stream');
-          const storedEmail = localStorage.getItem('msi_active_student_email');
-          const currentYear = new Date().getFullYear();
-          const nextYear = currentYear + 1;
-          const last4 = cleanPhone.slice(-4);
-
-          return {
-            id: `msi-stu-${last4}`,
-            name: storedName || `Student ${last4}`,
-            email: storedEmail || `student.${last4}@msi-institutes.edu.in`,
-            phone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
-            dob: '2003-01-15',
-            age: 22,
-            gender: 'Male',
-            enrollmentNo: `MSI/${currentYear}/${last4}`,
-            rollNo: `${currentYear.toString().slice(-2)}-MSI-${last4}`,
-            batch: storedStream
-              ? `${storedStream}, ${currentYear}–${nextYear}`
-              : `PCS-J Punjab Judicial Services, ${currentYear}–${nextYear}`,
-            courseTitle: storedStream || 'PCS-J Punjab Judicial Services',
-            semester: `Academic Year ${currentYear}–${nextYear}`,
-            avatarUrl: '/images/avatars/avatar-1.webp',
-            bloodGroup: 'B+',
-            address: 'Kharar, Mohali, Punjab',
-            guardianName: 'Guardian',
-            guardianContact: `+91 ${cleanPhone.slice(0, 5)} 00000`,
-            admissionDate: `01 July ${currentYear}`,
-            validUntil: `30 June ${nextYear + 1}`,
-          };
-        }
-      } catch (err) {
-        console.warn('[Dashboard] Initial student state error:', err);
-      }
-    }
-    return INITIAL_STUDENT_PROFILE;
-  });
+  // Active student state: initialized to INITIAL_STUDENT_PROFILE for SSR parity, updated in useEffect
+  const [student, setStudent] = useState<StudentProfile>(INITIAL_STUDENT_PROFILE);
 
   const [activeTab, setActiveTab] = useState<StudentModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -144,7 +93,7 @@ export default function StudentDashboardPage() {
     };
   }, [student, triggerInstantRevocation]);
 
-  // Periodic heartbeat verification with server disk
+  // Periodic heartbeat verification with server disk (every 30 seconds)
   useEffect(() => {
     const checkActiveStatus = async () => {
       const storedPhone = (localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-10);
@@ -163,7 +112,7 @@ export default function StudentDashboardPage() {
       } catch (_) {}
     };
 
-    const interval = setInterval(checkActiveStatus, 3500);
+    const interval = setInterval(checkActiveStatus, 30000);
     return () => clearInterval(interval);
   }, [triggerInstantRevocation]);
 
@@ -305,7 +254,7 @@ export default function StudentDashboardPage() {
   const [activeVideo, setActiveVideo] = useState<RecordedVideo | null>(null);
   const [activeReceipt, setActiveReceipt] = useState<FeeTransaction | null>(null);
   const [activeAssignmentSubmit, setActiveAssignmentSubmit] = useState<AssignmentItem | null>(null);
-  const [activeUdemyCourse, setActiveUdemyCourse] = useState<UdemyCourse | null>(null);
+  const [activeMSICourse, setActiveMSICourse] = useState<MSICourse | null>(null);
   const [activeLectureIndex, setActiveLectureIndex] = useState<number>(0);
   const [activeRazorpayFeePayment, setActiveRazorpayFeePayment] = useState<FeePaymentRequest | null>(null);
 
@@ -518,8 +467,8 @@ export default function StudentDashboardPage() {
               tests={tests}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onStartTest={(test) => setActiveTimedTest(test)}
-              onOpenUdemyCourse={(course, lectureIndex = 0) => {
-                setActiveUdemyCourse(course);
+              onOpenMSICourse={(course, lectureIndex = 0) => {
+                setActiveMSICourse(course);
                 setActiveLectureIndex(lectureIndex);
               }}
             />
@@ -542,8 +491,8 @@ export default function StudentDashboardPage() {
               assignments={assignments}
               onPlayVideo={(v) => setActiveVideo(v)}
               onSubmitAssignment={(a) => setActiveAssignmentSubmit(a)}
-              onOpenUdemyCourse={(course, lectureIndex = 0) => {
-                setActiveUdemyCourse(course);
+              onOpenMSICourse={(course, lectureIndex = 0) => {
+                setActiveMSICourse(course);
                 setActiveLectureIndex(lectureIndex);
               }}
             />
@@ -612,12 +561,12 @@ export default function StudentDashboardPage() {
         />
       )}
 
-      {/* Udemy Full Course Classroom Player */}
-      {activeUdemyCourse && (
-        <UdemyPlayerModal
-          course={activeUdemyCourse}
-          isOpen={!!activeUdemyCourse}
-          onClose={() => setActiveUdemyCourse(null)}
+      {/* MSI Full Course Classroom Player */}
+      {activeMSICourse && (
+        <MSIPlayerModal
+          course={activeMSICourse}
+          isOpen={!!activeMSICourse}
+          onClose={() => setActiveMSICourse(null)}
           studentId={student.id}
           studentName={student.name}
           initialLectureIndex={activeLectureIndex}

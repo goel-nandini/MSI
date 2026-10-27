@@ -63,9 +63,9 @@ import {
   Edit3,
 } from 'lucide-react';
 import {
-  UdemyCourse,
-  UdemyLecture,
-  UdemySection,
+  MSICourse,
+  MSILecture,
+  MSISection,
   TeacherApprovalRecord,
   CourseEnrollment,
   getStoredCourses,
@@ -133,7 +133,7 @@ export default function SuperAdminMasterDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherApprovalRecord[]>([]);
-  const [courses, setCourses] = useState<UdemyCourse[]>([]);
+  const [courses, setCourses] = useState<MSICourse[]>([]);
   const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([]);
   const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -272,7 +272,7 @@ export default function SuperAdminMasterDashboard() {
   const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
 
   // 9a. Course Edit Modal State
-  const [courseToEdit, setCourseToEdit] = useState<UdemyCourse | null>(null);
+  const [courseToEdit, setCourseToEdit] = useState<MSICourse | null>(null);
   const [editCourseTitle, setEditCourseTitle] = useState('');
   const [editCourseHeadline, setEditCourseHeadline] = useState('');
   const [editCourseCategory, setEditCourseCategory] = useState<'Judiciary' | 'Law Entrance' | 'Criminal Law' | 'Constitutional Law' | 'Cyber Law' | 'Postgraduate'>('Judiciary');
@@ -315,11 +315,11 @@ export default function SuperAdminMasterDashboard() {
   const [isSubmittingEditReceptionist, setIsSubmittingEditReceptionist] = useState(false);
 
   // 9e. Delete Course Modal
-  const [courseToDelete, setCourseToDelete] = useState<UdemyCourse | null>(null);
+  const [courseToDelete, setCourseToDelete] = useState<MSICourse | null>(null);
   const [isDeletingCourse, setIsDeletingCourse] = useState(false);
 
   // 10. Add Recorded Lecture Modal to existing Course
-  const [selectedCourseForLecture, setSelectedCourseForLecture] = useState<UdemyCourse | null>(null);
+  const [selectedCourseForLecture, setSelectedCourseForLecture] = useState<MSICourse | null>(null);
   const [newLectureTitle, setNewLectureTitle] = useState('');
   const [newLectureVideoUrl, setNewLectureVideoUrl] = useState('https://player.mediadelivery.net/play/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc');
   const [newLectureDuration, setNewLectureDuration] = useState('45 mins');
@@ -327,7 +327,7 @@ export default function SuperAdminMasterDashboard() {
   const [isSubmittingLecture, setIsSubmittingLecture] = useState(false);
 
   // 10b. Assign Faculty to Course Modal State
-  const [selectedCourseForFacultyAssign, setSelectedCourseForFacultyAssign] = useState<UdemyCourse | null>(null);
+  const [selectedCourseForFacultyAssign, setSelectedCourseForFacultyAssign] = useState<MSICourse | null>(null);
   const [assignFacultyTargetTeacherId, setAssignFacultyTargetTeacherId] = useState('');
   const [assignFacultyCustomName, setAssignFacultyCustomName] = useState('');
   const [assignFacultyAutoEnroll, setAssignFacultyAutoEnroll] = useState(true);
@@ -420,7 +420,9 @@ export default function SuperAdminMasterDashboard() {
 
   // ── Authentication Check ────────────────────────────────────────────────────
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('msi_superadmin_logged_in') === 'true';
+    const isLoggedIn =
+      localStorage.getItem('msi_superadmin_logged_in') === 'true' ||
+      localStorage.getItem('msi_super_admin_authenticated') === 'true';
     if (isLoggedIn) {
       setIsAuthenticated(true);
     }
@@ -440,6 +442,7 @@ export default function SuperAdminMasterDashboard() {
         (pass === 'MSI@superadmin' || pass.toLowerCase() === 'msi@superadmin')
       ) {
         localStorage.setItem('msi_superadmin_logged_in', 'true');
+        localStorage.setItem('msi_super_admin_authenticated', 'true');
         localStorage.setItem('msi_active_admin_id', 'super-admin-01');
         localStorage.setItem('msi_active_admin_name', 'MSI Administrator');
         localStorage.setItem('msi_active_admin_phone', '9792303434');
@@ -454,6 +457,7 @@ export default function SuperAdminMasterDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('msi_superadmin_logged_in');
+    localStorage.removeItem('msi_super_admin_authenticated');
     setIsAuthenticated(false);
     showToast('Logged out of Super Admin Master Portal.');
   };
@@ -608,14 +612,26 @@ export default function SuperAdminMasterDashboard() {
             if (t === 'STUDENT_ENROLLED' || t === 'COURSE_ASSIGNED') {
               fetchCourses();
               fetchStudents();
+            } else if (t === 'LEAD_CREATED' || t === 'LEAD_UPDATED' || t === 'LEAD_STATUS_CHANGED') {
+              fetchLeads();
             }
           };
         }
       } catch (_) {}
 
+      const handleLeadsSyncEvent = () => {
+        fetchLeads();
+      };
+      if (typeof window !== 'undefined') {
+        window.addEventListener('msi_leads_sync', handleLeadsSyncEvent);
+      }
+
       return () => {
         clearInterval(pollInterval);
         if (bc) bc.close();
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('msi_leads_sync', handleLeadsSyncEvent);
+        }
       };
     }
   }, [isAuthenticated, refreshAllData, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchCourses, fetchTransactions]);
@@ -883,7 +899,32 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
-  // 3b. Bulk Import Leads (Excel / CSV)
+  // 3b. Quick Lead Status Switcher (Syncs with Reception Desk & Disk)
+  const handleSuperAdminLeadStatus = async (leadId: string, newStatus: 'New' | 'Follow-up' | 'Converted' | 'Dead') => {
+    try {
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l))
+      );
+      showToast(`Lead status updated to ${newStatus}`);
+      await fetch('/api/admin/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: leadId, updates: { status: newStatus } }),
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('msi_leads_sync'));
+        try {
+          const bc = new BroadcastChannel('msi_sync_channel');
+          bc.postMessage({ type: 'LEAD_STATUS_CHANGED', leadId, status: newStatus });
+          bc.close();
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.error('Failed to update lead status:', err);
+    }
+  };
+
+  // 3c. Bulk Import Leads (Excel / CSV)
   const handleBulkImportLeads = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bulkLeadsText.trim()) {
@@ -1344,7 +1385,7 @@ export default function SuperAdminMasterDashboard() {
 
       const courseId = `crs-msi-${Date.now().toString().slice(-6)}`;
       const slug = newCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const newCourse: UdemyCourse = {
+      const newCourse: MSICourse = {
         id: courseId,
         slug,
         title: newCourseTitle.trim(),
@@ -1481,7 +1522,7 @@ export default function SuperAdminMasterDashboard() {
   };
 
   // 7b. Open Edit Course
-  const handleOpenEditCourse = (crs: UdemyCourse) => {
+  const handleOpenEditCourse = (crs: MSICourse) => {
     setCourseToEdit(crs);
     setEditCourseTitle(crs.title || '');
     setEditCourseHeadline(crs.headline || '');
@@ -1511,7 +1552,7 @@ export default function SuperAdminMasterDashboard() {
         avatarUrl: courseToEdit.instructorAvatar,
       };
 
-      const updatedCourse: UdemyCourse = {
+      const updatedCourse: MSICourse = {
         ...courseToEdit,
         title: editCourseTitle.trim(),
         headline: editCourseHeadline.trim() || courseToEdit.headline,
@@ -1543,7 +1584,7 @@ export default function SuperAdminMasterDashboard() {
 
       // 2. Update local storage & state
       const currentCourses = getStoredCourses();
-      const updatedList = (data.courses || currentCourses).map((c: UdemyCourse) => (c.id === updatedCourse.id ? updatedCourse : c));
+      const updatedList = (data.courses || currentCourses).map((c: MSICourse) => (c.id === updatedCourse.id ? updatedCourse : c));
       saveStoredCourses(updatedList, false);
       setCourses(updatedList);
 
@@ -1735,7 +1776,7 @@ export default function SuperAdminMasterDashboard() {
     setIsSubmittingLecture(true);
     try {
       const currentCourses = getStoredCourses();
-      let updatedTargetCourse: UdemyCourse | null = null;
+      let updatedTargetCourse: MSICourse | null = null;
       const updatedCourses = currentCourses.map((crs) => {
         if (crs.id === selectedCourseForLecture.id) {
           const sections =
@@ -1750,7 +1791,7 @@ export default function SuperAdminMasterDashboard() {
                   },
                 ];
 
-          const newLec: UdemyLecture = {
+          const newLec: MSILecture = {
             id: `lec-${Date.now()}`,
             title: newLectureTitle.trim(),
             duration: newLectureDuration.trim() || '45 mins',
@@ -3186,42 +3227,78 @@ export default function SuperAdminMasterDashboard() {
                           </td>
                         </tr>
                       ) : (
-                        filteredLeads.map((ld) => (
-                          <tr key={ld.id} className="hover:bg-[#F0F3FF]/50 transition-colors">
-                            <td className="py-3.5 px-4">
-                              <span className="font-bold text-[#071B37] block">{ld.name}</span>
-                              <span className="text-[10px] text-gray-500">{ld.source}</span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-[#10233F]">
-                              {ld.mobile}
-                            </td>
-                            <td className="py-3.5 px-4 text-[#58413D] font-medium">
-                              {ld.targetCourse}
-                            </td>
-                            <td className="py-3.5 px-4 text-gray-600">{ld.location}</td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                  ld.status === 'Converted'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : ld.status === 'Follow-up'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : ld.status === 'Dead'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                }`}
-                              >
-                                {ld.status}
-                              </span>
-                            </td>
+                        filteredLeads.map((ld) => {
+                          const rowClass =
+                            ld.status === 'Dead'
+                              ? 'border-l-4 border-l-red-500 bg-red-50/30 hover:bg-red-50/60'
+                              : ld.status === 'Converted'
+                              ? 'border-l-4 border-l-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60'
+                              : ld.status === 'Follow-up'
+                              ? 'border-l-4 border-l-amber-500 bg-amber-50/40 hover:bg-amber-50/70'
+                              : 'border-l-4 border-l-blue-500 bg-blue-50/20 hover:bg-blue-50/50';
+
+                          return (
+                            <tr key={ld.id} className={`transition-colors ${rowClass}`}>
+                              <td className="py-3.5 px-4">
+                                <span className="font-bold text-[#071B37] block">{ld.name}</span>
+                                <span className="text-[10px] text-gray-500">{ld.source}</span>
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-bold text-[#10233F]">
+                                {ld.mobile}
+                              </td>
+                              <td className="py-3.5 px-4 text-[#58413D] font-medium">
+                                {ld.targetCourse}
+                              </td>
+                              <td className="py-3.5 px-4 text-gray-600">{ld.location}</td>
+                              <td className="py-3.5 px-4">
+                                <div className="flex flex-col gap-1.5">
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold w-fit ${
+                                      ld.status === 'Converted'
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                        : ld.status === 'Follow-up'
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                        : ld.status === 'Dead'
+                                        ? 'bg-red-100 text-red-800 border border-red-300'
+                                        : 'bg-blue-100 text-blue-800 border border-blue-300'
+                                    }`}
+                                  >
+                                    {ld.status}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    {(['New', 'Follow-up', 'Converted', 'Dead'] as const).map((st) => (
+                                      <button
+                                        key={st}
+                                        type="button"
+                                        onClick={() => handleSuperAdminLeadStatus(ld.id, st)}
+                                        title={`Switch to ${st}`}
+                                        className={`px-1.5 py-0.5 text-[9px] font-bold rounded cursor-pointer transition-all ${
+                                          ld.status === st
+                                            ? st === 'Converted'
+                                              ? 'bg-emerald-600 text-white shadow-2xs'
+                                              : st === 'Follow-up'
+                                              ? 'bg-amber-500 text-white shadow-2xs'
+                                              : st === 'Dead'
+                                              ? 'bg-red-600 text-white shadow-2xs'
+                                              : 'bg-blue-600 text-white shadow-2xs'
+                                            : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
+                                        }`}
+                                      >
+                                        {st === 'Follow-up' ? 'Follow' : st === 'Converted' ? 'Convert' : st}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </td>
                             <td className="py-3.5 px-4 text-gray-700 font-medium">
                               {ld.agent}
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 max-w-xs truncate">
                               {ld.latestRemark}
                             </td>
-                          </tr>
-                        ))
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

@@ -16,8 +16,8 @@ import {
   Radio,
 } from 'lucide-react';
 import {
-  UdemyCourse,
-  UdemyLecture,
+  MSICourse,
+  MSILecture,
   addLectureToCourseAction,
   deleteLectureFromCourseAction,
 } from '@/lib/lmsStore';
@@ -25,7 +25,7 @@ import { getSavedRecordedLectures } from '@/lib/liveStreamPeer';
 import { toBunnyEmbedUrl } from '@/lib/bunnyStream';
 
 interface TeacherLectureModalProps {
-  course: UdemyCourse | null;
+  course: MSICourse | null;
   isOpen: boolean;
   onClose: () => void;
   onLectureSaved: () => void;
@@ -42,7 +42,7 @@ export default function TeacherLectureModal({
   if (!isOpen || !course) return null;
 
   // Flatten existing lectures in order
-  const existingLectures: UdemyLecture[] = [];
+  const existingLectures: MSILecture[] = [];
   if (course.sections && course.sections.length > 0) {
     course.sections.forEach((sec) => {
       sec.lectures.forEach((l) => existingLectures.push(l));

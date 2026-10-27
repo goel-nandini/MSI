@@ -31,7 +31,7 @@ import {
   AssignmentItem,
 } from './data/studentMockData';
 import {
-  UdemyCourse,
+  MSICourse,
   CourseEnrollment,
   getStoredCourses,
   getStoredEnrollments,
@@ -47,7 +47,7 @@ interface StudentLearningTabProps {
   studentPhone?: string;
   onPlayVideo: (video: RecordedVideo) => void;
   onSubmitAssignment: (assignment: AssignmentItem) => void;
-  onOpenUdemyCourse?: (course: UdemyCourse, lectureIndex?: number) => void;
+  onOpenMSICourse?: (course: MSICourse, lectureIndex?: number) => void;
 }
 
 export default function StudentLearningTab({
@@ -59,21 +59,22 @@ export default function StudentLearningTab({
   studentPhone,
   onPlayVideo,
   onSubmitAssignment,
-  onOpenUdemyCourse,
+  onOpenMSICourse,
 }: StudentLearningTabProps) {
+  const handleOpenCourse = onOpenMSICourse;
   const [subSection, setSubSection] = useState<
-    'all' | 'udemy' | 'videos' | 'notes' | 'pyqs' | 'assignments' | 'reference'
+    'all' | 'msi' | 'videos' | 'notes' | 'pyqs' | 'assignments' | 'reference'
   >('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedPyqYear, setSelectedPyqYear] = useState<number | 'all'>('all');
 
-  // Enrolled Udemy Courses State
-  const [enrolledUdemy, setEnrolledUdemy] = useState<{
-    course: UdemyCourse;
+  // Enrolled MSI Courses State
+  const [enrolledMsi, setEnrolledMsi] = useState<{
+    course: MSICourse;
     enrollment: CourseEnrollment;
   }[]>([]);
 
-  const loadUdemy = () => {
+  const loadMsi = () => {
     const allCourses = getStoredCourses();
     const allEnrollments = getStoredEnrollments();
     const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('msi_active_student_phone') || '' : '';
@@ -92,7 +93,7 @@ export default function StudentLearningTab({
         if (!found) return null;
         return { course: found, enrollment: enr };
       })
-      .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
+      .filter(Boolean) as { course: MSICourse; enrollment: CourseEnrollment }[];
 
     // Ensure all registered students under Dr. Ekta Gahlawat / Ekta Gehlot or free MSI courses have access
     allCourses.forEach((crs) => {
@@ -120,14 +121,14 @@ export default function StudentLearningTab({
       }
     });
 
-    setEnrolledUdemy(merged);
+    setEnrolledMsi(merged);
   };
 
   useEffect(() => {
-    loadUdemy();
+    loadMsi();
 
     const handleSync = () => {
-      loadUdemy();
+      loadMsi();
     };
 
     window.addEventListener(LMS_SYNC_EVENT, handleSync);
@@ -175,7 +176,7 @@ export default function StudentLearningTab({
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-[#526174] mt-1">
-              Udemy-style modular video curriculum, annotated Bare Act digests, PYQs, and research assignments.
+              MSI modular video curriculum, annotated Bare Act digests, PYQs, and research assignments.
             </p>
           </div>
 
@@ -199,8 +200,8 @@ export default function StudentLearningTab({
         {/* Sub-section Pill Switcher */}
         <div className="flex flex-wrap items-center gap-2 mt-4">
           {[
-            { id: 'all', label: 'All Resources', count: enrolledUdemy.length + videos.length + notes.length },
-            { id: 'udemy', label: 'Udemy Masterclasses', count: enrolledUdemy.length },
+            { id: 'all', label: 'All Resources', count: enrolledMsi.length + videos.length + notes.length },
+            { id: 'msi', label: 'MSI Masterclasses', count: enrolledMsi.length },
             { id: 'videos', label: 'Recorded Lectures', count: videos.length },
             { id: 'notes', label: 'Notes & PDFs', count: notes.length },
             { id: 'pyqs', label: 'PYQ Papers', count: pyqs.length },
@@ -233,7 +234,7 @@ export default function StudentLearningTab({
         <div className="flex items-center space-x-2.5">
           <ShieldAlert className="w-4 h-4 text-[#89190E] flex-shrink-0" />
           <span>
-            <strong>Enrolled Courses Active:</strong> You have {enrolledUdemy.length} enrolled video courses. Progress and notes synchronize automatically.
+            <strong>Enrolled Courses Active:</strong> You have {enrolledMsi.length} enrolled video courses. Progress and notes synchronize automatically.
           </span>
         </div>
         <Link
@@ -244,23 +245,23 @@ export default function StudentLearningTab({
         </Link>
       </div>
 
-      {/* 1. ENROLLED UDEMY MASTERCLASSES ACCORDION */}
-      {(subSection === 'all' || subSection === 'udemy') && enrolledUdemy.length > 0 && (
+      {/* 1. ENROLLED MSI MASTERCLASSES ACCORDION */}
+      {(subSection === 'all' || subSection === 'msi') && enrolledMsi.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <PlayCircle className="w-5 h-5 text-[#89190E]" />
               <h3 className="font-serif text-lg font-bold text-[#10233F]">
-                Enrolled Udemy Video Curriculum & Progress
+                Enrolled MSI Video Curriculum & Progress
               </h3>
             </div>
             <span className="text-xs text-[#526174] font-mono">
-              {enrolledUdemy.length} Enrolled Courses
+              {enrolledMsi.length} Enrolled Courses
             </span>
           </div>
 
           <div className="grid grid-cols-1 gap-5">
-            {enrolledUdemy.map(({ course, enrollment }) => {
+            {enrolledMsi.map(({ course, enrollment }) => {
               const isAssigned = enrollment.assignedBy === 'super-admin';
 
               return (
@@ -275,6 +276,7 @@ export default function StudentLearningTab({
                           src={course.thumbnail || '/images/courses/clat.jpg'}
                           alt={course.title}
                           fill
+                          sizes="112px"
                           className="object-cover"
                           onError={(e) => {
                             const target = e.currentTarget as HTMLImageElement;
@@ -318,7 +320,7 @@ export default function StudentLearningTab({
                       </div>
 
                       <button
-                        onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course)}
+                        onClick={() => handleOpenCourse && handleOpenCourse(course)}
                         className="px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
@@ -335,7 +337,7 @@ export default function StudentLearningTab({
                         <span>Curriculum Lectures Sequence ({course.sections ? course.sections.flatMap((s) => s.lectures).length : 0} Lectures):</span>
                       </span>
                       <button
-                        onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course, 0)}
+                        onClick={() => handleOpenCourse && handleOpenCourse(course, 0)}
                         className="text-[11px] font-bold text-[#89190E] hover:underline cursor-pointer"
                       >
                         Play All Sequential Lectures →
@@ -348,7 +350,7 @@ export default function StudentLearningTab({
                         return (
                           <div
                             key={lec.id}
-                            onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course, idx)}
+                            onClick={() => handleOpenCourse && handleOpenCourse(course, idx)}
                             className="p-3 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] hover:border-[#89190E] transition-all cursor-pointer group flex items-start justify-between gap-2 shadow-2xs"
                           >
                             <div className="min-w-0 flex-1">
@@ -419,6 +421,7 @@ export default function StudentLearningTab({
                     src={video.thumbnail}
                     alt={video.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                   />
                   {video.isLocked ? (

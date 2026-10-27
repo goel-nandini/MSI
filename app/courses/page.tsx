@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Navbar from '@/components/navbar/Navbar';
 import Footer from '@/components/footer/Footer';
 import EnquiryModal from '@/components/modals/EnquiryModal';
-import UdemyCourseModal from '@/components/courses/UdemyCourseModal';
+import MSICourseModal from '@/components/courses/MSICourseModal';
 import StudentEnrollLoginModal from '@/components/courses/StudentEnrollLoginModal';
 import RazorpayCheckoutModal from '@/components/payments/RazorpayCheckoutModal';
 import PageHero from '@/components/ui/PageHero';
@@ -44,7 +44,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import {
-  UdemyCourse,
+  MSICourse,
   getStoredCourses,
   getStoredEnrollments,
   syncCoursesFromServer,
@@ -95,29 +95,29 @@ export default function CoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState('CLAT UG – 5 Year Integrated Law');
   const [selectedBatchCategory, setSelectedBatchCategory] = useState<'all' | 'entrance' | 'judiciary' | 'academics'>('all');
 
-  // Udemy LMS State
-  const [udemyCourses, setUdemyCourses] = useState<UdemyCourse[]>(() => getStoredCourses());
-  const [selectedUdemyCategory, setSelectedUdemyCategory] = useState<string>('all');
+  // MSI LMS State
+  const [msiCourses, setMsiCourses] = useState<MSICourse[]>(() => getStoredCourses());
+  const [selectedMsiCategory, setSelectedMsiCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeUdemyModalCourse, setActiveUdemyModalCourse] = useState<UdemyCourse | null>(null);
-  const [directCheckoutCourse, setDirectCheckoutCourse] = useState<UdemyCourse | null>(null);
+  const [activeMsiModalCourse, setActiveMsiModalCourse] = useState<MSICourse | null>(null);
+  const [directCheckoutCourse, setDirectCheckoutCourse] = useState<MSICourse | null>(null);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [loginModalCourse, setLoginModalCourse] = useState<UdemyCourse | null>(null);
+  const [loginModalCourse, setLoginModalCourse] = useState<MSICourse | null>(null);
 
   // Horizontal Slider Refs
   const batchesSliderRef = useRef<HTMLDivElement>(null);
   const deliverablesSliderRef = useRef<HTMLDivElement>(null);
   const booksSliderRef = useRef<HTMLDivElement>(null);
-  const udemySliderRef = useRef<HTMLDivElement>(null);
+  const msiSliderRef = useRef<HTMLDivElement>(null);
 
   const loadLmsData = async () => {
     try {
       const serverCourses = await syncCoursesFromServer();
-      setUdemyCourses(serverCourses);
+      setMsiCourses(serverCourses);
     } catch (_) {
       const courses = getStoredCourses();
-      setUdemyCourses(courses);
+      setMsiCourses(courses);
     }
 
     const isUserLoggedIn =
@@ -153,7 +153,7 @@ export default function CoursesPage() {
     type: 'book' | 'kit';
     description?: string;
   }) => {
-    const virtualCourse: UdemyCourse = {
+    const virtualCourse: MSICourse = {
       id: item.id,
       slug: item.id,
       title: item.title,
@@ -277,20 +277,20 @@ export default function CoursesPage() {
     });
   };
 
-  const handleInstantEnroll = (course: UdemyCourse, e: React.MouseEvent) => {
+  const handleInstantEnroll = (course: MSICourse, e: React.MouseEvent) => {
     e.stopPropagation();
-    setActiveUdemyModalCourse(course);
+    setActiveMsiModalCourse(course);
   };
 
-  const handleLoginEnrollSuccess = (course: UdemyCourse, student: { name: string; phone: string }) => {
+  const handleLoginEnrollSuccess = (course: MSICourse, student: { name: string; phone: string }) => {
     setLoginModalCourse(null);
     loadLmsData();
     setDirectCheckoutCourse(course);
   };
 
-  // Filter Udemy courses
-  const filteredUdemyCourses = udemyCourses.filter((course) => {
-    if (selectedUdemyCategory !== 'all' && course.category !== selectedUdemyCategory) {
+  // Filter MSI courses
+  const filteredMsiCourses = msiCourses.filter((course) => {
+    if (selectedMsiCategory !== 'all' && course.category !== selectedMsiCategory) {
       return false;
     }
     if (
@@ -509,7 +509,7 @@ export default function CoursesPage() {
           {/* Quick Jump Bar */}
           <div className="flex items-center flex-wrap gap-2">
             <a
-              href="#udemy-catalog"
+              href="#msi-catalog"
               className="px-4 py-2 rounded-xl text-xs font-bold bg-[#EFC988] text-[#10233F] hover:bg-[#ffe0a3] transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer"
             >
               <PlayCircle className="w-4 h-4 text-[#89190E]" />
@@ -543,9 +543,9 @@ export default function CoursesPage() {
         </PageHero>
 
         {/* ------------------------------------------------------------------
-            1. HANDBOOK-ALIGNED ONLINE VIDEO COURSES (UDEMY LMS)
+            1. HANDBOOK-ALIGNED ONLINE VIDEO COURSES (MSI LMS)
             ------------------------------------------------------------------ */}
-        <section id="udemy-catalog" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-16 pb-12">
+        <section id="msi-catalog" className="max-w-[1380px] mx-auto px-6 sm:px-10 lg:px-16 pt-16 pb-12">
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
@@ -572,7 +572,7 @@ export default function CoursesPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'left')}
+                onClick={() => scrollSlider(msiSliderRef, 'left')}
                 className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
                 aria-label="Previous Online Courses"
               >
@@ -580,7 +580,7 @@ export default function CoursesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'right')}
+                onClick={() => scrollSlider(msiSliderRef, 'right')}
                 className="w-10 h-10 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-[#10233F] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
                 aria-label="Next Online Courses"
               >
@@ -596,9 +596,9 @@ export default function CoursesPage() {
               {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedUdemyCategory(cat.id)}
+                  onClick={() => setSelectedMsiCategory(cat.id)}
                   className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    selectedUdemyCategory === cat.id
+                    selectedMsiCategory === cat.id
                       ? 'bg-[#89190E] text-white shadow-sm'
                       : 'bg-[#FFF9EF] text-[#526174] hover:text-[#10233F] border border-[#E8DCCB]'
                   }`}
@@ -623,17 +623,17 @@ export default function CoursesPage() {
 
           {/* Horizontal Sliding Row (1 Layer, 3-4 visible at once) */}
           <div
-            ref={udemySliderRef}
+            ref={msiSliderRef}
             className="flex items-stretch gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-6 scrollbar-none"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {filteredUdemyCourses.map((course) => (
+            {filteredMsiCourses.map((course) => (
               <div
                 key={course.id}
                 className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0 snap-start"
               >
                 <div
-                  onClick={() => setActiveUdemyModalCourse(course)}
+                  onClick={() => setActiveMsiModalCourse(course)}
                   className="bg-white rounded-3xl border border-[#E8DCCB] overflow-hidden shadow-xs hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group cursor-pointer h-full"
                 >
                   <div>
@@ -643,6 +643,7 @@ export default function CoursesPage() {
                         src={course.thumbnail || '/images/courses/clat.jpg'}
                         alt={course.title}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                           const target = e.currentTarget as HTMLImageElement;
@@ -693,6 +694,7 @@ export default function CoursesPage() {
                             src={course.instructorAvatar}
                             alt={course.instructorName}
                             fill
+                            sizes="24px"
                             className="object-cover"
                           />
                         </div>
@@ -731,7 +733,7 @@ export default function CoursesPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveUdemyModalCourse(course);
+                        setActiveMsiModalCourse(course);
                       }}
                       className="flex-1 py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#FFF3DD] text-[#10233F] border border-[#E8DCCB] text-xs font-bold transition-all text-center cursor-pointer"
                     >
@@ -773,12 +775,12 @@ export default function CoursesPage() {
           {/* Bottom Next/Prev Pagination Bar */}
           <div className="flex items-center justify-between pt-2 border-t border-[#E8DCCB]/60">
             <span className="text-xs text-[#526174]">
-              {filteredUdemyCourses.length} video masterclasses in 1 horizontal sliding track
+              {filteredMsiCourses.length} video masterclasses in 1 horizontal sliding track
             </span>
             <div className="flex items-center space-x-2">
               <button
                 type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'left')}
+                onClick={() => scrollSlider(msiSliderRef, 'left')}
                 className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#89190E] hover:text-white border border-[#E8DCCB] text-xs font-bold text-[#10233F] transition-all flex items-center space-x-1 cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -786,7 +788,7 @@ export default function CoursesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => scrollSlider(udemySliderRef, 'right')}
+                onClick={() => scrollSlider(msiSliderRef, 'right')}
                 className="px-3.5 py-1.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-sm"
               >
                 <span>Next Masterclasses</span>
@@ -1632,11 +1634,11 @@ export default function CoursesPage() {
         initialCourse={selectedCourse}
       />
 
-      {/* Udemy Course Details & Preview Modal */}
-      <UdemyCourseModal
-        course={activeUdemyModalCourse}
-        isOpen={!!activeUdemyModalCourse}
-        onClose={() => setActiveUdemyModalCourse(null)}
+      {/* MSI Course Details & Preview Modal */}
+      <MSICourseModal
+        course={activeMsiModalCourse}
+        isOpen={!!activeMsiModalCourse}
+        onClose={() => setActiveMsiModalCourse(null)}
         activeStudentId={
           typeof window !== 'undefined' && localStorage.getItem('msi_active_student_phone')
             ? `msi-stu-${(localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-4)}`

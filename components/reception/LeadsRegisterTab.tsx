@@ -27,6 +27,10 @@ import {
   Check,
   Send,
   Sparkles,
+  Columns,
+  LayoutGrid,
+  List,
+  ArrowRight,
 } from 'lucide-react';
 import {
   Lead,
@@ -59,6 +63,9 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
   const [courseFilter, setCourseFilter] = useState('All Courses');
   const [counselorFilter, setCounselorFilter] = useState('All Counselors');
   const [layoutCompact, setLayoutCompact] = useState(true);
+
+  // View Mode: Table Register vs Columns / Kanban Pipeline Board
+  const [viewMode, setViewMode] = useState<'table' | 'columns'>('table');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,20 +138,38 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       fetchBackendLeads();
     }, 6000);
 
+    // Real-time synchronization with Super Admin and other browser tabs
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('msi_sync_channel');
+        bc.onmessage = (event) => {
+          if (
+            event.data?.type === 'LEAD_CREATED' ||
+            event.data?.type === 'LEAD_UPDATED' ||
+            event.data?.type === 'LEAD_STATUS_CHANGED'
+          ) {
+            fetchBackendLeads();
+          }
+        };
+      }
+    } catch (_) {}
+
     const handleSync = () => fetchBackendLeads();
     window.addEventListener('focus', handleSync);
     window.addEventListener('msi_leads_sync', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
       clearInterval(pollTimer);
+      if (bc) bc.close();
       window.removeEventListener('focus', handleSync);
       window.removeEventListener('msi_leads_sync', handleSync);
       window.removeEventListener('storage', handleSync);
     };
   }, []);
 
-  // Save leads helper
-  const persistLeads = (updated: Lead[]) => {
+  // Save leads helper with disk persistence & real-time broadcast
+  const persistLeads = async (updated: Lead[], updatedLead?: Lead) => {
     setLeads(updated);
     try {
       localStorage.setItem('msi_reception_leads_data', JSON.stringify(updated));
@@ -154,6 +179,39 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     try {
       window.dispatchEvent(new Event('msi_leads_sync'));
     } catch (_) {}
+
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bc = new BroadcastChannel('msi_sync_channel');
+        bc.postMessage({ type: 'LEAD_UPDATED', lead: updatedLead });
+        bc.close();
+      } catch (_) {}
+    }
+
+    if (updatedLead) {
+      try {
+        await fetch('/api/admin/leads', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: updatedLead.id,
+            updates: {
+              status: updatedLead.status,
+              latestRemark: updatedLead.latestRemark,
+              fullRemark: updatedLead.fullRemark,
+              nextFollowupDate: updatedLead.nextFollowupDate,
+              nextFollowupTime: updatedLead.nextFollowupTime,
+              isOverdue: updatedLead.isOverdue,
+              overdueText: updatedLead.overdueText,
+              dueText: updatedLead.dueText,
+              remarksHistory: updatedLead.remarksHistory,
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn('Failed to sync updated lead to disk:', err);
+      }
+    }
   };
 
   // Metric Ribbon Calculations
@@ -295,13 +353,46 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       return l;
     });
 
-    persistLeads(updated);
+    const updatedTarget = updated.find((l) => l.id === selectedLeadForRemark.id);
+    persistLeads(updated, updatedTarget);
     setSelectedLeadForRemark(null);
     showToast(
       scheduleFollowup
-        ? `Remark saved and follow-up scheduled for ${selectedLeadForRemark.name}!`
-        : `Telecall remark logged successfully for ${selectedLeadForRemark.name}!`
+        ? `Remark saved & moved to ${modalStatus} for ${selectedLeadForRemark.name}!`
+        : `Telecall remark logged & moved to ${modalStatus} for ${selectedLeadForRemark.name}!`
     );
+  };
+
+  // Quick 1-Click Status Switcher: Instantly transforms color and moves to column
+  const handleQuickStatusChange = async (lead: Lead, newStatus: LeadStatus, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (lead.status === newStatus) return;
+
+    const nowTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const authorName = currentStaff?.name ? `${currentStaff.name} (Reception)` : 'Harshit (Reception)';
+    const remarkText = `Status transitioned to ${newStatus} at Reception Desk.`;
+
+    const newRemarkRecord: RemarkEntry = {
+      id: `rem-${Date.now()}`,
+      outcome: newStatus === 'Converted' ? 'Connected — Interested' : newStatus === 'Dead' ? 'Not Interested' : 'Needs More Info',
+      text: remarkText,
+      timestamp: nowTime,
+      author: authorName,
+      leadStatus: newStatus,
+    };
+
+    const updatedLead: Lead = {
+      ...lead,
+      status: newStatus,
+      latestRemark: remarkText,
+      fullRemark: remarkText,
+      isOverdue: false,
+      remarksHistory: [newRemarkRecord, ...(lead.remarksHistory || [])],
+    };
+
+    const updatedLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
+    await persistLeads(updatedLeads, updatedLead);
+    showToast(`✓ Lead "${lead.name}" moved to ${newStatus} section!`);
   };
 
   // Add New Lead Submit
@@ -400,34 +491,34 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     );
   };
 
-  // Helper for status badge styling
+  // Helper for status badge styling (Matching Super Admin)
   const renderStatusBadge = (status: LeadStatus) => {
     switch (status) {
       case 'New':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700 text-white px-3 py-1 text-xs font-bold shadow-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 px-2.5 py-0.5 text-xs font-bold shadow-2xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
             <span>New</span>
           </span>
         );
       case 'Follow-up':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-400 text-yellow-950 border border-yellow-600 px-3 py-1 text-xs font-extrabold shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-yellow-900 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 text-xs font-bold shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-amber-600 animate-pulse" />
             <span>Follow-up</span>
           </span>
         );
       case 'Converted':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-bold shadow-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 text-xs font-bold shadow-2xs">
             <Check className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Converted</span>
           </span>
         );
       case 'Dead':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 text-white px-3 py-1 text-xs font-bold shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-white" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 text-red-800 border border-red-300 px-2.5 py-0.5 text-xs font-bold shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-red-600" />
             <span>Dead</span>
           </span>
         );
@@ -509,15 +600,46 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
             Manage enquiries, call prospects, record remarks and schedule follow-ups in one place.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
-          <button
-            type="button"
-            onClick={() => setLayoutCompact(!layoutCompact)}
-            className="flex items-center gap-1.5 rounded-xl bg-white border border-[#E5E9F0] px-3.5 py-2 text-xs font-semibold text-[#10233F] shadow-xs hover:bg-[#F8F9FA] transition-colors"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-[#765a24]" />
-            <span>{layoutCompact ? 'Compact View' : 'Standard View'}</span>
-          </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+          {/* View Mode Toggle: Table Register vs Columns / Pipeline Kanban */}
+          <div className="inline-flex rounded-xl bg-white border border-[#E5E9F0] p-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[#10233F] text-white shadow-xs'
+                  : 'text-[#526174] hover:text-[#10233F] hover:bg-slate-100'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Table View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('columns')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'columns'
+                  ? 'bg-[#89190E] text-white shadow-xs'
+                  : 'text-[#526174] hover:text-[#10233F] hover:bg-slate-100'
+              }`}
+            >
+              <Columns className="w-3.5 h-3.5" />
+              <span>Columns (Kanban) View</span>
+            </button>
+          </div>
+
+          {viewMode === 'table' && (
+            <button
+              type="button"
+              onClick={() => setLayoutCompact(!layoutCompact)}
+              className="flex items-center gap-1.5 rounded-xl bg-white border border-[#E5E9F0] px-3.5 py-2 text-xs font-semibold text-[#10233F] shadow-xs hover:bg-[#F8F9FA] transition-colors"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-[#765a24]" />
+              <span>{layoutCompact ? 'Compact View' : 'Standard View'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowAddLeadModal(true)}
@@ -919,8 +1041,10 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
           </div>
         </div>
 
-        {/* 5. Spreadsheet-Style Lead Register Table */}
-        <div className="relative w-full overflow-x-auto">
+        {/* 5. Dual View: Table Register View VS Columns Pipeline Kanban Board */}
+        {viewMode === 'table' ? (
+          <>
+            <div className="relative w-full overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-[#F8F9FB] text-[11px] uppercase tracking-wider text-[#526174] font-bold border-b border-[#E5E9F0] select-none">
@@ -973,24 +1097,24 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
                   const isUrgent = lead.isOverdue;
 
-                  // Full row color styling: light yellow for Follow-up, light green for Converted, light red for Dead
+                  // Full row color styling: Super Admin color alignment (Blue: New, Amber: Follow-up, Emerald: Converted, Red: Dead)
                   const rowClass =
                     lead.status === 'Dead'
-                      ? 'border-l-4 border-l-red-500 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2]/90 border-b border-red-200/80 text-[#10233F]'
+                      ? 'border-l-4 border-l-red-500 bg-red-50/40 hover:bg-red-50/80 border-b border-red-200/70 text-[#10233F]'
                       : lead.status === 'Converted'
-                      ? 'border-l-4 border-l-emerald-500 bg-[#DCFCE7]/60 hover:bg-[#DCFCE7]/90 border-b border-emerald-200/80 text-[#10233F]'
+                      ? 'border-l-4 border-l-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 border-b border-emerald-200/70 text-[#10233F]'
                       : lead.status === 'Follow-up'
-                      ? 'border-l-4 border-l-amber-500 bg-[#FEF9C3]/65 hover:bg-[#FEF9C3]/90 border-b border-amber-200/80 text-[#10233F]'
-                      : 'border-l-4 border-l-slate-300 bg-white hover:bg-slate-50 border-b border-[#E5E9F0] text-[#10233F]';
+                      ? 'border-l-4 border-l-amber-500 bg-amber-50/50 hover:bg-amber-50/90 border-b border-amber-200/70 text-[#10233F]'
+                      : 'border-l-4 border-l-blue-500 bg-blue-50/30 hover:bg-blue-50/70 border-b border-blue-200/60 text-[#10233F]';
 
                   const stickyActionBg =
                     lead.status === 'Dead'
-                      ? 'bg-[#FEE2E2] group-hover:bg-[#FECACA]'
+                      ? 'bg-red-50/90 group-hover:bg-red-100/90'
                       : lead.status === 'Converted'
-                      ? 'bg-[#DCFCE7] group-hover:bg-[#BBF7D0]'
+                      ? 'bg-emerald-50/90 group-hover:bg-emerald-100/90'
                       : lead.status === 'Follow-up'
-                      ? 'bg-[#FEF9C3] group-hover:bg-[#FEF08A]'
-                      : 'bg-white group-hover:bg-slate-50';
+                      ? 'bg-amber-50/90 group-hover:bg-amber-100/90'
+                      : 'bg-blue-50/80 group-hover:bg-blue-100/90';
 
                   return (
                     <tr key={lead.id} className={`group transition-colors ${rowClass}`}>
@@ -1010,14 +1134,14 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2.5">
                           <span
-                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 shadow-2xs ${
+                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 shadow-2xs text-white ${
                               lead.status === 'Converted'
-                                ? 'bg-emerald-600 text-white'
+                                ? 'bg-emerald-600'
                                 : lead.status === 'Dead'
-                                ? 'bg-red-600 text-white'
+                                ? 'bg-red-600'
                                 : lead.status === 'Follow-up'
-                                ? 'bg-amber-500 text-white font-bold'
-                                : 'bg-slate-700 text-white'
+                                ? 'bg-amber-500 font-bold'
+                                : 'bg-blue-600'
                             }`}
                           >
                             {initials}
@@ -1062,9 +1186,61 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                         {lead.receivedDate}
                       </td>
 
-                      {/* Status Column */}
+                      {/* Status Column with 1-Click Status Buttons (User Request) */}
                       <td className="px-3 py-2.5">
-                        {renderStatusBadge(lead.status)}
+                        <div className="flex flex-col gap-1.5">
+                          <div>{renderStatusBadge(lead.status)}</div>
+                          <div className="inline-flex rounded-lg border border-slate-200/90 bg-white/95 p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickStatusChange(lead, 'New', e)}
+                              title="Move to New Column (Blue)"
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                lead.status === 'New'
+                                  ? 'bg-blue-600 text-white shadow-2xs'
+                                  : 'text-blue-700 hover:bg-blue-50'
+                              }`}
+                            >
+                              New
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickStatusChange(lead, 'Follow-up', e)}
+                              title="Move to Follow-up Column (Amber)"
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                lead.status === 'Follow-up'
+                                  ? 'bg-amber-500 text-white shadow-2xs'
+                                  : 'text-amber-800 hover:bg-amber-50'
+                              }`}
+                            >
+                              Follow
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickStatusChange(lead, 'Converted', e)}
+                              title="Move to Converted Column (Green)"
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                lead.status === 'Converted'
+                                  ? 'bg-emerald-600 text-white shadow-2xs'
+                                  : 'text-emerald-800 hover:bg-emerald-50'
+                              }`}
+                            >
+                              Convert
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickStatusChange(lead, 'Dead', e)}
+                              title="Move to Dead Column (Red)"
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                lead.status === 'Dead'
+                                  ? 'bg-red-600 text-white shadow-2xs'
+                                  : 'text-red-700 hover:bg-red-50'
+                              }`}
+                            >
+                              Dead
+                            </button>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Latest Remark with Hover Popover */}
@@ -1213,6 +1389,261 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
             </div>
           )}
         </div>
+        </>
+        ) : (
+          /* ========================================================================= */
+          /* 6. COLUMNS / PIPELINE KANBAN BOARD VIEW (User Request: Move between columns with color) */
+          /* ========================================================================= */
+          <div className="p-4 sm:p-6 bg-[#F8F9FB] min-h-[580px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+              {[
+                {
+                  status: 'New' as LeadStatus,
+                  title: 'New Inquiries',
+                  subtitle: 'Uncontacted leads',
+                  headerBg: 'bg-blue-600',
+                  badgeBg: 'bg-blue-100 text-blue-800 border-blue-300',
+                  columnBorder: 'border-blue-200',
+                  columnBg: 'bg-blue-50/20',
+                  count: metrics.newCount,
+                },
+                {
+                  status: 'Follow-up' as LeadStatus,
+                  title: 'Follow-up Pipeline',
+                  subtitle: 'Active prospects',
+                  headerBg: 'bg-amber-500',
+                  badgeBg: 'bg-amber-100 text-amber-800 border-amber-300',
+                  columnBorder: 'border-amber-200',
+                  columnBg: 'bg-amber-50/20',
+                  count: metrics.followupCount,
+                },
+                {
+                  status: 'Converted' as LeadStatus,
+                  title: 'Converted / Admitted',
+                  subtitle: 'Enrolled students',
+                  headerBg: 'bg-emerald-600',
+                  badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  columnBorder: 'border-emerald-200',
+                  columnBg: 'bg-emerald-50/20',
+                  count: metrics.convertedCount,
+                },
+                {
+                  status: 'Dead' as LeadStatus,
+                  title: 'Dead / Closed',
+                  subtitle: 'Not interested / lost',
+                  headerBg: 'bg-red-600',
+                  badgeBg: 'bg-red-100 text-red-800 border-red-300',
+                  columnBorder: 'border-red-200',
+                  columnBg: 'bg-red-50/20',
+                  count: metrics.deadCount,
+                },
+              ].map((col) => {
+                const colLeads = filteredLeads.filter((l) => l.status === col.status);
+
+                return (
+                  <div
+                    key={col.status}
+                    className={`flex flex-col rounded-2xl border-2 ${col.columnBorder} ${col.columnBg} p-3.5 shadow-xs transition-all`}
+                  >
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded-full ${col.headerBg}`} />
+                        <div>
+                          <h3 className="text-xs sm:text-sm font-bold text-[#10233F]">
+                            {col.title}
+                          </h3>
+                          <p className="text-[10px] text-[#526174]">{col.subtitle}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold ${col.badgeBg}`}>
+                        {colLeads.length}
+                      </span>
+                    </div>
+
+                    {/* Column Cards Container */}
+                    <div className="space-y-3 min-h-[220px]">
+                      {colLeads.length === 0 ? (
+                        <div className="py-10 text-center px-4 rounded-xl border border-dashed border-slate-200 bg-white/60">
+                          <p className="text-xs font-medium text-slate-400">No leads in this column</p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Click status buttons on any lead to move it here
+                          </p>
+                        </div>
+                      ) : (
+                        colLeads.map((lead) => {
+                          const initials = lead.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase();
+
+                          return (
+                            <div
+                              key={lead.id}
+                              className={`p-3.5 rounded-xl border bg-white shadow-2xs hover:shadow-md transition-all space-y-2.5 group ${
+                                lead.status === 'Follow-up'
+                                  ? 'border-amber-300 hover:border-amber-400'
+                                  : lead.status === 'Converted'
+                                  ? 'border-emerald-300 hover:border-emerald-400'
+                                  : lead.status === 'Dead'
+                                  ? 'border-red-300 hover:border-red-400'
+                                  : 'border-blue-300 hover:border-blue-400'
+                              }`}
+                            >
+                              {/* Card Header: Initials, Name, ID, Source */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 text-white shadow-2xs ${
+                                      lead.status === 'Converted'
+                                        ? 'bg-emerald-600'
+                                        : lead.status === 'Dead'
+                                        ? 'bg-red-600'
+                                        : lead.status === 'Follow-up'
+                                        ? 'bg-amber-500 font-bold'
+                                        : 'bg-blue-600'
+                                    }`}
+                                  >
+                                    {initials}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-[#10233F] truncate">{lead.name}</h4>
+                                    <span className="text-[10px] font-mono text-[#89190E] font-semibold">{lead.id}</span>
+                                  </div>
+                                </div>
+                                {renderSourceBadge(lead.source)}
+                              </div>
+
+                              {/* Contact & Location */}
+                              <div className="space-y-1 text-xs">
+                                <div className="flex items-center justify-between font-mono">
+                                  <span className="font-bold text-[#10233F]">{lead.mobile}</span>
+                                  <a
+                                    href={`tel:${lead.mobile.replace(/\s+/g, '')}`}
+                                    title="Direct Softphone Dial"
+                                    className="flex h-6 w-6 items-center justify-center rounded-md text-[#765a24] bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs"
+                                  >
+                                    <PhoneCall className="w-3 h-3" />
+                                  </a>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-[#526174]">
+                                  <span className="truncate">{lead.location}</span>
+                                  <span className="font-mono text-[10px] text-slate-400">{lead.receivedDate}</span>
+                                </div>
+                              </div>
+
+                              {/* Target Course Badge */}
+                              <div className="inline-block rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-[#89190E] truncate max-w-full">
+                                {lead.targetCourse}
+                              </div>
+
+                              {/* Latest Remark Box */}
+                              {lead.latestRemark && (
+                                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] text-[#334155] leading-relaxed line-clamp-2">
+                                  {lead.latestRemark}
+                                </div>
+                              )}
+
+                              {/* Next Followup if scheduled */}
+                              {lead.nextFollowupTime && (
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                                  <Calendar className="w-3 h-3 text-amber-700" />
+                                  <span>Next Call: {lead.nextFollowupTime}</span>
+                                </div>
+                              )}
+
+                              {/* Move to Column Section (Direct 1-Click Status Buttons) */}
+                              <div className="pt-2 border-t border-slate-200/60">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                                    Move to Column:
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium">1-click move</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(lead, 'New')}
+                                    className={`py-1 rounded text-[10px] font-bold text-center cursor-pointer transition-all ${
+                                      lead.status === 'New'
+                                        ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
+                                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                                    }`}
+                                  >
+                                    New
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(lead, 'Follow-up')}
+                                    className={`py-1 rounded text-[10px] font-bold text-center cursor-pointer transition-all ${
+                                      lead.status === 'Follow-up'
+                                        ? 'bg-amber-500 text-white shadow-2xs ring-2 ring-amber-300'
+                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+                                    }`}
+                                  >
+                                    Follow
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(lead, 'Converted')}
+                                    className={`py-1 rounded text-[10px] font-bold text-center cursor-pointer transition-all ${
+                                      lead.status === 'Converted'
+                                        ? 'bg-emerald-600 text-white shadow-2xs ring-2 ring-emerald-300'
+                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+                                    }`}
+                                  >
+                                    Convert
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(lead, 'Dead')}
+                                    className={`py-1 rounded text-[10px] font-bold text-center cursor-pointer transition-all ${
+                                      lead.status === 'Dead'
+                                        ? 'bg-red-600 text-white shadow-2xs ring-2 ring-red-300'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                                    }`}
+                                  >
+                                    Dead
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Card Actions Footer */}
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                                <span className="text-slate-400 font-mono text-[10px] truncate max-w-[100px]">{lead.agent}</span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenRemarkModal(lead)}
+                                    title="Log Telecall Remark"
+                                    className="flex items-center gap-1 px-2 py-1 rounded bg-[#89190E] text-white hover:bg-[#660100] font-bold text-[10px]"
+                                  >
+                                    <MessageSquare className="w-3 h-3" />
+                                    <span>Remark</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAuditLead(lead)}
+                                    title="View Audit History"
+                                    className="p-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                  >
+                                    <History className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}

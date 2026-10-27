@@ -22,20 +22,20 @@ import {
   AssessmentItem,
 } from './data/teacherMockData';
 import { TeacherModuleTab } from './TeacherSidebar';
-import { getStoredTeachers, LMS_SYNC_EVENT, UdemyCourse } from '@/lib/lmsStore';
+import { getStoredTeachers, LMS_SYNC_EVENT, MSICourse } from '@/lib/lmsStore';
 import { Plus, Play, UserPlus } from 'lucide-react';
 
 interface TeacherDashboardTabProps {
   teacher: TeacherProfile;
   courses: TeacherCourse[];
-  lmsCourses?: UdemyCourse[];
+  lmsCourses?: MSICourse[];
   schedules: TeacherClassSchedule[];
   assessments: AssessmentItem[];
   totalStudents: number;
   onNavigateTab: (tab: TeacherModuleTab) => void;
   onLaunchAttendance: (session: TeacherClassSchedule) => void;
-  onOpenLectureModal?: (course: UdemyCourse) => void;
-  onOpenEnrollModal?: (course?: UdemyCourse) => void;
+  onOpenLectureModal?: (course: MSICourse) => void;
+  onOpenEnrollModal?: (course?: MSICourse) => void;
 }
 
 export default function TeacherDashboardTab({

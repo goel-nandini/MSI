@@ -10,7 +10,7 @@
 // 5. PCS J Comprehensive Foundation & Procedural Law (MSI/PCSJ/01) — Dr. Vikramaditya Sharma
 // ============================================================================
 
-export interface UdemyLecture {
+export interface MSILecture {
   id: string;
   title: string;
   duration: string;
@@ -26,14 +26,14 @@ export interface UdemyLecture {
   }[];
 }
 
-export interface UdemySection {
+export interface MSISection {
   id: string;
   title: string;
   duration: string;
-  lectures: UdemyLecture[];
+  lectures: MSILecture[];
 }
 
-export interface UdemyCourse {
+export interface MSICourse {
   id: string;
   slug: string;
   title: string;
@@ -57,7 +57,7 @@ export interface UdemyCourse {
   instructorAvatar: string;
   whatYouWillLearn: string[];
   requirements: string[];
-  sections: UdemySection[];
+  sections: MSISection[];
   updatedDate: string;
   language: string;
   isPublished: boolean;
@@ -112,7 +112,7 @@ export interface CourseEnrollment {
 // Authentic Handbook Seed Courses
 // ----------------------------------------------------------------------------
 
-export const INITIAL_UDEMY_COURSES: UdemyCourse[] = [
+export const INITIAL_MSI_COURSES: MSICourse[] = [
   // Course 1: Legal Reasoning for CLAT (MSI/LEGSTUDIES-/01)
   {
     id: 'crs-msi-legstudies',
@@ -346,9 +346,9 @@ export const INITIAL_UDEMY_COURSES: UdemyCourse[] = [
 
 // Alias mapping so legacy course links continue working seamlessly
 export const LEGACY_COURSE_ID_MAP: Record<string, string> = {
-  'crs-udemy-clat': 'crs-msi-legstudies',
-  'crs-udemy-bnss': 'crs-udemy-pcsj',
-  'crs-udemy-cyber': 'crs-msi-gkca'
+  'crs-msi-clat': 'crs-msi-legstudies',
+  'crs-msi-bnss': 'crs-msi-pcsj',
+  'crs-msi-cyber': 'crs-msi-gkca'
 };
 
 // ----------------------------------------------------------------------------
@@ -451,7 +451,7 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
     applicationDate: '12 Jan 2025',
     approvedAt: '15 Jan 2025',
     approvedBy: 'Governing Board / Super Admin',
-    assignedCourseIds: ['crs-udemy-pcsj'],
+    assignedCourseIds: ['crs-msi-pcsj'],
     rating: 4.9,
     studentsCount: 1840
   },
@@ -475,7 +475,7 @@ export const INITIAL_TEACHERS: TeacherApprovalRecord[] = [
     applicationDate: '12 Jan 2025',
     approvedAt: '15 Jan 2025',
     approvedBy: 'Governing Board / Super Admin',
-    assignedCourseIds: ['crs-udemy-pcsj', 'crs-msi-legstudies'],
+    assignedCourseIds: ['crs-msi-pcsj', 'crs-msi-legstudies'],
     rating: 4.9,
     studentsCount: 1840
   }
@@ -518,9 +518,9 @@ export const INITIAL_ENROLLMENTS: CourseEnrollment[] = [
 // LocalStorage Keys & Synchronization Event (v2 for fresh handbook data)
 // ----------------------------------------------------------------------------
 
-const STORAGE_KEY_COURSES = 'msi_udemy_courses_v2';
-const STORAGE_KEY_TEACHERS = 'msi_udemy_teachers_v2';
-const STORAGE_KEY_ENROLLMENTS = 'msi_udemy_enrollments_v2';
+const STORAGE_KEY_COURSES = 'msi_courses_v2';
+const STORAGE_KEY_TEACHERS = 'msi_teachers_v2';
+const STORAGE_KEY_ENROLLMENTS = 'msi_enrollments_v2';
 const STORAGE_KEY_DELETED_COURSES = 'msi_deleted_course_ids';
 const STORAGE_KEY_DELETED_TEACHERS = 'msi_deleted_teacher_ids';
 export const LMS_SYNC_EVENT = 'msi_lms_store_updated';
@@ -536,7 +536,7 @@ const BASE_DELETED_COURSE_IDS = [
   'crs-msi-gkca',
   'crs-msi-lr',
   'crs-msi-engclat',
-  'crs-udemy-pcsj',
+  'crs-msi-pcsj',
   'general-knowledge-current-affairs-clat',
   'logical-reasoning-for-clat-ailet',
   'english-language-comprehension-clat',
@@ -677,21 +677,21 @@ export function markTeacherDeletedLocally(teacherId: string, email?: string, pho
 // ----------------------------------------------------------------------------
 
 // Courses
-export function getStoredCourses(): UdemyCourse[] {
-  if (typeof window === 'undefined') return INITIAL_UDEMY_COURSES;
+export function getStoredCourses(): MSICourse[] {
+  if (typeof window === 'undefined') return INITIAL_MSI_COURSES;
   try {
     const deleted = getDeletedCourseIds();
-    const isDeleted = (c: UdemyCourse) =>
+    const isDeleted = (c: MSICourse) =>
       deleted.includes(c.id.toLowerCase().trim()) ||
       (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
 
-    const raw = localStorage.getItem(STORAGE_KEY_COURSES);
+    let raw = localStorage.getItem(STORAGE_KEY_COURSES);
     if (!raw) {
-      const initial = INITIAL_UDEMY_COURSES.filter((c) => !isDeleted(c));
+      const initial = INITIAL_MSI_COURSES.filter((c) => !isDeleted(c));
       localStorage.setItem(STORAGE_KEY_COURSES, JSON.stringify(initial));
       return initial;
     }
-    const courses: UdemyCourse[] = JSON.parse(raw);
+    const courses: MSICourse[] = JSON.parse(raw);
     let changed = false;
     const activeCourses = courses.filter((c) => !isDeleted(c));
     if (activeCourses.length !== courses.length) {
@@ -699,7 +699,7 @@ export function getStoredCourses(): UdemyCourse[] {
     }
 
     const updated = activeCourses.map((course) => {
-      const seed = INITIAL_UDEMY_COURSES.find((s) => s.id === course.id);
+      const seed = INITIAL_MSI_COURSES.find((s) => s.id === course.id);
       let courseModified = false;
       let newSections = course.sections;
 
@@ -736,15 +736,15 @@ export function getStoredCourses(): UdemyCourse[] {
     }
     return updated;
   } catch {
-    return INITIAL_UDEMY_COURSES;
+    return INITIAL_MSI_COURSES;
   }
 }
 
-export function saveStoredCourses(courses: UdemyCourse[], emitEvent = true) {
+export function saveStoredCourses(courses: MSICourse[], emitEvent = true) {
   if (typeof window === 'undefined') return;
   try {
     const deleted = getDeletedCourseIds();
-    const isDeleted = (c: UdemyCourse) =>
+    const isDeleted = (c: MSICourse) =>
       deleted.includes(c.id.toLowerCase().trim()) ||
       (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
     const valid = courses.filter((c) => !isDeleted(c));
@@ -760,7 +760,7 @@ export function saveStoredCourses(courses: UdemyCourse[], emitEvent = true) {
 /**
  * Synchronize local storage courses with server disk data/courses.json
  */
-export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
+export async function syncCoursesFromServer(): Promise<MSICourse[]> {
   if (typeof window === 'undefined') return getStoredCourses();
   try {
     const res = await fetch('/api/courses', { cache: 'no-store' });
@@ -770,10 +770,10 @@ export async function syncCoursesFromServer(): Promise<UdemyCourse[]> {
         data.deletedIds.forEach((id: string) => markCourseDeletedLocally(id));
       }
       const deleted = getDeletedCourseIds();
-      const isDeleted = (c: UdemyCourse) =>
+      const isDeleted = (c: MSICourse) =>
         deleted.includes(c.id.toLowerCase().trim()) ||
         (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
-      const validCourses = data.courses.filter((c: UdemyCourse) => !isDeleted(c));
+      const validCourses = data.courses.filter((c: MSICourse) => !isDeleted(c));
       saveStoredCourses(validCourses, false);
       return validCourses;
     }
@@ -1396,7 +1396,7 @@ export function addLectureToCourseAction(
   }
 ) {
   const courses = getStoredCourses();
-  let addedLecture: UdemyLecture | null = null;
+  let addedLecture: MSILecture | null = null;
 
   const updatedCourses = courses.map((course) => {
     if (course.id === courseId) {

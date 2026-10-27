@@ -123,6 +123,12 @@ export default function ReceptionDashboardPage() {
         }
       }
 
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && ['new-visitor', 'active-visitors', 'history', 'leads'].includes(tabParam)) {
+        setActiveTab(tabParam as ReceptionModuleTab);
+      }
+
       checkRevocation();
     } catch (err) {
       console.warn('Could not read from localStorage:', err);

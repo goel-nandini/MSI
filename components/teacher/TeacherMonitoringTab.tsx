@@ -19,15 +19,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { StudentMonitoringRecord, TeacherCourse } from './data/teacherMockData';
-import { UdemyCourse, CourseEnrollment, getStoredEnrollments, LMS_SYNC_EVENT } from '@/lib/lmsStore';
+import { MSICourse, CourseEnrollment, getStoredEnrollments, LMS_SYNC_EVENT } from '@/lib/lmsStore';
 
 interface TeacherMonitoringTabProps {
   students: StudentMonitoringRecord[];
   courses: TeacherCourse[];
-  lmsCourses?: UdemyCourse[];
+  lmsCourses?: MSICourse[];
   stream: 'Law' | 'JEE';
   registeredStudents?: { id: string; name: string; phone: string; stream: string }[];
-  onOpenEnrollModal?: (course?: UdemyCourse) => void;
+  onOpenEnrollModal?: (course?: MSICourse) => void;
   activeTeacherName?: string;
   activeTeacherId?: string;
 }

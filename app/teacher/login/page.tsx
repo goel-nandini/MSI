@@ -290,6 +290,7 @@ export default function TeacherLoginPage() {
               alt="MSI Official Seal"
               fill
               priority
+              sizes="48px"
               className="object-contain"
             />
           </div>

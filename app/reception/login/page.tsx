@@ -124,6 +124,7 @@ export default function ReceptionLoginPage() {
               alt="MSI Official Seal"
               fill
               priority
+              sizes="48px"
               className="object-contain"
             />
           </div>

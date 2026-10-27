@@ -1,30 +1,30 @@
 [
   {
-    "id": "fac-law-riya",
-    "name": "Ms. Riya Hooda",
-    "email": "msifaculty009@gmail.com",
-    "phone": "+91 98144 23003",
+    "id": "fac-1792930103609",
+    "name": "harshit",
+    "email": "harshit@faculty.msi.in",
+    "phone": "+91 98000 00000",
     "avatarUrl": "/images/avatars/avatar-2.webp",
-    "department": "Aptitude & Critical Reasoning Division",
-    "designation": "Faculty – Logical Reasoning, MSI Group of Institutes",
+    "department": "School of Law & Judicial Studies",
+    "designation": "Professor of Law / Senior Jurist",
     "qualifications": "LL.M / Ph.D in Law",
-    "experienceYears": 10,
+    "experienceYears": 7,
     "stream": "Law",
-    "bio": "Faculty specialist in Critical Reasoning, Analytical Puzzles, Syllogisms, Coding-Decoding.",
-    "specialization": "Critical Reasoning, Analytical Puzzles, Syllogisms, Coding-Decoding",
-    "sampleLectureTitle": "Critical Reasoning, Analytical Puzzles, Syllogisms, Coding-Decoding — Landmark Case Briefs",
+    "bio": "Faculty specialist in Constitutional Law & Jurisprudence.",
+    "specialization": "Constitutional Law & Jurisprudence",
+    "sampleLectureTitle": "Constitutional Law & Jurisprudence — Landmark Case Briefs",
     "sampleLectureDuration": "45 mins",
     "status": "approved",
-    "applicationDate": "2026-10-24T16:58:36.146Z",
-    "approvedAt": "2026-10-24T16:58:36.146Z",
+    "applicationDate": "2026-10-25T12:08:23.609Z",
+    "approvedAt": "2026-10-25T12:08:23.609Z",
     "approvedBy": "MSI Super Admin",
     "assignedCourseIds": [
-      "crs-msi-lr"
+      "crs-msi-pcsj"
     ],
     "rating": 4.9,
     "studentsCount": 120,
-    "password": "Faculty@MSI2026",
-    "temporaryPassword": "Faculty@MSI2026",
+    "password": "MSI@Faculty2026",
+    "temporaryPassword": "MSI@Faculty2026",
     "mustChangePassword": false
   },
   {
@@ -47,7 +47,7 @@
     "approvedAt": "15 Jan 2025",
     "approvedBy": "Governing Board / Super Admin",
     "assignedCourseIds": [
-      "crs-udemy-pcsj"
+      "crs-msi-pcsj"
     ],
     "rating": 4.9,
     "studentsCount": 1840,

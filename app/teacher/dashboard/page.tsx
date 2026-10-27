@@ -23,7 +23,7 @@ import {
   syncTeachersFromServer,
   syncCoursesFromServer,
   buildTeacherProfileFromRecord,
-  UdemyCourse,
+  MSICourse,
   LMS_SYNC_EVENT,
   enrollStudentAction,
 } from '@/lib/lmsStore';
@@ -55,8 +55,8 @@ export default function TeacherDashboardPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Real LMS dynamic courses assigned by Super Admin
-  const [lmsCourses, setLmsCourses] = useState<UdemyCourse[]>([]);
-  const [selectedCourseForLectures, setSelectedCourseForLectures] = useState<UdemyCourse | null>(null);
+  const [lmsCourses, setLmsCourses] = useState<MSICourse[]>([]);
+  const [selectedCourseForLectures, setSelectedCourseForLectures] = useState<MSICourse | null>(null);
 
   // Dynamic state repositories
   const [contentList, setContentList] = useState<TeacherContentItem[]>(ALL_TEACHER_CONTENT);
@@ -71,7 +71,7 @@ export default function TeacherDashboardPage() {
   const [activeAttendanceSession, setActiveAttendanceSession] = useState<TeacherClassSchedule | null>(null);
   const [isScheduleOneToOneOpen, setIsScheduleOneToOneOpen] = useState(false);
   const [isEnrollStudentOpen, setIsEnrollStudentOpen] = useState(false);
-  const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState<UdemyCourse | null>(null);
+  const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState<MSICourse | null>(null);
   const [registeredStudents, setRegisteredStudents] = useState<{ id: string; name: string; phone: string; stream: string }[]>([]);
   const [isAccessRevoked, setIsAccessRevoked] = useState(false);
 

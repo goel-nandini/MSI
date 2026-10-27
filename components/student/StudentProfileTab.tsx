@@ -69,6 +69,7 @@ export default function StudentProfileTab({
                     src={student.avatarUrl}
                     alt={student.name}
                     fill
+                    sizes="112px"
                     className="object-cover"
                   />
                 ) : (

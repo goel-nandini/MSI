@@ -39,7 +39,7 @@ import {
 } from './data/studentMockData';
 import { StudentModuleTab } from './StudentSidebar';
 import {
-  UdemyCourse,
+  MSICourse,
   CourseEnrollment,
   getStoredCourses,
   getStoredEnrollments,
@@ -58,7 +58,7 @@ interface StudentDashboardTabProps {
   tests: TestItem[];
   onNavigateTab: (tab: StudentModuleTab) => void;
   onStartTest: (test: TestItem) => void;
-  onOpenUdemyCourse?: (course: UdemyCourse) => void;
+  onOpenMSICourse?: (course: MSICourse) => void;
 }
 
 export default function StudentDashboardTab({
@@ -69,8 +69,9 @@ export default function StudentDashboardTab({
   tests,
   onNavigateTab,
   onStartTest,
-  onOpenUdemyCourse,
+  onOpenMSICourse,
 }: StudentDashboardTabProps) {
+  const handleOpenCourse = onOpenMSICourse;
   const activeEnrolledCourses = courses.filter((c) => c.isEnrolled);
   const avgProgress = Math.round(
     activeEnrolledCourses.reduce((acc, c) => acc + c.progress, 0) /
@@ -79,9 +80,9 @@ export default function StudentDashboardTab({
 
   const availableTest = tests.find((t) => t.status === 'Available');
 
-  // Dynamic Udemy LMS Enrollments for this student
-  const [enrolledUdemyData, setEnrolledUdemyData] = useState<{
-    course: UdemyCourse;
+  // Dynamic MSI LMS Enrollments for this student
+  const [enrolledMsiData, setEnrolledMsiData] = useState<{
+    course: MSICourse;
     enrollment: CourseEnrollment;
   }[]>([]);
 
@@ -111,7 +112,7 @@ export default function StudentDashboardTab({
     } catch (_) {}
   };
 
-  const loadEnrolledUdemy = async () => {
+  const loadEnrolledMsi = async () => {
     try {
       await syncCoursesFromServer();
       await syncEnrollmentsFromServer();
@@ -137,7 +138,7 @@ export default function StudentDashboardTab({
         if (!found) return null;
         return { course: found, enrollment: enr };
       })
-      .filter(Boolean) as { course: UdemyCourse; enrollment: CourseEnrollment }[];
+      .filter(Boolean) as { course: MSICourse; enrollment: CourseEnrollment }[];
 
     // If no explicit enrollment but student has stream/courseTitle, auto-match their enrolled program
     if (merged.length === 0 && student.stream) {
@@ -167,11 +168,11 @@ export default function StudentDashboardTab({
       }
     }
 
-    setEnrolledUdemyData(merged);
+    setEnrolledMsiData(merged);
   };
 
   useEffect(() => {
-    loadEnrolledUdemy();
+    loadEnrolledMsi();
     loadPurchasedKits();
 
     let bc: BroadcastChannel | null = null;
@@ -184,14 +185,14 @@ export default function StudentDashboardTab({
             event.data?.type === 'COURSE_DELETED' ||
             event.data?.type === 'STUDENT_ENROLLED'
           ) {
-            loadEnrolledUdemy();
+            loadEnrolledMsi();
           }
         };
       }
     } catch (_) {}
 
     const handleSync = () => {
-      loadEnrolledUdemy();
+      loadEnrolledMsi();
       loadPurchasedKits();
     };
 
@@ -284,7 +285,7 @@ export default function StudentDashboardTab({
     };
 
     checkServerLiveStatus();
-    const serverInterval = setInterval(checkServerLiveStatus, 2500);
+    const serverInterval = setInterval(checkServerLiveStatus, 20000);
 
     // Listen to real-time events across browser tabs
     let bc: BroadcastChannel | null = null;
@@ -381,13 +382,13 @@ export default function StudentDashboardTab({
               Welcome back, {student.name.split(' ')[0]}
             </h1>
             <p className="text-white/80 text-xs sm:text-sm mt-2 leading-relaxed">
-              You have <strong className="text-[#EFC988]">{enrolledUdemyData.length} online video courses</strong> in your active learning portal. Continue where you left off or explore newly assigned judicial masterclasses.
+              You have <strong className="text-[#EFC988]">{enrolledMsiData.length} online video courses</strong> in your active learning portal. Continue where you left off or explore newly assigned judicial masterclasses.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-5 w-full sm:w-auto">
-              {enrolledUdemyData.length > 0 && onOpenUdemyCourse ? (
+              {enrolledMsiData.length > 0 && handleOpenCourse ? (
                 <button
-                  onClick={() => onOpenUdemyCourse(enrolledUdemyData[0].course)}
+                  onClick={() => handleOpenCourse(enrolledMsiData[0].course)}
                   className="w-full sm:w-auto justify-center px-4 sm:px-5 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs sm:text-sm font-bold flex items-center space-x-2 shadow-md shadow-[#89190E]/30 btn-chamfered active:scale-98 transition-all cursor-pointer"
                 >
                   <PlayCircle className="w-4 h-4 text-[#EFC988]" />
@@ -431,7 +432,7 @@ export default function StudentDashboardTab({
                 Enrolled Courses
               </span>
               <span className="font-serif text-lg sm:text-2xl font-bold text-[#EFC988] mt-0.5 block">
-                {enrolledUdemyData.length}
+                {enrolledMsiData.length}
               </span>
               <span className="text-[9px] text-emerald-300 font-semibold block truncate">Video Curriculum</span>
             </div>
@@ -451,17 +452,17 @@ export default function StudentDashboardTab({
         </div>
       </div>
 
-      {/* 2. UDEMY ENROLLED MASTERCLASSES SECTION (NEW!) */}
+      {/* 2. MSI ENROLLED MASTERCLASSES SECTION */}
       <div className="p-5 sm:p-7 rounded-3xl bg-white border border-[#E8DCCB] shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-4 border-b border-[#E8DCCB]">
           <div className="flex items-center space-x-2">
             <PlayCircle className="w-5 h-5 text-[#89190E]" />
             <div>
               <h3 className="font-serif text-base sm:text-lg font-bold text-[#10233F]">
-                My Enrolled Courses & Assigned Masterclasses (Udemy LMS)
+                My Enrolled Courses & Assigned Masterclasses (MSI LMS)
               </h3>
               <p className="text-xs text-[#526174]">
-                Click on any course to open the interactive Udemy classroom with video player, lecture notes, and certificate generator.
+                Click on any course to open the interactive MSI classroom with video player, lecture notes, and certificate generator.
               </p>
             </div>
           </div>
@@ -476,7 +477,7 @@ export default function StudentDashboardTab({
         </div>
 
         {/* Enrolled Courses Grid */}
-        {enrolledUdemyData.length === 0 ? (
+        {enrolledMsiData.length === 0 ? (
           <div className="p-8 rounded-2xl bg-[#FFF9EF] border border-[#E8DCCB] text-center space-y-3">
             <GraduationCap className="w-10 h-10 text-[#89190E] mx-auto opacity-70" />
             <h4 className="font-serif text-lg font-bold text-[#10233F]">No Enrolled Courses Yet</h4>
@@ -494,7 +495,7 @@ export default function StudentDashboardTab({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {enrolledUdemyData.map(({ course, enrollment }) => {
+          {enrolledMsiData.map(({ course, enrollment }) => {
             const isAssignedByAdmin = enrollment.assignedBy === 'super-admin';
 
             return (
@@ -569,11 +570,11 @@ export default function StudentDashboardTab({
 
                   <button
                     type="button"
-                    onClick={() => onOpenUdemyCourse && onOpenUdemyCourse(course)}
+                    onClick={() => handleOpenCourse && handleOpenCourse(course)}
                     className="px-4 py-2 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm cursor-pointer"
                   >
                     <PlayCircle className="w-3.5 h-3.5 text-[#EFC988]" />
-                    <span>Open Udemy Player</span>
+                    <span>Open MSI Player</span>
                   </button>
                 </div>
               </div>

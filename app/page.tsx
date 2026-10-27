@@ -36,7 +36,7 @@ import {
   Phone,
   Clock,
 } from 'lucide-react';
-import { UdemyCourse, getStoredCourses, LMS_SYNC_EVENT } from '@/lib/lmsStore';
+import { MSICourse, getStoredCourses, LMS_SYNC_EVENT } from '@/lib/lmsStore';
 
 const DEFAULT_HOME_COURSES = [
   {
@@ -99,7 +99,7 @@ export default function HomePage() {
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState('PCS J — Punjab Civil Judge Coaching');
-  const [dynamicCourses, setDynamicCourses] = useState<UdemyCourse[]>(() => getStoredCourses());
+  const [dynamicCourses, setDynamicCourses] = useState<MSICourse[]>([]);
 
   // Synchronize courses dynamically from local store & server disk
   useEffect(() => {

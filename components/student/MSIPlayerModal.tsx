@@ -30,21 +30,23 @@ import {
 import BunnyPlayer from '@/components/stream/BunnyPlayer';
 import { toBunnyEmbedUrl } from '@/lib/bunnyStream';
 import {
-  UdemyCourse,
-  UdemyLecture,
+  MSICourse,
+  MSILecture,
   CourseEnrollment,
   toggleLectureCompletionAction,
   getStoredEnrollments,
 } from '@/lib/lmsStore';
 
-interface UdemyPlayerModalProps {
-  course: UdemyCourse | null;
+interface MSIPlayerModalProps {
+  course: MSICourse | null;
   isOpen: boolean;
   onClose: () => void;
   studentId?: string;
   studentName?: string;
   initialLectureIndex?: number;
 }
+
+
 
 interface PersonalNote {
   id: string;
@@ -63,16 +65,16 @@ interface QuestionItem {
   timeAgo: string;
 }
 
-export default function UdemyPlayerModal({
+export default function MSIPlayerModal({
   course,
   isOpen,
   onClose,
   studentId = 'msi-stu-001',
   studentName = 'MSI Student',
   initialLectureIndex = 0,
-}: UdemyPlayerModalProps) {
+}: MSIPlayerModalProps) {
   // Flatten lectures for easy navigation
-  const allLectures: { lecture: UdemyLecture; sectionTitle: string }[] = [];
+  const allLectures: { lecture: MSILecture; sectionTitle: string }[] = [];
   if (course) {
     course.sections.forEach((s) => {
       s.lectures.forEach((l) => {
@@ -225,7 +227,7 @@ export default function UdemyPlayerModal({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0F172A] text-white overflow-hidden">
       
-      {/* 1. Top Classroom Bar (Udemy Style) */}
+      {/* 1. Top Classroom Bar (MSI Style) */}
       <header className="h-16 bg-[#10233F] border-b border-white/10 px-4 sm:px-6 flex items-center justify-between flex-shrink-0 z-20">
         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
           <button
@@ -467,6 +469,7 @@ export default function UdemyPlayerModal({
                         src={course.instructorAvatar}
                         alt={course.instructorName}
                         fill
+                        sizes="44px"
                         className="object-cover"
                       />
                     </div>
@@ -642,7 +645,7 @@ export default function UdemyPlayerModal({
           </div>
         </div>
 
-        {/* Right Collapsible Course Curriculum Sidebar (Udemy Style) */}
+        {/* Right Collapsible Course Curriculum Sidebar (MSI Style) */}
         {sidebarOpen && (
           <aside className="w-80 sm:w-96 bg-[#10233F] border-l border-white/10 flex flex-col flex-shrink-0 z-10 animate-fadeIn">
             {/* Sidebar Header */}
@@ -774,6 +777,7 @@ export default function UdemyPlayerModal({
                     src="/images/msi-crest.png"
                     alt="MSI Official Seal"
                     fill
+                    sizes="64px"
                     className="object-contain"
                   />
                 </div>

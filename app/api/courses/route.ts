@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readCoursesFromDisk, addCourseToDisk, deleteCourseFromDisk, readDeletedCourseIds } from '@/lib/courseStore';
-import { UdemyCourse } from '@/lib/lmsStore';
+import { MSICourse } from '@/lib/lmsStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    const newCourse: UdemyCourse = {
+    const newCourse: MSICourse = {
       id: courseId,
       slug,
       title: body.title.trim(),

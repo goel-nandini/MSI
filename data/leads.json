@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": "lead-sa-540435",
+    "name": "NIKHIL",
+    "mobile": "+91 76543 32345",
+    "location": "Chandigarh / Mohali",
+    "targetCourse": "PCS-J Punjab Judicial Services",
+    "source": "Local Walk-in",
+    "receivedDate": "Just now (Today)",
+    "status": "Converted",
+    "latestRemark": "Inbound lead from Local Walk-in",
+    "fullRemark": "Inbound lead from Local Walk-in",
+    "agent": "Harshit (Reception Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1792936001405",
+        "outcome": "Connected — Interested",
+        "text": "Inbound lead from Local Walk-in",
+        "timestamp": "Oct 25, 07:16 PM",
+        "author": "HARSHIT",
+        "leadStatus": "Converted",
+        "nextFollowupDate": "2026-10-25",
+        "nextFollowupTime": "11:30 AM"
+      },
+      {
+        "id": "rem-1792930540435",
+        "outcome": "Connected — Interested",
+        "text": "Inbound lead from Local Walk-in",
+        "timestamp": "05:45 PM",
+        "author": "Super Admin",
+        "leadStatus": "New"
+      }
+    ],
+    "nextFollowupDate": "2026-10-25",
+    "nextFollowupTime": "On Date 11:30 AM",
+    "isOverdue": false,
+    "dueText": "Scheduled for 2026-10-25"
+  },
+  {
+    "id": "lead-sa-174075",
+    "name": "HARSH",
+    "mobile": "+91 97923 03434",
+    "location": "Chandigarh / Mohali",
+    "targetCourse": "PCS-J Punjab Judicial Services",
+    "source": "College Workshop",
+    "receivedDate": "Just now (Today)",
+    "status": "New",
+    "latestRemark": "Inbound lead from College Workshop",
+    "fullRemark": "Inbound lead from College Workshop",
+    "agent": "Harshit (Reception Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1792930174075",
+        "outcome": "Connected — Interested",
+        "text": "Inbound lead from College Workshop",
+        "timestamp": "05:39 PM",
+        "author": "Super Admin",
+        "leadStatus": "New"
+      }
+    ]
+  }
+]

@@ -77,7 +77,7 @@ export default function StudentHeader({
     };
 
     checkServer();
-    const interval = setInterval(checkServer, 2500);
+    const interval = setInterval(checkServer, 20000);
 
     let bc: BroadcastChannel | null = null;
     try {
@@ -117,6 +117,7 @@ export default function StudentHeader({
               src="/images/msi-crest.png"
               alt="MSI Official Seal"
               fill
+              sizes="44px"
               className="object-contain"
             />
           </div>

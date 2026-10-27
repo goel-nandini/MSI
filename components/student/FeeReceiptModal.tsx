@@ -58,6 +58,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   src="/images/msi-crest.png"
                   alt="MSI Official Seal"
                   fill
+                  sizes="80px"
                   className="object-contain"
                 />
               </div>

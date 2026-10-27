@@ -215,6 +215,7 @@ export default function AchieversTestimonials() {
                       src={achiever.avatar}
                       alt={achiever.name}
                       fill
+                      sizes="48px"
                       className="object-cover"
                     />
                   </div>

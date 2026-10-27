@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { UdemyCourse, INITIAL_UDEMY_COURSES } from './lmsStore';
+import { MSICourse, INITIAL_MSI_COURSES } from './lmsStore';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const COURSES_FILE = path.join(DATA_DIR, 'courses.json');
@@ -49,7 +49,7 @@ export function markCourseDeletedOnDisk(idOrSlug: string): void {
 /**
  * Reads all courses from data/courses.json, excluding deleted ones.
  */
-export function readCoursesFromDisk(): UdemyCourse[] {
+export function readCoursesFromDisk(): MSICourse[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -71,7 +71,7 @@ export function readCoursesFromDisk(): UdemyCourse[] {
       }
     }
     // File missing: initialize with default verified handbook courses excluding deleted
-    const initialFiltered = INITIAL_UDEMY_COURSES.filter(
+    const initialFiltered = INITIAL_MSI_COURSES.filter(
       (c) =>
         !deletedIds.includes(String(c.id).toLowerCase().trim()) &&
         (!c.slug || !deletedIds.includes(String(c.slug).toLowerCase().trim()))
@@ -80,14 +80,14 @@ export function readCoursesFromDisk(): UdemyCourse[] {
     return initialFiltered;
   } catch (err) {
     console.warn('[CourseStore] Error reading courses from disk:', err);
-    return INITIAL_UDEMY_COURSES;
+    return INITIAL_MSI_COURSES;
   }
 }
 
 /**
  * Writes courses array to data/courses.json.
  */
-export function writeCoursesToDisk(courses: UdemyCourse[]): void {
+export function writeCoursesToDisk(courses: MSICourse[]): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -101,7 +101,7 @@ export function writeCoursesToDisk(courses: UdemyCourse[]): void {
 /**
  * Adds a new course to the top of data/courses.json.
  */
-export function addCourseToDisk(newCourse: UdemyCourse): UdemyCourse[] {
+export function addCourseToDisk(newCourse: MSICourse): MSICourse[] {
   // If this course or its slug was previously deleted, unmark it
   try {
     const deleted = readDeletedCourseIds();
@@ -123,7 +123,7 @@ export function addCourseToDisk(newCourse: UdemyCourse): UdemyCourse[] {
       (newCourse.slug && c.slug === newCourse.slug) ||
       c.id.toLowerCase() === newCourse.id.toLowerCase()
   );
-  let updated: UdemyCourse[];
+  let updated: MSICourse[];
   if (existingIdx >= 0) {
     current[existingIdx] = { ...current[existingIdx], ...newCourse };
     updated = current;
@@ -138,7 +138,7 @@ export function addCourseToDisk(newCourse: UdemyCourse): UdemyCourse[] {
  * Permanently deletes a course from data/courses.json and adds to deleted registry.
  * Also cascades deletion to remove course from all faculty assignments and student enrollments.
  */
-export function deleteCourseFromDisk(id: string): UdemyCourse[] {
+export function deleteCourseFromDisk(id: string): MSICourse[] {
   const clean = id.trim().toLowerCase();
   markCourseDeletedOnDisk(clean);
 
