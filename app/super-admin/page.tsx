@@ -3824,6 +3824,7 @@ export default function SuperAdminMasterDashboard() {
                         src={item.image}
                         alt={item.title}
                         fill
+                        unoptimized
                         sizes="(max-width: 768px) 100vw, 33vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />

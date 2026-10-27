@@ -29,12 +29,48 @@ export default function GalleryPage() {
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
 
   const INITIAL_GALLERY_ITEMS: GalleryItem[] = [
-    { id: 1, title: 'Main Reception & Golden Crest', category: 'institute', image: '/images/tour/tour-frame-1.webp', tagline: 'Official MSI Institute Seal', desc: 'Monga City Centre entrance with carved wooden wall and golden MSI Group of Institutes seal.', span: 'wide' },
-    { id: 2, title: 'Judicial Chamber & Legal Research Sanctum', category: 'labs', image: '/images/tour/tour-frame-2.webp', tagline: 'Executive Judicial Chamber', desc: 'Study sanctum equipped with Lady Justice statue, Indian national flags, Bare Act concordances, and AIR digests.' },
-    { id: 3, title: 'Central Academic Library', category: 'library', image: '/images/hero-3.webp', tagline: 'Scholarly Sanctuary', desc: 'Sprawling reading halls and digital legal databases accommodating over 500 scholars.' },
-    { id: 4, title: 'Student Discussion & Mentorship Chambers', category: 'institute', image: '/images/tour/tour-frame-4.webp', tagline: 'Student Life & Dialogue', desc: 'Peer discussions, faculty consultations, and mock debate groups at Monga City Centre institute.' },
-    { id: 5, title: 'Judicial Exam Hall & Speed-Test Center', category: 'labs', image: '/images/hero-2.webp', tagline: 'Real Exam Simulation', desc: 'Timed OMR test simulations, answer drafting drills, and performance evaluation.', span: 'wide' },
-    { id: 6, title: 'National Moot Court Preparation', category: 'events', image: '/images/hero-3.webp', tagline: 'Advocacy & Jurisprudence', desc: 'Law students conducting mock appellate court arguments with faculty jurists.' },
+    {
+      id: 1,
+      title: 'Official Student Merit & Participation Felicitation',
+      category: 'events',
+      image: '/images/gallery/msi-certificate-felicitation.jpg',
+      tagline: 'Merit Felicitation',
+      desc: 'Awarding official MSI Certificate of Participation and academic honours to law aspirants in the presence of parents and leadership at Monga City Centre reception.',
+      span: 'wide',
+    },
+    {
+      id: 2,
+      title: 'Judicial Research Chambers & Study Desks',
+      category: 'labs',
+      image: '/images/gallery/msi-legal-research-study-cubicles.jpg',
+      tagline: 'Legal Research Carrels',
+      desc: 'Dedicated individual student study carrels equipped with Bare Act concordances, Supreme Court & High Court digests, and criminal procedure law volumes.',
+    },
+    {
+      id: 3,
+      title: 'Quiet Reading Suites & LL.M Library Sanctum',
+      category: 'library',
+      image: '/images/gallery/msi-student-reading-hall.jpg',
+      tagline: 'Scholarly Workstations',
+      desc: 'Spacious study cubicles designed for focused CLAT PG, LL.M entrance, and judicial service preparation with personal book storage.',
+    },
+    {
+      id: 4,
+      title: 'Punjab & Delhi Law Digests Reference Section',
+      category: 'institute',
+      image: '/images/gallery/msi-judicial-study-suites.jpg',
+      tagline: 'Case Law & Digests',
+      desc: 'Extensive shelf collection of Punjab and Delhi Law Digests, Constitutional treatises, and individual study desks for case law analysis.',
+    },
+    {
+      id: 5,
+      title: 'All India Reporter (AIR) & State Acts Library',
+      category: 'library',
+      image: '/images/gallery/msi-law-library-air-manuals.jpg',
+      tagline: 'Statutory Reference Stacks',
+      desc: 'Multi-tier library stacks housing complete multi-volume AIR Manuals, Punjab Local Acts & Rules, and central statutes for deep legal research.',
+      span: 'wide',
+    },
   ];
 
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(INITIAL_GALLERY_ITEMS);
@@ -43,7 +79,7 @@ export default function GalleryPage() {
     try {
       const res = await fetch('/api/admin/gallery', { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+      if (data.success && Array.isArray(data.items)) {
         setGalleryItems(data.items);
         try {
           localStorage.setItem('msi_gallery_items_cache', JSON.stringify(data.items));

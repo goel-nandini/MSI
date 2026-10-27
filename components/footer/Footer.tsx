@@ -175,11 +175,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/faculty" className="hover:text-[#EFC988] transition-colors flex items-center group">
-                  <span className="group-hover:translate-x-1 transition-transform">Distinguished Faculty</span>
-                </Link>
-              </li>
-              <li>
                 <Link href="/results" className="hover:text-[#EFC988] transition-colors flex items-center group">
                   <span className="group-hover:translate-x-1 transition-transform">Placements & Results</span>
                 </Link>

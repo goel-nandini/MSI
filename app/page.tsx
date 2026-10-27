@@ -8,7 +8,6 @@ import StatsSection from '@/components/home/StatsSection';
 import WhyMSISection from '@/components/home/WhyMSISection';
 import RecruiterMarquee from '@/components/home/RecruiterMarquee';
 import CampusExperienceTabs from '@/components/home/CampusExperienceTabs';
-import FacultySpotlight from '@/components/home/FacultySpotlight';
 import AchieversTestimonials from '@/components/home/AchieversTestimonials';
 import BlogPreview from '@/components/home/BlogPreview';
 import AdmissionsCountdownCTA from '@/components/home/AdmissionsCountdownCTA';
@@ -440,9 +439,6 @@ export default function HomePage() {
           onOpenVideo={() => setIsVideoOpen(true)}
           onOpenEnquiry={() => setIsEnquiryOpen(true)}
         />
-
-        {/* Faculty Spotlight — 3 Department Heads */}
-        <FacultySpotlight />
 
         {/* Achievers Hall of Fame & Testimonials */}
         <AchieversTestimonials />

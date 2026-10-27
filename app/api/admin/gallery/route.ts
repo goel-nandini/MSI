@@ -18,59 +18,50 @@ export interface GalleryItem {
 const INITIAL_GALLERY: GalleryItem[] = [
   {
     id: 1,
-    title: 'Main Reception & Golden Crest',
-    category: 'institute',
-    image: '/images/tour/tour-frame-1.webp',
-    tagline: 'Official MSI Institute Seal',
-    desc: 'Monga City Centre entrance with carved wooden wall and golden MSI Group of Institutes seal.',
+    title: 'Official Student Merit & Participation Felicitation',
+    category: 'events',
+    image: '/images/gallery/msi-certificate-felicitation.jpg',
+    tagline: 'Merit Felicitation',
+    desc: 'Awarding official MSI Certificate of Participation and academic honours to law aspirants in the presence of parents and leadership at Monga City Centre reception.',
     span: 'wide',
-    uploadedAt: '2026-01-15',
+    uploadedAt: '2026-10-27',
   },
   {
     id: 2,
-    title: 'Judicial Chamber & Legal Research Sanctum',
+    title: 'Judicial Research Chambers & Study Desks',
     category: 'labs',
-    image: '/images/tour/tour-frame-2.webp',
-    tagline: 'Executive Judicial Chamber',
-    desc: 'Study sanctum equipped with Lady Justice statue, Indian national flags, Bare Act concordances, and AIR digests.',
-    uploadedAt: '2026-02-10',
+    image: '/images/gallery/msi-legal-research-study-cubicles.jpg',
+    tagline: 'Legal Research Carrels',
+    desc: 'Dedicated individual student study carrels equipped with Bare Act concordances, Supreme Court & High Court digests, and criminal procedure law volumes.',
+    uploadedAt: '2026-10-27',
   },
   {
     id: 3,
-    title: 'Central Academic Library',
+    title: 'Quiet Reading Suites & LL.M Library Sanctum',
     category: 'library',
-    image: '/images/hero-3.webp',
-    tagline: 'Scholarly Sanctuary',
-    desc: 'Sprawling reading halls and digital legal databases accommodating over 500 scholars.',
-    uploadedAt: '2026-02-20',
+    image: '/images/gallery/msi-student-reading-hall.jpg',
+    tagline: 'Scholarly Workstations',
+    desc: 'Spacious study cubicles designed for focused CLAT PG, LL.M entrance, and judicial service preparation with personal book storage.',
+    uploadedAt: '2026-10-27',
   },
   {
     id: 4,
-    title: 'Student Discussion & Mentorship Chambers',
+    title: 'Punjab & Delhi Law Digests Reference Section',
     category: 'institute',
-    image: '/images/tour/tour-frame-4.webp',
-    tagline: 'Student Life & Dialogue',
-    desc: 'Peer discussions, faculty consultations, and mock debate groups at Monga City Centre institute.',
-    uploadedAt: '2026-03-01',
+    image: '/images/gallery/msi-judicial-study-suites.jpg',
+    tagline: 'Case Law & Digests',
+    desc: 'Extensive shelf collection of Punjab and Delhi Law Digests, Constitutional treatises, and individual study desks for case law analysis.',
+    uploadedAt: '2026-10-27',
   },
   {
     id: 5,
-    title: 'Judicial Exam Hall & Speed-Test Center',
-    category: 'labs',
-    image: '/images/hero-2.webp',
-    tagline: 'Real Exam Simulation',
-    desc: 'Timed OMR test simulations, answer drafting drills, and performance evaluation.',
+    title: 'All India Reporter (AIR) & State Acts Library',
+    category: 'library',
+    image: '/images/gallery/msi-law-library-air-manuals.jpg',
+    tagline: 'Statutory Reference Stacks',
+    desc: 'Multi-tier library stacks housing complete multi-volume AIR Manuals, Punjab Local Acts & Rules, and central statutes for deep legal research.',
     span: 'wide',
-    uploadedAt: '2026-03-15',
-  },
-  {
-    id: 6,
-    title: 'National Moot Court Preparation',
-    category: 'events',
-    image: '/images/hero-3.webp',
-    tagline: 'Advocacy & Jurisprudence',
-    desc: 'Law students conducting mock appellate court arguments with faculty jurists.',
-    uploadedAt: '2026-03-25',
+    uploadedAt: '2026-10-27',
   },
 ];
 
@@ -86,7 +77,7 @@ function readGalleryFromDisk(): GalleryItem[] {
       const raw = fs.readFileSync(GALLERY_FILE, 'utf-8');
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }

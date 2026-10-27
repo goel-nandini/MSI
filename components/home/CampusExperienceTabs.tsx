@@ -84,7 +84,7 @@ export default function CampusExperienceTabs({
       icon: BookOpen,
       title: 'Scholarly Sanctuary with Legal Reference Volumes',
       subtitle: 'The Heart of Legal Research & Precedents',
-      image: '/images/hero-3.webp',
+      image: '/images/gallery/msi-law-library-air-manuals.jpg',
       description:
         'A comprehensive legal library featuring Bare Acts, SCC Online, AIR archives, constitutional digests, and quiet reading zones for uninterrupted examination preparation.',
       features: [
