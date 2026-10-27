@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  readStudentsFromDisk,
-  writeStudentsToDisk,
-  deleteStudentFromDisk,
-  unmarkStudentDeletedOnDisk,
+  getStudentsAsync,
+  addStudentAsync,
+  deleteStudentAsync,
   buildDefaultStudentProfile,
   RegisteredStudentUser,
 } from '@/lib/studentUserStore';
@@ -12,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const students = readStudentsFromDisk();
+    const students = await getStudentsAsync();
     return NextResponse.json({
       success: true,
       students,
@@ -20,7 +19,7 @@ export async function GET() {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error?.message || 'Failed to read students from disk' },
+      { success: false, message: error?.message || 'Failed to read students' },
       { status: 500 }
     );
   }
@@ -46,12 +45,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Unmark any prior deletion of this phone / email
-    unmarkStudentDeletedOnDisk(cleanPhone, email?.trim());
-
-    const students = readStudentsFromDisk();
-    const existingIndex = students.findIndex((s) => s.phone === cleanPhone);
-
     const resolvedStream = stream || 'PCS-J Punjab Judicial Services';
     const resolvedEmail =
       email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`;
@@ -76,23 +69,13 @@ export async function POST(req: NextRequest) {
       profile: defaultProfile,
     };
 
-    if (existingIndex >= 0) {
-      students[existingIndex] = {
-        ...students[existingIndex],
-        ...newStudent,
-        id: students[existingIndex].id,
-      };
-    } else {
-      students.push(newStudent);
-    }
-
-    writeStudentsToDisk(students);
+    const updatedStudents = await addStudentAsync(newStudent);
 
     return NextResponse.json({
       success: true,
       message: `Student ${name} successfully enrolled and saved to permanent database.`,
       student: newStudent,
-      students,
+      students: updatedStudents,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -124,9 +107,9 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const deleted = deleteStudentFromDisk(target, id && phone ? id : undefined);
+    await deleteStudentAsync(target);
 
-    const updatedStudents = readStudentsFromDisk();
+    const updatedStudents = await getStudentsAsync();
 
     return NextResponse.json({
       success: true,
@@ -154,7 +137,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const students = readStudentsFromDisk();
+    const students = await getStudentsAsync();
     const student = students.find((s) => s.phone === cleanPhone);
 
     if (!student) {
@@ -164,18 +147,19 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    Object.assign(student, updates);
-    if (student.profile && updates.profile) {
-      student.profile = { ...student.profile, ...updates.profile };
-    }
+    const updatedStudent: RegisteredStudentUser = {
+      ...student,
+      ...updates,
+      profile: student.profile && updates.profile ? { ...student.profile, ...updates.profile } : (student.profile || updates.profile),
+    };
 
-    writeStudentsToDisk(students);
+    const updatedStudents = await addStudentAsync(updatedStudent);
 
     return NextResponse.json({
       success: true,
       message: 'Student record updated successfully.',
-      student,
-      students,
+      student: updatedStudent,
+      students: updatedStudents,
     });
   } catch (error: any) {
     return NextResponse.json(

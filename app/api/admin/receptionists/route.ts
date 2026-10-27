@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  readReceptionistsFromDisk,
-  addOrUpdateReceptionistOnDisk,
-  deleteReceptionistFromDisk,
+  getReceptionistsAsync,
+  addReceptionistAsync,
+  deleteReceptionistAsync,
 } from '@/lib/receptionistStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const receptionists = readReceptionistsFromDisk();
+    const receptionists = await getReceptionistsAsync();
     return NextResponse.json({
       success: true,
       receptionists,
@@ -17,7 +17,7 @@ export async function GET() {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error?.message || 'Failed to read receptionists from disk' },
+      { success: false, message: error?.message || 'Failed to read receptionists' },
       { status: 500 }
     );
   }
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = addOrUpdateReceptionistOnDisk({
+    const result = await addReceptionistAsync({
       name: name.trim(),
       phone: cleanPhone,
       email: email?.trim(),
@@ -82,7 +82,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const result = deleteReceptionistFromDisk(id.trim());
+    const result = await deleteReceptionistAsync(id.trim());
     return NextResponse.json({
       success: true,
       message: `Receptionist (${id}) deleted successfully.`,

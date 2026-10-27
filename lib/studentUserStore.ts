@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getDb, isMongoConfigured } from './mongodb';
 
 export interface RegisteredStudentUser {
   id: string;
@@ -656,4 +657,187 @@ export function deleteStudentFromDisk(rawPhoneOrId: string, additionalId?: strin
   }
 
   return true;
+}
+
+/**
+ * Cloud-synchronized fetch of registered students supporting MongoDB Atlas with disk fallback.
+ */
+export async function getStudentsAsync(): Promise<RegisteredStudentUser[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<RegisteredStudentUser>('students');
+        const deletedCol = db.collection<DeletedStudentRecord>('deleted_students');
+
+        const deletedDocs = await deletedCol.find({}).toArray();
+        const deletedPhones = deletedDocs.map((d) => (d.phone || '').replace(/\D/g, '').slice(-10)).filter(Boolean);
+        const deletedEmails = deletedDocs.map((d) => (d.email || '').toLowerCase().trim()).filter(Boolean);
+        const deletedIds = deletedDocs.map((d) => (d.id || '').toLowerCase().trim()).filter(Boolean);
+
+        const count = await col.countDocuments();
+        if (count === 0) {
+          const disk = readStudentsFromDisk();
+          if (disk.length > 0) {
+            await col.insertMany(disk as any);
+          }
+        }
+
+        const raw = await col.find({}).sort({ registeredAt: -1 }).toArray();
+        return raw
+          .map((s: any) => {
+            const { _id, ...rest } = s;
+            return rest as RegisteredStudentUser;
+          })
+          .filter((s) => {
+            const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+            const sEmail = (s.email || '').toLowerCase().trim();
+            const sId = (s.id || '').toLowerCase().trim();
+
+            return (
+              (sPhone.length < 10 || !deletedPhones.includes(sPhone)) &&
+              (!sEmail || !deletedEmails.includes(sEmail)) &&
+              (!sId || !deletedIds.includes(sId))
+            );
+          });
+      }
+    } catch (err) {
+      console.warn('[StudentStore] MongoDB read error, falling back to disk:', err);
+    }
+  }
+
+  return readStudentsFromDisk();
+}
+
+/**
+ * Cloud-synchronized add/update of a student supporting MongoDB Atlas with disk fallback.
+ */
+export async function addStudentAsync(student: RegisteredStudentUser): Promise<RegisteredStudentUser[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection('students');
+        const deletedCol = db.collection('deleted_students');
+
+        const cleanPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
+        const cleanEmail = (student.email || '').toLowerCase().trim();
+
+        // Unmark from deleted
+        await deletedCol.deleteMany({
+          $or: [
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            ...(cleanEmail ? [{ email: cleanEmail }] : []),
+            { id: student.id },
+          ],
+        });
+
+        // Upsert student
+        const { _id, ...cleanStudent }: any = student;
+        await col.updateOne(
+          {
+            $or: [
+              ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+              { id: student.id },
+            ],
+          },
+          { $set: cleanStudent },
+          { upsert: true }
+        );
+
+        // Also write to local disk
+        try {
+          const disk = readStudentsFromDisk();
+          const idx = disk.findIndex((s) => s.phone === cleanPhone || s.id === student.id);
+          if (idx >= 0) {
+            disk[idx] = { ...disk[idx], ...student };
+          } else {
+            disk.unshift(student);
+          }
+          writeStudentsToDisk(disk);
+        } catch (_) {}
+
+        return await getStudentsAsync();
+      }
+    } catch (err) {
+      console.warn('[StudentStore] MongoDB add error, falling back to disk:', err);
+    }
+  }
+
+  const disk = readStudentsFromDisk();
+  const cleanPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
+  const idx = disk.findIndex((s) => s.phone === cleanPhone || s.id === student.id);
+  if (idx >= 0) {
+    disk[idx] = { ...disk[idx], ...student };
+  } else {
+    disk.unshift(student);
+  }
+  writeStudentsToDisk(disk);
+  return disk;
+}
+
+/**
+ * Cloud-synchronized deletion of student supporting MongoDB Atlas with disk fallback.
+ */
+export async function deleteStudentAsync(phoneOrId: string): Promise<boolean> {
+  const cleanPhone = (phoneOrId || '').replace(/\D/g, '').slice(-10);
+  const cleanId = (phoneOrId || '').toLowerCase().trim();
+
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection('students');
+        const deletedCol = db.collection('deleted_students');
+        const enrollmentsCol = db.collection('enrollments');
+
+        // 1. Mark in deleted_students
+        await deletedCol.updateOne(
+          {
+            $or: [
+              ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+              { id: cleanId },
+            ],
+          },
+          {
+            $set: {
+              phone: cleanPhone.length >= 10 ? cleanPhone : undefined,
+              id: cleanId,
+              deletedAt: new Date().toISOString(),
+            },
+          },
+          { upsert: true }
+        );
+
+        // 2. Delete from students collection
+        await col.deleteMany({
+          $or: [
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            { id: cleanId },
+            { id: phoneOrId },
+          ],
+        });
+
+        // 3. Cascade delete enrollments
+        await enrollmentsCol.deleteMany({
+          $or: [
+            ...(cleanPhone.length >= 10 ? [{ studentPhone: cleanPhone }] : []),
+            { studentId: cleanId },
+            { studentId: phoneOrId },
+          ],
+        });
+
+        // Also update local disk
+        try {
+          deleteStudentFromDisk(phoneOrId);
+        } catch (_) {}
+
+        return true;
+      }
+    } catch (err) {
+      console.warn('[StudentStore] MongoDB delete error, falling back to disk:', err);
+    }
+  }
+
+  return deleteStudentFromDisk(phoneOrId);
 }

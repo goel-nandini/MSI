@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getDb, isMongoConfigured } from './mongodb';
 
 export interface ReceptionistRecord {
   id: string;
@@ -303,3 +304,155 @@ export function verifyReceptionistCredentials(
 
   return { success: true, receptionist: matched };
 }
+
+/**
+ * Cloud-synchronized fetch of receptionists supporting MongoDB Atlas with disk fallback.
+ */
+export async function getReceptionistsAsync(): Promise<ReceptionistRecord[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<ReceptionistRecord>('receptionists');
+        const deletedCol = db.collection('deleted_receptionists');
+
+        const deletedDocs = await deletedCol.find({}).toArray();
+        const deletedIds = deletedDocs.map((d: any) => String(d.id || d.identifier || '').toLowerCase().trim()).filter(Boolean);
+
+        const count = await col.countDocuments();
+        if (count === 0) {
+          const disk = readReceptionistsFromDisk();
+          if (disk.length > 0) {
+            await col.insertMany(disk as any);
+          }
+        }
+
+        const raw = await col.find({}).sort({ createdAt: -1 }).toArray();
+        return raw
+          .map((r: any) => {
+            const { _id, ...rest } = r;
+            return rest as ReceptionistRecord;
+          })
+          .filter((r) => {
+            const rPhone = (r.phone || '').replace(/\D/g, '').slice(-10);
+            const rEmail = (r.email || '').toLowerCase().trim();
+            const rId = (r.id || '').toLowerCase().trim();
+
+            return (
+              !deletedIds.includes(rPhone) &&
+              (!rEmail || !deletedIds.includes(rEmail)) &&
+              (!rId || !deletedIds.includes(rId))
+            );
+          });
+      }
+    } catch (err) {
+      console.warn('[ReceptionistStore] MongoDB read error, falling back to disk:', err);
+    }
+  }
+
+  return readReceptionistsFromDisk();
+}
+
+/**
+ * Cloud-synchronized add/update of receptionist supporting MongoDB Atlas with disk fallback.
+ */
+export async function addReceptionistAsync(record: { name: string; phone: string; email?: string; password?: string }) {
+  const cleanPhone = record.phone.replace(/\D/g, '').slice(-10);
+
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection('receptionists');
+        const deletedCol = db.collection('deleted_receptionists');
+
+        // Unmark from deleted
+        await deletedCol.deleteMany({
+          $or: [
+            { id: cleanPhone },
+            { identifier: cleanPhone },
+            ...(record.email ? [{ id: record.email.toLowerCase().trim() }, { identifier: record.email.toLowerCase().trim() }] : []),
+          ],
+        });
+
+        const recData: ReceptionistRecord = {
+          id: `rec-${cleanPhone.slice(-6)}`,
+          name: record.name.trim(),
+          phone: cleanPhone,
+          email: record.email?.trim() || `${record.name.toLowerCase().replace(/\s+/g, '')}.reception@msi-institutes.edu.in`,
+          password: record.password?.trim() || 'Harshit@reception',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          role: 'reception',
+          designation: 'Reception Desk Officer',
+        };
+
+        const { _id, ...cleanData }: any = recData;
+        await col.updateOne(
+          { phone: cleanPhone },
+          { $set: cleanData },
+          { upsert: true }
+        );
+
+        try {
+          addOrUpdateReceptionistOnDisk(record);
+        } catch (_) {}
+
+        return { success: true, receptionist: recData };
+      }
+    } catch (err) {
+      console.warn('[ReceptionistStore] MongoDB add error, falling back to disk:', err);
+    }
+  }
+
+  return addOrUpdateReceptionistOnDisk(record);
+}
+
+/**
+ * Cloud-synchronized deletion of receptionist supporting MongoDB Atlas with disk fallback.
+ */
+export async function deleteReceptionistAsync(identifier: string) {
+  const cleanTarget = identifier.toLowerCase().trim();
+  const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
+
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection('receptionists');
+        const deletedCol = db.collection('deleted_receptionists');
+
+        // 1. Mark in deleted_receptionists
+        await deletedCol.updateOne(
+          { id: cleanTarget },
+          { $set: { id: cleanTarget, deletedAt: new Date().toISOString() } },
+          { upsert: true }
+        );
+
+        // 2. Delete from receptionists collection
+        const res = await col.deleteMany({
+          $or: [
+            { id: cleanTarget },
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            { email: cleanTarget },
+          ],
+        });
+
+        try {
+          deleteReceptionistFromDisk(identifier);
+        } catch (_) {}
+
+        const remaining = await getReceptionistsAsync();
+        return {
+          remainingReceptionists: remaining,
+          deletedCount: res.deletedCount || 1,
+        };
+      }
+    } catch (err) {
+      console.warn('[ReceptionistStore] MongoDB delete error, falling back to disk:', err);
+    }
+  }
+
+  return deleteReceptionistFromDisk(identifier);
+}
+

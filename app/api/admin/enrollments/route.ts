@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getEnrollmentsAsync,
+  addEnrollmentAsync,
   readEnrollmentsFromDisk,
   addOrUpdateEnrollmentOnDisk,
   deleteEnrollmentsForCourseOnDisk,
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
     const teacherId = searchParams.get('teacherId');
     const courseId = searchParams.get('courseId');
 
-    const all = readEnrollmentsFromDisk();
+    const all = await getEnrollmentsAsync();
     let filtered = all;
 
     if (phone) {
@@ -90,23 +92,30 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = (studentPhone || '').replace(/\D/g, '').slice(-10) || '0000000000';
 
-    const enrollment = addOrUpdateEnrollmentOnDisk({
+    const newEnr = {
+      id: `enr-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6)}`,
       studentPhone: cleanPhone,
-      studentName,
-      studentId,
+      studentName: studentName || 'Registered Student',
+      studentId: studentId || `msi-stu-${cleanPhone.slice(-4)}`,
       courseId,
-      courseTitle,
+      courseTitle: courseTitle || 'MSI Course',
+      enrolledAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      progressPercentage: 0,
+      completedLectureIds: [],
       assignedBy: assignedBy || 'super-admin',
       assignedByName: assignedByName || (assignedBy === 'teacher' ? 'Faculty Mentor' : 'MSI Super Admin'),
       assignedByTeacherId,
       assignedNote,
-    });
+      certificateIssued: false,
+    };
+
+    const allEnrollments = await addEnrollmentAsync(newEnr as any);
 
     return NextResponse.json({
       success: true,
-      message: `Course successfully assigned to student ${enrollment.studentName || cleanPhone}.`,
-      enrollment,
-      allEnrollments: readEnrollmentsFromDisk(),
+      message: `Course successfully assigned to student ${newEnr.studentName || cleanPhone}.`,
+      enrollment: newEnr,
+      allEnrollments,
     });
   } catch (error: any) {
     return NextResponse.json(

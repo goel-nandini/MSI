@@ -1,1 +1,63 @@
-[]
+[
+  {
+    "id": "crs-msi-280790",
+    "slug": "ai",
+    "title": "ai",
+    "headline": "Comprehensive Curriculum & Judicial Practice",
+    "description": "Official curriculum accredited by MSI Group of Institutes.",
+    "category": "Judiciary",
+    "department": "law",
+    "badge": "Hot & New",
+    "rating": 5,
+    "reviewCount": 1,
+    "totalDuration": "40 hours",
+    "totalLectures": 1,
+    "level": "All Levels",
+    "thumbnail": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
+    "price": 49999,
+    "originalPrice": 14999,
+    "isFreeForMsiStudents": true,
+    "instructorId": "fac-law-vikram",
+    "instructorName": "Dr. Vikramaditya Sharma",
+    "instructorTitle": "Senior Professor of Procedural Law & Judicial Studies",
+    "instructorAvatar": "/images/faculty/faculty-1.webp",
+    "whatYouWillLearn": [
+      "Mastery over ratio decidendi and obiter dicta distinctions",
+      "Timed answer drafting drills and Bare Act interpretations",
+      "Live judicial mentoring and doubt clearing"
+    ],
+    "requirements": [
+      "Dedication to daily legal study drills",
+      "No prior legal diploma required"
+    ],
+    "sections": [
+      {
+        "id": "sec-1793095280790-1",
+        "title": "Module 1: Foundational Jurisprudence & Overview",
+        "duration": "3 hours",
+        "lectures": [
+          {
+            "id": "lec-1793095280790-1",
+            "title": "Orientation & Landmark Constitutional Doctrines",
+            "duration": "45 mins",
+            "durationSeconds": 2700,
+            "videoUrl": "https://player.mediadelivery.net/embed/782652/175638d1-0e6d-4d8c-beaa-23f879ef5afc",
+            "preview": true,
+            "summary": "Initial recorded foundational orientation lecture for registered scholars.",
+            "resources": [
+              {
+                "title": "Official Lecture Handout & Landmark Briefs",
+                "type": "pdf",
+                "size": "2.4 MB",
+                "downloadUrl": "#"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "updatedDate": "Oct 2026",
+    "language": "English & Bilingual Legal Notes",
+    "isPublished": true
+  }
+]

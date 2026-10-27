@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getDb, isMongoConfigured } from './mongodb';
 
 export interface PersistentEnrollment {
   id: string;
@@ -204,3 +205,71 @@ export function getEnrollmentsForStudentOnDisk(studentPhoneOrId: string): Persis
     return (cleanPhone.length >= 10 && ePhone === cleanPhone) || eId === cleanId;
   });
 }
+
+/**
+ * Cloud-synchronized fetch of enrollments supporting MongoDB Atlas with disk fallback.
+ */
+export async function getEnrollmentsAsync(): Promise<PersistentEnrollment[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<PersistentEnrollment>('enrollments');
+        const count = await col.countDocuments();
+        if (count === 0) {
+          const disk = readEnrollmentsFromDisk();
+          if (disk.length > 0) {
+            await col.insertMany(disk as any);
+          }
+        }
+        const docs = await col.find({}).sort({ enrolledAt: -1 }).toArray();
+        return docs.map((d: any) => {
+          const { _id, ...rest } = d;
+          return rest as PersistentEnrollment;
+        });
+      }
+    } catch (err) {
+      console.warn('[EnrollmentStore] MongoDB read error, falling back to disk:', err);
+    }
+  }
+
+  return readEnrollmentsFromDisk();
+}
+
+/**
+ * Cloud-synchronized add/update of enrollment supporting MongoDB Atlas with disk fallback.
+ */
+export async function addEnrollmentAsync(enrollment: PersistentEnrollment): Promise<PersistentEnrollment[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection('enrollments');
+        const { _id, ...cleanData }: any = enrollment;
+        await col.updateOne(
+          {
+            $or: [
+              { id: enrollment.id },
+              { studentPhone: enrollment.studentPhone, courseId: enrollment.courseId },
+              { studentId: enrollment.studentId, courseId: enrollment.courseId },
+            ],
+          },
+          { $set: cleanData },
+          { upsert: true }
+        );
+
+        try {
+          addOrUpdateEnrollmentOnDisk(enrollment);
+        } catch (_) {}
+
+        return await getEnrollmentsAsync();
+      }
+    } catch (err) {
+      console.warn('[EnrollmentStore] MongoDB add error, falling back to disk:', err);
+    }
+  }
+
+  addOrUpdateEnrollmentOnDisk(enrollment);
+  return readEnrollmentsFromDisk();
+}
+

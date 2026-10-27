@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { TeacherApprovalRecord } from './lmsStore';
+import { getDb, isMongoConfigured } from './mongodb';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const TEACHERS_FILE = path.join(DATA_DIR, 'teachers.json');
@@ -581,4 +582,207 @@ export function verifyFacultyCredentials(
   }
 
   return { success: true, teacher: matched };
+}
+
+/**
+ * Cloud-synchronized fetch of teachers supporting MongoDB Atlas with disk fallback.
+ */
+export async function getTeachersAsync(): Promise<{ teachers: TeacherApprovalRecord[]; deletedTeachers: any[] }> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const teachersCol = db.collection<TeacherApprovalRecord>('teachers');
+        const deletedCol = db.collection('deleted_teachers');
+
+        const deletedDocs = await deletedCol.find({}).toArray();
+        const deletedIds = deletedDocs.map((d: any) => String(d.id || '').toLowerCase().trim());
+        const deletedEmails = deletedDocs.map((d: any) => String(d.email || '').toLowerCase().trim()).filter(Boolean);
+        const deletedPhones = deletedDocs.map((d: any) => String(d.phone || '').replace(/\D/g, '').slice(-10)).filter((p) => p.length >= 10);
+
+        const count = await teachersCol.countDocuments();
+        if (count === 0) {
+          const initial = readTeachersFromDisk();
+          if (initial.length > 0) {
+            await teachersCol.insertMany(initial as any);
+          }
+        }
+
+        const rawTeachers = await teachersCol.find({}).toArray();
+        const teachers = rawTeachers
+          .map((t: any) => {
+            const { _id, ...rest } = t;
+            return rest as TeacherApprovalRecord;
+          })
+          .filter((t) => {
+            const tId = String(t.id || '').toLowerCase().trim();
+            const tEmail = String(t.email || '').toLowerCase().trim();
+            const tPhone = String(t.phone || '').replace(/\D/g, '').slice(-10);
+
+            return (
+              !deletedIds.includes(tId) &&
+              (!tEmail || !deletedEmails.includes(tEmail)) &&
+              (tPhone.length < 10 || !deletedPhones.includes(tPhone))
+            );
+          });
+
+        return { teachers, deletedTeachers: deletedDocs };
+      }
+    } catch (err) {
+      console.warn('[TeacherUserStore] MongoDB read error, falling back to disk:', err);
+    }
+  }
+
+  return {
+    teachers: readTeachersFromDisk(),
+    deletedTeachers: readDeletedTeachersFromDisk(),
+  };
+}
+
+/**
+ * Cloud-synchronized add/update of teacher supporting MongoDB Atlas with disk fallback.
+ */
+export async function addTeacherAsync(record: Partial<TeacherApprovalRecord> & { name: string; email: string }) {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const teachersCol = db.collection('teachers');
+        const deletedCol = db.collection('deleted_teachers');
+
+        const cleanEmail = record.email.toLowerCase().trim();
+        const cleanPhone = (record.phone || '').replace(/\D/g, '').slice(-10);
+
+        // Remove from deleted
+        await deletedCol.deleteMany({
+          $or: [
+            { email: cleanEmail },
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            ...(record.id ? [{ id: record.id.toLowerCase().trim() }] : []),
+          ],
+        });
+
+        // Find existing or create
+        const existing = await teachersCol.findOne({
+          $or: [
+            { email: cleanEmail },
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            ...(record.id ? [{ id: record.id }] : []),
+          ],
+        });
+
+        const teacherId = existing?.id || record.id || `fac-${Date.now().toString().slice(-6)}`;
+        const teacherData: TeacherApprovalRecord = {
+          id: teacherId,
+          name: record.name.trim(),
+          email: cleanEmail,
+          phone: record.phone?.trim() || '+91 98000 00000',
+          avatarUrl: record.avatarUrl || '/images/avatars/avatar-2.webp',
+          department: record.department?.trim() || 'School of Law & Judicial Studies',
+          designation: record.designation?.trim() || 'Professor of Law & Faculty Jurist',
+          qualifications: record.qualifications?.trim() || 'LL.M. (Constitutional Law & Jurisprudence)',
+          experienceYears: Number(record.experienceYears) || 8,
+          stream: record.stream || 'Law',
+          bio: record.bio?.trim() || 'Distinguished faculty member at MSI Group of Institutes.',
+          specialization: record.specialization?.trim() || 'Constitutional Law & Judicial Services',
+          sampleLectureTitle: record.sampleLectureTitle || 'Introduction to Judicial Services',
+          sampleLectureDuration: record.sampleLectureDuration || '45 mins',
+          status: record.status || 'approved',
+          applicationDate: existing?.applicationDate || new Date().toISOString(),
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'MSI Super Admin',
+          assignedCourseIds: Array.isArray(record.assignedCourseIds)
+            ? record.assignedCourseIds
+            : existing?.assignedCourseIds || ['crs-msi-pcsj'],
+          rating: existing?.rating || 5.0,
+          studentsCount: existing?.studentsCount || 120,
+          password: record.password || existing?.password || 'Faculty@MSI2026',
+          temporaryPassword: record.temporaryPassword || existing?.temporaryPassword || 'Faculty@MSI2026',
+          mustChangePassword: false,
+        };
+
+        const { _id, ...cleanData }: any = teacherData;
+        await teachersCol.updateOne(
+          { id: teacherId },
+          { $set: cleanData },
+          { upsert: true }
+        );
+
+        // Also update local disk
+        try {
+          addOrUpdateTeacherOnDisk(record);
+        } catch (_) {}
+
+        return { success: true, teacher: teacherData };
+      }
+    } catch (err) {
+      console.warn('[TeacherUserStore] MongoDB write error, falling back to disk:', err);
+    }
+  }
+
+  return addOrUpdateTeacherOnDisk(record);
+}
+
+/**
+ * Cloud-synchronized deletion of teacher supporting MongoDB Atlas with disk fallback.
+ */
+export async function deleteTeacherAsync(identifier: string, email?: string, phone?: string) {
+  const cleanTarget = identifier.toLowerCase().trim();
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const teachersCol = db.collection('teachers');
+        const deletedCol = db.collection('deleted_teachers');
+
+        // 1. Mark in deleted_teachers
+        await deletedCol.updateOne(
+          {
+            $or: [
+              { id: cleanTarget },
+              ...(cleanEmail ? [{ email: cleanEmail }] : []),
+              ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+            ],
+          },
+          {
+            $set: {
+              id: cleanTarget,
+              email: cleanEmail || undefined,
+              phone: cleanPhone.length >= 10 ? cleanPhone : undefined,
+              deletedAt: new Date().toISOString(),
+            },
+          },
+          { upsert: true }
+        );
+
+        // 2. Remove from teachers collection
+        const deleteResult = await teachersCol.deleteMany({
+          $or: [
+            { id: cleanTarget },
+            { id: identifier },
+            ...(cleanEmail ? [{ email: cleanEmail }] : []),
+            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
+          ],
+        });
+
+        // Also update local disk
+        try {
+          deleteTeacherFromDisk(identifier, email, phone);
+        } catch (_) {}
+
+        const result = await getTeachersAsync();
+        return {
+          remainingTeachers: result.teachers,
+          deletedCount: deleteResult.deletedCount || 1,
+        };
+      }
+    } catch (err) {
+      console.warn('[TeacherUserStore] MongoDB delete error, falling back to disk:', err);
+    }
+  }
+
+  return deleteTeacherFromDisk(identifier, email, phone);
 }

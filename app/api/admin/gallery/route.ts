@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getDb, isMongoConfigured } from '@/lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,9 @@ const GALLERY_FILE = path.join(DATA_DIR, 'gallery.json');
 function readGalleryFromDisk(): GalleryItem[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      } catch (_) {}
     }
     if (fs.existsSync(GALLERY_FILE)) {
       const raw = fs.readFileSync(GALLERY_FILE, 'utf-8');
@@ -82,7 +85,9 @@ function readGalleryFromDisk(): GalleryItem[] {
         }
       }
     }
-    fs.writeFileSync(GALLERY_FILE, JSON.stringify(INITIAL_GALLERY, null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(GALLERY_FILE, JSON.stringify(INITIAL_GALLERY, null, 2), 'utf-8');
+    } catch (_) {}
     return INITIAL_GALLERY;
   } catch (err) {
     console.error('[Gallery Read Error]', err);
@@ -97,12 +102,38 @@ function writeGalleryToDisk(items: GalleryItem[]): void {
     }
     fs.writeFileSync(GALLERY_FILE, JSON.stringify(items, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[Gallery Write Error]', err);
+    console.warn('[Gallery Write Error - Read Only FS on Vercel]:', err);
   }
 }
 
+async function getGalleryAsync(): Promise<GalleryItem[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<GalleryItem>('gallery');
+        const count = await col.countDocuments();
+        if (count === 0) {
+          const initial = readGalleryFromDisk();
+          if (initial.length > 0) {
+            await col.insertMany(initial as any);
+          }
+        }
+        const docs = await col.find({}).sort({ id: 1 }).toArray();
+        return docs.map((d: any) => {
+          const { _id, ...rest } = d;
+          return rest as GalleryItem;
+        });
+      }
+    } catch (err) {
+      console.warn('[Gallery MongoDB Error]:', err);
+    }
+  }
+  return readGalleryFromDisk();
+}
+
 export async function GET() {
-  const items = readGalleryFromDisk();
+  const items = await getGalleryAsync();
   return NextResponse.json({
     success: true,
     items,
@@ -129,8 +160,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const items = readGalleryFromDisk();
-    const nextId = items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1;
+    const currentItems = await getGalleryAsync();
+    const nextId = currentItems.length > 0 ? Math.max(...currentItems.map((i) => i.id)) + 1 : 1;
 
     const newItem: GalleryItem = {
       id: nextId,
@@ -143,7 +174,18 @@ export async function POST(req: NextRequest) {
       uploadedAt: new Date().toISOString().split('T')[0],
     };
 
-    const updated = [newItem, ...items];
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          await db.collection('gallery').insertOne(newItem as any);
+        }
+      } catch (err) {
+        console.warn('[Gallery MongoDB Insert Error]:', err);
+      }
+    }
+
+    const updated = [newItem, ...currentItems];
     writeGalleryToDisk(updated);
 
     return NextResponse.json({
@@ -173,15 +215,20 @@ export async function DELETE(req: NextRequest) {
     }
 
     const id = Number(idParam);
-    const items = readGalleryFromDisk();
-    const filtered = items.filter((i) => i.id !== id);
 
-    if (filtered.length === items.length) {
-      return NextResponse.json(
-        { success: false, message: 'Gallery item not found.' },
-        { status: 404 }
-      );
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          await db.collection('gallery').deleteOne({ id });
+        }
+      } catch (err) {
+        console.warn('[Gallery MongoDB Delete Error]:', err);
+      }
     }
+
+    const items = await getGalleryAsync();
+    const filtered = items.filter((i) => i.id !== id);
 
     writeGalleryToDisk(filtered);
 

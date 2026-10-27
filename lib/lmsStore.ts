@@ -767,13 +767,9 @@ export async function syncCoursesFromServer(): Promise<MSICourse[]> {
     const data = await res.json();
     if (data.success && Array.isArray(data.courses)) {
       if (Array.isArray(data.deletedIds)) {
-        data.deletedIds.forEach((id: string) => markCourseDeletedLocally(id));
+        localStorage.setItem(STORAGE_KEY_DELETED_COURSES, JSON.stringify(data.deletedIds));
       }
-      const deleted = getDeletedCourseIds();
-      const isDeleted = (c: MSICourse) =>
-        deleted.includes(c.id.toLowerCase().trim()) ||
-        (c.slug && deleted.includes(c.slug.toLowerCase().trim()));
-      const validCourses = data.courses.filter((c: MSICourse) => !isDeleted(c));
+      const validCourses = data.courses;
       saveStoredCourses(validCourses, false);
       return validCourses;
     }
@@ -873,22 +869,18 @@ export async function syncTeachersFromServer(): Promise<TeacherApprovalRecord[]>
     const data = await res.json();
     if (data.success && Array.isArray(data.teachers)) {
       if (Array.isArray(data.deletedTeachers)) {
+        const deletedEntries: string[] = [];
         data.deletedTeachers.forEach((dt: any) => {
-          markTeacherDeletedLocally(dt.id, dt.email, dt.phone);
+          if (dt.id) deletedEntries.push(dt.id.toLowerCase().trim());
+          if (dt.email) deletedEntries.push(dt.email.toLowerCase().trim());
+          if (dt.phone) {
+            const clean = dt.phone.replace(/\D/g, '').slice(-10);
+            if (clean) deletedEntries.push(clean);
+          }
         });
+        localStorage.setItem(STORAGE_KEY_DELETED_TEACHERS, JSON.stringify(Array.from(new Set(deletedEntries))));
       }
-      const deleted = getDeletedTeacherIds();
-      const isDeleted = (t: TeacherApprovalRecord) => {
-        const tId = (t.id || '').toLowerCase().trim();
-        const tEmail = (t.email || '').toLowerCase().trim();
-        const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
-        return (
-          deleted.includes(tId) ||
-          deleted.includes(tEmail) ||
-          (tPhone.length >= 10 && deleted.includes(tPhone))
-        );
-      };
-      const authoritativeTeachers = data.teachers.filter((t: TeacherApprovalRecord) => !isDeleted(t));
+      const authoritativeTeachers = data.teachers;
       saveStoredTeachers(authoritativeTeachers, false);
       return authoritativeTeachers;
     }

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readCoursesFromDisk, addCourseToDisk, deleteCourseFromDisk, readDeletedCourseIds } from '@/lib/courseStore';
+import { getCoursesAsync, addCourseAsync, deleteCourseAsync } from '@/lib/courseStore';
 import { MSICourse } from '@/lib/lmsStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const courses = readCoursesFromDisk();
-    const deletedIds = readDeletedCourseIds();
+    const { courses, deletedIds } = await getCoursesAsync();
     return NextResponse.json({
       success: true,
       courses,
@@ -99,7 +98,7 @@ export async function POST(req: NextRequest) {
       isPublished: true,
     };
 
-    const updated = addCourseToDisk(newCourse);
+    const updated = await addCourseAsync(newCourse);
 
     return NextResponse.json({
       success: true,
@@ -122,7 +121,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, message: 'Course ID is required.' }, { status: 400 });
     }
-    const updated = deleteCourseFromDisk(id);
+    const updated = await deleteCourseAsync(id);
     return NextResponse.json({
       success: true,
       message: 'Course deleted from system.',

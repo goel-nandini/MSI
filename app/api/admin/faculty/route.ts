@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  readTeachersFromDisk,
-  readDeletedTeachersFromDisk,
-  addOrUpdateTeacherOnDisk,
-  deleteTeacherFromDisk,
+  getTeachersAsync,
+  addTeacherAsync,
+  deleteTeacherAsync,
 } from '@/lib/teacherUserStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const teachers = readTeachersFromDisk();
-    const deletedTeachers = readDeletedTeachersFromDisk();
+    const { teachers, deletedTeachers } = await getTeachersAsync();
     return NextResponse.json({
       success: true,
       teachers,
@@ -20,7 +18,7 @@ export async function GET() {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error?.message || 'Failed to read faculty from disk' },
+      { success: false, message: error?.message || 'Failed to read faculty' },
       { status: 500 }
     );
   }
@@ -45,7 +43,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = addOrUpdateTeacherOnDisk({
+    const result = await addTeacherAsync({
       name: name.trim(),
       email: email.trim(),
       phone: phone?.trim() || '+91 98000 00000',
@@ -98,7 +96,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const result = deleteTeacherFromDisk(target.trim(), email || undefined, phone || undefined);
+    const result = await deleteTeacherAsync(target.trim(), email || undefined, phone || undefined);
     return NextResponse.json({
       success: true,
       message: `Faculty member (${target}) deleted successfully.`,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { INITIAL_LEADS, Lead } from '@/components/reception/data/leadsMockData';
+import { getDb, isMongoConfigured } from '@/lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,9 @@ const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 function readLeadsFromDisk(): Lead[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      } catch (_) {}
     }
     if (fs.existsSync(LEADS_FILE)) {
       const raw = fs.readFileSync(LEADS_FILE, 'utf-8');
@@ -22,7 +25,9 @@ function readLeadsFromDisk(): Lead[] {
         }
       }
     }
-    fs.writeFileSync(LEADS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(LEADS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    } catch (_) {}
     return [];
   } catch (err) {
     console.error('[Leads Disk Error]', err);
@@ -37,7 +42,46 @@ function writeLeadsToDisk(leads: Lead[]): void {
     }
     fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[Leads Write Error]', err);
+    console.warn('[Leads Write Error - Read Only FS on Vercel]:', err);
+  }
+}
+
+async function getLeadsAsync(): Promise<Lead[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<Lead>('leads');
+        const count = await col.countDocuments();
+        if (count === 0) {
+          const disk = readLeadsFromDisk();
+          if (disk.length > 0) {
+            await col.insertMany(disk as any);
+          }
+        }
+        const docs = await col.find({}).sort({ receivedDate: -1 }).toArray();
+        return docs.map((d: any) => {
+          const { _id, ...rest } = d;
+          return rest as Lead;
+        });
+      }
+    } catch (err) {
+      console.warn('[Leads MongoDB Error]:', err);
+    }
+  }
+  return readLeadsFromDisk();
+}
+
+async function syncLeadToMongo(lead: Lead) {
+  if (!isMongoConfigured()) return;
+  try {
+    const db = await getDb();
+    if (db) {
+      const { _id, ...cleanLead }: any = lead;
+      await db.collection('leads').updateOne({ id: lead.id }, { $set: cleanLead }, { upsert: true });
+    }
+  } catch (err) {
+    console.warn('[Lead Mongo Upsert Error]:', err);
   }
 }
 
@@ -59,7 +103,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Verification token mismatch' }, { status: 403 });
   }
 
-  const leads = readLeadsFromDisk();
+  const leads = await getLeadsAsync();
   return NextResponse.json({
     success: true,
     leads,
@@ -269,15 +313,19 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const leads = readLeadsFromDisk();
-    const filtered = leads.filter((l) => l.id !== id);
-
-    if (filtered.length === leads.length) {
-      return NextResponse.json(
-        { success: false, message: 'Lead not found.' },
-        { status: 404 }
-      );
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          await db.collection('leads').deleteOne({ id });
+        }
+      } catch (err) {
+        console.warn('[Leads MongoDB Delete Error]:', err);
+      }
     }
+
+    const leads = await getLeadsAsync();
+    const filtered = leads.filter((l) => l.id !== id);
 
     writeLeadsToDisk(filtered);
 

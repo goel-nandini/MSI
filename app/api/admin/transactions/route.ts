@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getDb, isMongoConfigured } from '@/lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,9 @@ const TXN_FILE = path.join(DATA_DIR, 'transactions.json');
 function readTransactionsFromDisk(): AdminTransaction[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      } catch (_) {}
     }
     if (fs.existsSync(TXN_FILE)) {
       const raw = fs.readFileSync(TXN_FILE, 'utf-8');
@@ -40,7 +43,9 @@ function readTransactionsFromDisk(): AdminTransaction[] {
         }
       }
     }
-    fs.writeFileSync(TXN_FILE, JSON.stringify(INITIAL_TRANSACTIONS, null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(TXN_FILE, JSON.stringify(INITIAL_TRANSACTIONS, null, 2), 'utf-8');
+    } catch (_) {}
     return INITIAL_TRANSACTIONS;
   } catch (err) {
     console.error('[Transactions Read Error]', err);
@@ -55,12 +60,33 @@ function writeTransactionsToDisk(txns: AdminTransaction[]): void {
     }
     fs.writeFileSync(TXN_FILE, JSON.stringify(txns, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[Transactions Write Error]', err);
+    console.warn('[Transactions Write Error - Read Only FS on Vercel]:', err);
   }
 }
 
+async function getTransactionsAsync(): Promise<AdminTransaction[]> {
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const col = db.collection<AdminTransaction>('transactions');
+        const docs = await col.find({}).sort({ timestamp: -1 }).toArray();
+        if (docs.length > 0) {
+          return docs.map((d: any) => {
+            const { _id, ...rest } = d;
+            return rest as AdminTransaction;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Transactions MongoDB Error]:', err);
+    }
+  }
+  return readTransactionsFromDisk();
+}
+
 export async function GET() {
-  const transactions = readTransactionsFromDisk();
+  const transactions = await getTransactionsAsync();
   return NextResponse.json({
     success: true,
     transactions,
