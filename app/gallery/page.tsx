@@ -101,9 +101,21 @@ export default function GalleryPage() {
     const handleSync = () => fetchGallery();
     window.addEventListener('msi_gallery_sync', handleSync);
     window.addEventListener('storage', handleSync);
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      bc = new BroadcastChannel('msi_sync_channel');
+      bc.onmessage = (e) => {
+        if (e.data?.type === 'GALLERY_UPDATED') {
+          fetchGallery();
+        }
+      };
+    }
+
     return () => {
       window.removeEventListener('msi_gallery_sync', handleSync);
       window.removeEventListener('storage', handleSync);
+      if (bc) bc.close();
     };
   }, []);
 

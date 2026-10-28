@@ -770,47 +770,31 @@ export function deleteStudentFromDisk(rawPhoneOrId: string, additionalId?: strin
  * Cloud-synchronized fetch of registered students supporting MongoDB Atlas with disk fallback.
  */
 export async function getStudentsAsync(): Promise<RegisteredStudentUser[]> {
-  if (isMongoConfigured()) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const col = db.collection<RegisteredStudentUser>('students');
-        const deletedCol = db.collection<DeletedStudentRecord>('deleted_students');
+  try {
+    const db = await getDb();
+    if (db) {
+      const col = db.collection<RegisteredStudentUser>('students');
+      const count = await col.countDocuments();
 
-        const deletedDocs = await deletedCol.find({}).toArray();
-        const deletedPhones = deletedDocs.map((d) => (d.phone || '').replace(/\D/g, '').slice(-10)).filter(Boolean);
-        const deletedEmails = deletedDocs.map((d) => (d.email || '').toLowerCase().trim()).filter(Boolean);
-        const deletedIds = deletedDocs.map((d) => (d.id || '').toLowerCase().trim()).filter(Boolean);
-
-        const count = await col.countDocuments();
-        if (count === 0) {
-          const disk = readStudentsFromDisk();
-          if (disk.length > 0) {
+      if (count === 0) {
+        const disk = readStudentsFromDisk();
+        if (disk.length > 0) {
+          try {
             await col.insertMany(disk as any);
-          }
+          } catch (_) {}
         }
-
-        const raw = await col.find({}).sort({ registeredAt: -1 }).toArray();
-        return raw
-          .map((s: any) => {
-            const { _id, ...rest } = s;
-            return rest as RegisteredStudentUser;
-          })
-          .filter((s) => {
-            const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
-            const sEmail = (s.email || '').toLowerCase().trim();
-            const sId = (s.id || '').toLowerCase().trim();
-
-            return (
-              (sPhone.length < 10 || !deletedPhones.includes(sPhone)) &&
-              (!sEmail || !deletedEmails.includes(sEmail)) &&
-              (!sId || !deletedIds.includes(sId))
-            );
-          });
       }
-    } catch (err) {
-      console.warn('[StudentStore] MongoDB read error, falling back to disk:', err);
+
+      const raw = await col.find({}).sort({ registeredAt: -1 }).toArray();
+      if (raw && raw.length > 0) {
+        return raw.map((s: any) => {
+          const { _id, ...rest } = s;
+          return rest as RegisteredStudentUser;
+        });
+      }
     }
+  } catch (err) {
+    console.warn('[StudentStore] MongoDB read error, falling back to disk:', err);
   }
 
   return readStudentsFromDisk();
@@ -820,60 +804,70 @@ export async function getStudentsAsync(): Promise<RegisteredStudentUser[]> {
  * Cloud-synchronized add/update of a student supporting MongoDB Atlas with disk fallback.
  */
 export async function addStudentAsync(student: RegisteredStudentUser): Promise<RegisteredStudentUser[]> {
-  if (isMongoConfigured()) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const col = db.collection('students');
-        const deletedCol = db.collection('deleted_students');
+  const cleanPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
+  const cleanEmail = (student.email || '').toLowerCase().trim();
 
-        const cleanPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
-        const cleanEmail = (student.email || '').toLowerCase().trim();
+  // Ensure student has a uniquely qualified ID so one student never overwrites another
+  if (!student.id || student.id.length < 8 || student.id.endsWith(cleanPhone.slice(-4))) {
+    student.id = cleanPhone.length >= 10 ? `msi-stu-${cleanPhone}` : (student.id || `msi-stu-${Date.now()}`);
+  }
 
-        // Unmark from deleted
-        await deletedCol.deleteMany({
-          $or: [
-            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
-            ...(cleanEmail ? [{ email: cleanEmail }] : []),
-            { id: student.id },
-          ],
-        });
+  // Ensure full profile exists
+  if (!student.profile) {
+    student.profile = buildDefaultStudentProfile(
+      cleanPhone,
+      student.name,
+      student.stream,
+      student.email
+    );
+  }
 
-        // Upsert student
-        const { _id, ...cleanStudent }: any = student;
-        await col.updateOne(
-          {
-            $or: [
-              ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
-              { id: student.id },
-            ],
-          },
-          { $set: cleanStudent },
-          { upsert: true }
-        );
+  try {
+    const db = await getDb();
+    if (db) {
+      const col = db.collection('students');
+      const deletedCol = db.collection('deleted_students');
 
-        // Also write to local disk
-        try {
-          const disk = readStudentsFromDisk();
-          const idx = disk.findIndex((s) => s.phone === cleanPhone || s.id === student.id);
-          if (idx >= 0) {
-            disk[idx] = { ...disk[idx], ...student };
-          } else {
-            disk.unshift(student);
-          }
-          writeStudentsToDisk(disk);
-        } catch (_) {}
-
-        return await getStudentsAsync();
+      // Unmark from deleted students registry
+      const unmarkConditions: any[] = [{ id: student.id }];
+      if (cleanPhone.length >= 10) {
+        unmarkConditions.push({ phone: cleanPhone });
+        unmarkConditions.push({ id: cleanPhone });
       }
-    } catch (err) {
-      console.warn('[StudentStore] MongoDB add error, falling back to disk:', err);
+      if (cleanEmail) {
+        unmarkConditions.push({ email: cleanEmail });
+      }
+      await deletedCol.deleteMany({ $or: unmarkConditions });
+
+      // Upsert student cleanly by unique 10-digit phone or unique student ID
+      const { _id, ...cleanStudent }: any = student;
+      const updateFilter: any =
+        cleanPhone.length >= 10
+          ? { $or: [{ phone: cleanPhone }, { id: student.id }] }
+          : { id: student.id };
+
+      await col.updateOne(updateFilter, { $set: cleanStudent }, { upsert: true });
+
+      // Also sync to disk if filesystem is writable
+      try {
+        const disk = readStudentsFromDisk();
+        const idx = disk.findIndex((s) => (cleanPhone && s.phone === cleanPhone) || s.id === student.id);
+        if (idx >= 0) {
+          disk[idx] = { ...disk[idx], ...student };
+        } else {
+          disk.unshift(student);
+        }
+        writeStudentsToDisk(disk);
+      } catch (_) {}
+
+      return await getStudentsAsync();
     }
+  } catch (err) {
+    console.warn('[StudentStore] MongoDB add error, falling back to disk:', err);
   }
 
   const disk = readStudentsFromDisk();
-  const cleanPhone = (student.phone || '').replace(/\D/g, '').slice(-10);
-  const idx = disk.findIndex((s) => s.phone === cleanPhone || s.id === student.id);
+  const idx = disk.findIndex((s) => (cleanPhone && s.phone === cleanPhone) || s.id === student.id);
   if (idx >= 0) {
     disk[idx] = { ...disk[idx], ...student };
   } else {
@@ -886,65 +880,275 @@ export async function addStudentAsync(student: RegisteredStudentUser): Promise<R
 /**
  * Cloud-synchronized deletion of student supporting MongoDB Atlas with disk fallback.
  */
-export async function deleteStudentAsync(phoneOrId: string): Promise<boolean> {
+export async function deleteStudentAsync(phoneOrId: string, additionalId?: string): Promise<boolean> {
   const cleanPhone = (phoneOrId || '').replace(/\D/g, '').slice(-10);
   const cleanId = (phoneOrId || '').toLowerCase().trim();
+  const addId = (additionalId || '').toLowerCase().trim();
+  const addPhone = (additionalId || '').replace(/\D/g, '').slice(-10);
 
-  if (isMongoConfigured()) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const col = db.collection('students');
-        const deletedCol = db.collection('deleted_students');
-        const enrollmentsCol = db.collection('enrollments');
-
-        // 1. Mark in deleted_students
-        await deletedCol.updateOne(
-          {
-            $or: [
-              ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
-              { id: cleanId },
-            ],
-          },
-          {
-            $set: {
-              phone: cleanPhone.length >= 10 ? cleanPhone : undefined,
-              id: cleanId,
-              deletedAt: new Date().toISOString(),
-            },
-          },
-          { upsert: true }
-        );
-
-        // 2. Delete from students collection
-        await col.deleteMany({
-          $or: [
-            ...(cleanPhone.length >= 10 ? [{ phone: cleanPhone }] : []),
-            { id: cleanId },
-            { id: phoneOrId },
-          ],
-        });
-
-        // 3. Cascade delete enrollments
-        await enrollmentsCol.deleteMany({
-          $or: [
-            ...(cleanPhone.length >= 10 ? [{ studentPhone: cleanPhone }] : []),
-            { studentId: cleanId },
-            { studentId: phoneOrId },
-          ],
-        });
-
-        // Also update local disk
-        try {
-          deleteStudentFromDisk(phoneOrId);
-        } catch (_) {}
-
-        return true;
-      }
-    } catch (err) {
-      console.warn('[StudentStore] MongoDB delete error, falling back to disk:', err);
-    }
+  const orConditions: any[] = [];
+  if (cleanPhone.length >= 10) {
+    orConditions.push({ phone: cleanPhone });
+    orConditions.push({ 'profile.phone': { $regex: cleanPhone } });
+  }
+  if (addPhone.length >= 10) {
+    orConditions.push({ phone: addPhone });
+    orConditions.push({ 'profile.phone': { $regex: addPhone } });
+  }
+  if (cleanId) {
+    orConditions.push({ id: cleanId });
+    orConditions.push({ id: phoneOrId });
+  }
+  if (addId) {
+    orConditions.push({ id: addId });
+    orConditions.push({ id: additionalId });
   }
 
-  return deleteStudentFromDisk(phoneOrId);
+  if (orConditions.length === 0) {
+    return false;
+  }
+
+  try {
+    const db = await getDb();
+    if (db) {
+      const col = db.collection('students');
+      const deletedCol = db.collection('deleted_students');
+      const enrollmentsCol = db.collection('enrollments');
+
+      // 1. Mark in deleted_students registry
+      const resolvedPhone = cleanPhone.length >= 10 ? cleanPhone : (addPhone.length >= 10 ? addPhone : undefined);
+      const resolvedId = cleanId || addId || phoneOrId;
+
+      await deletedCol.updateOne(
+        { $or: orConditions },
+        {
+          $set: {
+            phone: resolvedPhone,
+            id: resolvedId,
+            deletedAt: new Date().toISOString(),
+          },
+        },
+        { upsert: true }
+      );
+
+      // 2. Permanently delete from students collection
+      await col.deleteMany({ $or: orConditions });
+
+      // 3. Cascade delete enrollments
+      const enrollConditions: any[] = [];
+      if (cleanPhone.length >= 10) enrollConditions.push({ studentPhone: cleanPhone });
+      if (addPhone.length >= 10) enrollConditions.push({ studentPhone: addPhone });
+      if (cleanId) enrollConditions.push({ studentId: cleanId });
+      if (addId) enrollConditions.push({ studentId: addId });
+      if (enrollConditions.length > 0) {
+        await enrollmentsCol.deleteMany({ $or: enrollConditions });
+      }
+
+      // Also update local disk
+      try {
+        deleteStudentFromDisk(phoneOrId, additionalId);
+      } catch (_) {}
+
+      return true;
+    }
+  } catch (err) {
+    console.warn('[StudentStore] MongoDB delete error, falling back to disk:', err);
+  }
+
+  return deleteStudentFromDisk(phoneOrId, additionalId);
 }
+
+/**
+ * Cloud-synchronized registration of a new student with MongoDB persistence.
+ */
+export async function registerStudentUserAsync(data: {
+  phone: string;
+  name: string;
+  stream: string;
+  password: string;
+  email?: string;
+}): Promise<{ success: boolean; student?: RegisteredStudentUser; message?: string }> {
+  const cleanPhone = data.phone.replace(/\D/g, '').slice(-10);
+
+  if (cleanPhone.length !== 10) {
+    return { success: false, message: 'Invalid 10-digit mobile number format.' };
+  }
+
+  const students = await getStudentsAsync();
+  const existing = students.find((s) => s.phone === cleanPhone);
+
+  if (existing) {
+    if (data.name && data.name.trim()) existing.name = data.name.trim();
+    if (data.stream) existing.stream = data.stream;
+    if (data.email && data.email.trim()) existing.email = data.email.trim();
+    if (data.password && data.password.trim()) existing.password = data.password.trim();
+    if (!existing.role) existing.role = 'student';
+
+    if (!existing.profile) {
+      existing.profile = buildDefaultStudentProfile(
+        cleanPhone,
+        existing.name,
+        existing.stream,
+        existing.email
+      );
+    } else {
+      if (data.name && data.name.trim()) existing.profile.name = data.name.trim();
+      if (data.stream) existing.profile.courseTitle = data.stream;
+    }
+
+    await addStudentAsync(existing);
+    return {
+      success: true,
+      student: existing,
+      message: 'Student account updated successfully.',
+    };
+  }
+
+  const newStudent: RegisteredStudentUser = {
+    id: `msi-stu-${cleanPhone}`,
+    phone: cleanPhone,
+    name: data.name.trim() || 'MSI Student',
+    stream: data.stream || 'PCS-J Punjab Judicial Services',
+    password: (data.password || 'Student@MSI2026').trim(),
+    email: data.email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`,
+    registeredAt: new Date().toISOString(),
+    role: 'student',
+  };
+
+  newStudent.profile = buildDefaultStudentProfile(
+    cleanPhone,
+    newStudent.name,
+    newStudent.stream,
+    newStudent.email
+  );
+
+  await addStudentAsync(newStudent);
+  return { success: true, student: newStudent };
+}
+
+/**
+ * Ensures student exists in MongoDB Atlas database with fallback.
+ */
+export async function ensureStudentExistsAsync(data: {
+  phone: string;
+  name?: string;
+  stream?: string;
+  email?: string;
+  password?: string;
+}): Promise<RegisteredStudentUser | null> {
+  const cleanPhone = (data.phone || '').replace(/\D/g, '').slice(-10);
+  if (cleanPhone.length !== 10) return null;
+
+  const result = await registerStudentUserAsync({
+    phone: cleanPhone,
+    name: data.name?.trim() || `Student ${cleanPhone.slice(-4)}`,
+    stream: data.stream || 'PCS-J Punjab Judicial Services',
+    password: data.password?.trim() || 'Student@MSI2026',
+    email: data.email?.trim(),
+  });
+
+  return result.student || null;
+}
+
+/**
+ * Cloud-synchronized fetch of a student profile.
+ */
+export async function getStudentProfileAsync(rawPhone: string): Promise<Record<string, any> | null> {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+  if (isStudentDeleted(cleanPhone)) {
+    return null;
+  }
+
+  const students = await getStudentsAsync();
+  const student = students.find((s) => s.phone === cleanPhone);
+
+  if (student) {
+    if (student.profile && Object.keys(student.profile).length > 0) {
+      return {
+        ...buildDefaultStudentProfile(cleanPhone, student.name, student.stream, student.email),
+        ...student.profile,
+        phone: student.profile.phone || `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+      };
+    }
+
+    const defaultProfile = buildDefaultStudentProfile(
+      cleanPhone,
+      student.name,
+      student.stream,
+      student.email
+    );
+    student.profile = defaultProfile;
+    await addStudentAsync(student);
+    return defaultProfile;
+  }
+
+  return null;
+}
+
+/**
+ * Cloud-synchronized save of student profile to MongoDB Atlas.
+ */
+export async function saveStudentProfileAsync(
+  rawPhone: string,
+  profileUpdates: Record<string, any>,
+  previousPhone?: string
+): Promise<Record<string, any>> {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  const cleanPrev = previousPhone ? previousPhone.replace(/\D/g, '').slice(-10) : '';
+
+  const students = await getStudentsAsync();
+  let student = students.find((s) => s.phone === cleanPhone || (cleanPrev && s.phone === cleanPrev));
+
+  if (!student) {
+    student = {
+      id: `msi-stu-${cleanPhone}`,
+      phone: cleanPhone,
+      name: profileUpdates.name?.trim() || 'MSI Student',
+      stream:
+        profileUpdates.courseTitle || profileUpdates.batch || 'PCS-J Punjab Judicial Services',
+      password: 'Student@MSI2026',
+      email:
+        profileUpdates.email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`,
+      registeredAt: new Date().toISOString(),
+      role: 'student',
+    };
+  } else if (cleanPhone && cleanPhone !== student.phone) {
+    student.phone = cleanPhone;
+  }
+
+  const existingProfile =
+    student.profile ||
+    buildDefaultStudentProfile(cleanPhone, student.name, student.stream, student.email);
+
+  const updatedProfile: Record<string, any> = {
+    ...existingProfile,
+    ...profileUpdates,
+    phone:
+      profileUpdates.phone ||
+      existingProfile.phone ||
+      `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+  };
+
+  if (profileUpdates.name && profileUpdates.name.trim()) {
+    student.name = profileUpdates.name.trim();
+    updatedProfile.name = student.name;
+  }
+  if (profileUpdates.email && profileUpdates.email.trim()) {
+    student.email = profileUpdates.email.trim();
+    updatedProfile.email = student.email;
+  }
+  if (profileUpdates.courseTitle && profileUpdates.courseTitle.trim()) {
+    student.stream = profileUpdates.courseTitle.trim();
+    updatedProfile.courseTitle = student.stream;
+  }
+  if (profileUpdates.batch && profileUpdates.batch.trim()) {
+    updatedProfile.batch = profileUpdates.batch.trim();
+  }
+
+  student.profile = updatedProfile;
+  await addStudentAsync(student);
+
+  return updatedProfile;
+}
+

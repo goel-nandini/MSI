@@ -1,9 +1,9 @@
 [
   {
-    "id": "crs-msi-280790",
-    "slug": "ai",
-    "title": "ai",
-    "headline": "Comprehensive Curriculum & Judicial Practice",
+    "id": "crs-msi-172028",
+    "slug": "applied-pcm",
+    "title": "Applied PCM",
+    "headline": "Practical Knowledge",
     "description": "Official curriculum accredited by MSI Group of Institutes.",
     "category": "Judiciary",
     "department": "law",
@@ -13,14 +13,14 @@
     "totalDuration": "40 hours",
     "totalLectures": 1,
     "level": "All Levels",
-    "thumbnail": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
-    "price": 49999,
+    "thumbnail": "https://img.magnific.com/free-photo/learning-education-ideas-insight-intelligence-study-concept_53876-120116.jpg?semt=ais_hybrid&w=740&q=80",
+    "price": 4999,
     "originalPrice": 14999,
     "isFreeForMsiStudents": true,
     "instructorId": "fac-law-vikram",
     "instructorName": "Dr. Vikramaditya Sharma",
     "instructorTitle": "Senior Professor of Procedural Law & Judicial Studies",
-    "instructorAvatar": "/images/faculty/faculty-1.webp",
+    "instructorAvatar": "/images/avatars/avatar-2.webp",
     "whatYouWillLearn": [
       "Mastery over ratio decidendi and obiter dicta distinctions",
       "Timed answer drafting drills and Bare Act interpretations",
@@ -32,12 +32,12 @@
     ],
     "sections": [
       {
-        "id": "sec-1793095280790-1",
+        "id": "sec-1793201172028-1",
         "title": "Module 1: Foundational Jurisprudence & Overview",
         "duration": "3 hours",
         "lectures": [
           {
-            "id": "lec-1793095280790-1",
+            "id": "lec-1793201172028-1",
             "title": "Orientation & Landmark Constitutional Doctrines",
             "duration": "45 mins",
             "durationSeconds": 2700,

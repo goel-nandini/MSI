@@ -107,27 +107,20 @@ function writeGalleryToDisk(items: GalleryItem[]): void {
 }
 
 async function getGalleryAsync(): Promise<GalleryItem[]> {
-  if (isMongoConfigured()) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const col = db.collection<GalleryItem>('gallery');
-        const count = await col.countDocuments();
-        if (count === 0) {
-          const initial = readGalleryFromDisk();
-          if (initial.length > 0) {
-            await col.insertMany(initial as any);
-          }
-        }
-        const docs = await col.find({}).sort({ id: 1 }).toArray();
+  try {
+    const db = await getDb();
+    if (db) {
+      const col = db.collection<GalleryItem>('gallery');
+      const docs = await col.find({}).sort({ id: -1 }).toArray();
+      if (docs && docs.length > 0) {
         return docs.map((d: any) => {
           const { _id, ...rest } = d;
           return rest as GalleryItem;
         });
       }
-    } catch (err) {
-      console.warn('[Gallery MongoDB Error]:', err);
     }
+  } catch (err) {
+    console.warn('[Gallery MongoDB Error]:', err);
   }
   return readGalleryFromDisk();
 }
@@ -161,7 +154,8 @@ export async function POST(req: NextRequest) {
     }
 
     const currentItems = await getGalleryAsync();
-    const nextId = currentItems.length > 0 ? Math.max(...currentItems.map((i) => i.id)) + 1 : 1;
+    const nextId =
+      currentItems.length > 0 ? Math.max(...currentItems.map((i) => Number(i.id) || 0)) + 1 : 1;
 
     const newItem: GalleryItem = {
       id: nextId,
@@ -174,18 +168,16 @@ export async function POST(req: NextRequest) {
       uploadedAt: new Date().toISOString().split('T')[0],
     };
 
-    if (isMongoConfigured()) {
-      try {
-        const db = await getDb();
-        if (db) {
-          await db.collection('gallery').insertOne(newItem as any);
-        }
-      } catch (err) {
-        console.warn('[Gallery MongoDB Insert Error]:', err);
+    try {
+      const db = await getDb();
+      if (db) {
+        await db.collection('gallery').insertOne(newItem as any);
       }
+    } catch (err) {
+      console.warn('[Gallery MongoDB Insert Error]:', err);
     }
 
-    const updated = [newItem, ...currentItems];
+    const updated = await getGalleryAsync();
     writeGalleryToDisk(updated);
 
     return NextResponse.json({
@@ -202,10 +194,70 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, title, category, image, tagline, desc, span } = body;
+
+    if (id === undefined || id === null) {
+      return NextResponse.json(
+        { success: false, message: 'Gallery item ID is required for updating.' },
+        { status: 400 }
+      );
+    }
+
+    const numericId = Number(id);
+    const updateFields: any = {};
+    if (title !== undefined) updateFields.title = title.trim();
+    if (category !== undefined) updateFields.category = category;
+    if (image !== undefined && image.trim()) updateFields.image = image.trim();
+    if (tagline !== undefined) updateFields.tagline = tagline.trim();
+    if (desc !== undefined) updateFields.desc = desc.trim();
+    if (span !== undefined) updateFields.span = span === 'wide' ? 'wide' : 'normal';
+
+    try {
+      const db = await getDb();
+      if (db) {
+        await db.collection('gallery').updateOne(
+          { $or: [{ id: numericId }, { id: id }, { id: String(id) }] },
+          { $set: updateFields }
+        );
+      }
+    } catch (err) {
+      console.warn('[Gallery MongoDB Update Error]:', err);
+    }
+
+    const updatedItems = await getGalleryAsync();
+    const updatedItem = updatedItems.find(
+      (i) => i.id === numericId || String(i.id) === String(id)
+    );
+    writeGalleryToDisk(updatedItems);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Gallery item updated successfully.',
+      item: updatedItem,
+      items: updatedItems,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Failed to update gallery item' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const idParam = searchParams.get('id');
+    let idParam = searchParams.get('id');
+
+    if (!idParam) {
+      try {
+        const body = await req.json().catch(() => ({}));
+        idParam = body?.id;
+      } catch (_) {}
+    }
 
     if (!idParam) {
       return NextResponse.json(
@@ -214,22 +266,21 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const id = Number(idParam);
+    const numericId = Number(idParam);
 
-    if (isMongoConfigured()) {
-      try {
-        const db = await getDb();
-        if (db) {
-          await db.collection('gallery').deleteOne({ id });
-        }
-      } catch (err) {
-        console.warn('[Gallery MongoDB Delete Error]:', err);
+    try {
+      const db = await getDb();
+      if (db) {
+        await db.collection('gallery').deleteMany({
+          $or: [{ id: numericId }, { id: idParam }, { id: String(idParam) }],
+        });
       }
+    } catch (err) {
+      console.warn('[Gallery MongoDB Delete Error]:', err);
     }
 
     const items = await getGalleryAsync();
-    const filtered = items.filter((i) => i.id !== id);
-
+    const filtered = items.filter((i) => i.id !== numericId && String(i.id) !== String(idParam));
     writeGalleryToDisk(filtered);
 
     return NextResponse.json({
@@ -244,3 +295,4 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+

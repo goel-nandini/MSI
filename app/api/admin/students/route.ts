@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     );
 
     const newStudent: RegisteredStudentUser = {
-      id: `msi-stu-${cleanPhone.slice(-4)}`,
+      id: `msi-stu-${cleanPhone}`,
       phone: cleanPhone,
       name: name.trim(),
       stream: resolvedStream,
@@ -99,15 +99,14 @@ export async function DELETE(req: NextRequest) {
       } catch (_) {}
     }
 
-    const target = phone || id;
-    if (!target) {
+    if (!phone && !id) {
       return NextResponse.json(
         { success: false, message: 'Missing phone or id parameter.' },
         { status: 400 }
       );
     }
 
-    await deleteStudentAsync(target);
+    await deleteStudentAsync(phone || '', id || '');
 
     const updatedStudents = await getStudentsAsync();
 

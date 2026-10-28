@@ -1,5 +1,37 @@
 [
   {
+    "id": "msi-stu-9368410022",
+    "phone": "9368410022",
+    "name": "Nandini",
+    "stream": "PCS-J Punjab Judicial Services",
+    "password": "Student@MSI2026Nan",
+    "email": "student.0022@msi-institutes.edu.in",
+    "registeredAt": "2026-10-28T15:14:45.577Z",
+    "role": "student",
+    "profile": {
+      "id": "msi-stu-0022",
+      "name": "Nandini",
+      "email": "student.0022@msi-institutes.edu.in",
+      "phone": "+91 93684 10022",
+      "dob": "2003-01-15",
+      "age": 22,
+      "gender": "Male",
+      "enrollmentNo": "MSI/2026/0022",
+      "rollNo": "26-MSI-0022",
+      "batch": "PCS-J Punjab Judicial Services, 2026–2027",
+      "courseTitle": "PCS-J Punjab Judicial Services",
+      "semester": "Academic Year 2026–2027",
+      "avatarUrl": "/images/avatars/avatar-1.webp",
+      "bloodGroup": "B+",
+      "address": "Kharar, Mohali, Punjab",
+      "guardianName": "Guardian",
+      "guardianContact": "+91 93684 00000",
+      "admissionDate": "01 July 2026",
+      "validUntil": "30 June 2028"
+    },
+    "lastLoginAt": "2026-10-28T15:29:12.300Z"
+  },
+  {
     "id": "msi-stu-4411",
     "phone": "5599664411",
     "name": "Nidhi",

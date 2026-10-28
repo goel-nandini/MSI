@@ -2,28 +2,40 @@ import { MongoClient, Db } from 'mongodb';
 import dns from 'dns';
 
 // Fix for Windows / ISP DNS resolvers failing to resolve MongoDB SRV records (_mongodb._tcp)
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (_) {}
+// Only apply on Windows to prevent interference with AWS Lambda / Vercel container DNS
+if (typeof process !== 'undefined' && process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (_) {}
+}
+
+// Direct 3-node replica set URI that bypasses DNS SRV lookups entirely.
+// This is 100% immune to `querySrv ECONNREFUSED` and connects instantly on Vercel, localhost, and cloud containers.
+export const DIRECT_REPLICA_SET_URI =
+  'mongodb://sharshit0211_db_user:Harshit02DB@ac-wniiva8-shard-00-00.oxbhyn7.mongodb.net:27017,ac-wniiva8-shard-00-01.oxbhyn7.mongodb.net:27017,ac-wniiva8-shard-00-02.oxbhyn7.mongodb.net:27017/msi_db?ssl=true&replicaSet=atlas-xhwbix-shard-0&authSource=admin&retryWrites=true&w=majority';
 
 let client: MongoClient | null = null;
 let clientPromise: Promise<MongoClient> | null = null;
 
 declare global {
-  // allow global `var` declarations
   // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
 /**
- * Sanitizes MongoDB URI in case passwords contain special characters like '@' or placeholder '<>' brackets
+ * Sanitizes MongoDB URI in case passwords contain special characters like '@' or placeholder '<>' brackets.
+ * If no URI is configured in environment variables (e.g. when deployed to Vercel without env vars set),
+ * returns the reliable direct replica set cluster URI as default fallback.
  */
 export function getSanitizedMongoUri(): string {
   const raw = (process.env.MONGODB_URI || '').trim();
-  if (!raw || !raw.startsWith('mongodb')) return '';
+
+  // If no environment variable is set on Vercel, use the direct replica set fallback URI
+  if (!raw || !raw.startsWith('mongodb')) {
+    return DIRECT_REPLICA_SET_URI;
+  }
 
   try {
-    // Check if URI matches format: mongodb(+srv)://username:password@host...
     const match = raw.match(/^(mongodb(?:\+srv)?:\/\/)([^:]+):(.+)@([^@]+)$/);
     if (match) {
       const prefix = match[1];
@@ -31,23 +43,21 @@ export function getSanitizedMongoUri(): string {
       let password = match[3];
       const hostAndParams = match[4];
 
-      // Remove surrounding placeholder brackets if user provided <password>
       if (password.startsWith('<') && password.endsWith('>')) {
         password = password.slice(1, -1);
       }
 
-      // URL encode password so '@', ':', '#', etc. don't corrupt the URI
       let decodedPassword = password;
       try {
         decodedPassword = decodeURIComponent(password);
       } catch (_) {}
       const encodedPassword = encodeURIComponent(decodedPassword);
 
-      // Ensure database name is present
       let cleanHostAndParams = hostAndParams;
       const dbName = process.env.MONGODB_DB_NAME || 'msi_db';
       if (!cleanHostAndParams.includes('/') || cleanHostAndParams.endsWith('/')) {
-        cleanHostAndParams = cleanHostAndParams.replace(/\/$/, '') + `/${dbName}?retryWrites=true&w=majority`;
+        cleanHostAndParams =
+          cleanHostAndParams.replace(/\/$/, '') + `/${dbName}?retryWrites=true&w=majority`;
       }
 
       return `${prefix}${username}:${encodedPassword}@${cleanHostAndParams}`;
@@ -58,8 +68,33 @@ export function getSanitizedMongoUri(): string {
 }
 
 export function isMongoConfigured(): boolean {
-  const uri = getSanitizedMongoUri();
-  return Boolean(uri && uri.startsWith('mongodb'));
+  // Always true because DIRECT_REPLICA_SET_URI serves as guaranteed cloud database connection
+  return true;
+}
+
+async function connectClient(uri: string): Promise<MongoClient> {
+  const options = {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 7000,
+  };
+
+  try {
+    const c = new MongoClient(uri, options);
+    return await c.connect();
+  } catch (err: any) {
+    // If SRV lookup failed (e.g. querySrv ECONNREFUSED), automatically fallback to the direct replica set nodes URI
+    if (
+      uri.includes('+srv') &&
+      (err?.code === 'ECONNREFUSED' ||
+        err?.syscall === 'querySrv' ||
+        err?.message?.includes('querySrv'))
+    ) {
+      console.warn('[MongoDB] SRV lookup refused, connecting via direct replica set nodes URI...');
+      const fallbackClient = new MongoClient(DIRECT_REPLICA_SET_URI, options);
+      return await fallbackClient.connect();
+    }
+    throw err;
+  }
 }
 
 export async function getMongoClient(): Promise<MongoClient | null> {
@@ -68,39 +103,24 @@ export async function getMongoClient(): Promise<MongoClient | null> {
     return null;
   }
 
-  try {
-    dns.setServers(['8.8.8.8', '1.1.1.1']);
-  } catch (_) {}
-
-  const options = {
-    serverSelectionTimeoutMS: 8000,
-  };
-
-  if (process.env.NODE_ENV === 'development') {
-    // In development mode, use a global variable so that the value
-    // is preserved across module reloads caused by HMR.
-    if (!global._mongoClientPromise) {
-      client = new MongoClient(uri, options);
-      global._mongoClientPromise = client.connect();
-    }
-    clientPromise = global._mongoClientPromise;
-  } else {
-    // In production mode, it's best to not use a global variable.
-    if (!clientPromise) {
-      client = new MongoClient(uri, options);
-      clientPromise = client.connect();
-    }
+  // Use global variable across both development and serverless production (Vercel)
+  // so warm serverless lambda invocations reuse existing TCP connections.
+  if (!global._mongoClientPromise) {
+    global._mongoClientPromise = connectClient(uri).catch((err) => {
+      console.error('[MongoDB] Connection attempt failed:', err?.message || err);
+      global._mongoClientPromise = undefined;
+      throw err;
+    });
   }
+
+  clientPromise = global._mongoClientPromise;
 
   try {
     const connectedClient = await clientPromise;
     return connectedClient;
   } catch (err: any) {
     console.error('[MongoDB] Connection error:', err?.message || err);
-    // Reset promise so subsequent requests can retry
-    if (process.env.NODE_ENV === 'development') {
-      global._mongoClientPromise = undefined;
-    }
+    global._mongoClientPromise = undefined;
     clientPromise = null;
     return null;
   }
@@ -111,3 +131,4 @@ export async function getDb(dbName = 'msi_db'): Promise<Db | null> {
   if (!client) return null;
   return client.db(process.env.MONGODB_DB_NAME || dbName);
 }
+

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
 import { verifyOtp } from '@/lib/otpStore';
 import {
-  registerStudentUser,
-  getStudentByPhone,
+  registerStudentUserAsync,
+  getStudentByPhoneAsync,
   updateStudentAccount,
-  getStudentProfile,
+  getStudentProfileAsync,
 } from '@/lib/studentUserStore';
 
 export async function POST(req: NextRequest) {
@@ -50,11 +50,11 @@ export async function POST(req: NextRequest) {
       stream || verification.meta?.stream || 'PCS-J Punjab Judicial Services';
 
     // Retrieve or auto-register student user
-    let student = getStudentByPhone(cleanPhone);
+    let student = await getStudentByPhoneAsync(cleanPhone);
 
     if (effectivePurpose === 'signup') {
       if (!student) {
-        const regResult = registerStudentUser({
+        const regResult = await registerStudentUserAsync({
           phone: cleanPhone,
           name: resolvedName,
           stream: resolvedStream,
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
       }
     } else if (effectivePurpose === 'reset' && password) {
       updateStudentAccount(cleanPhone, { password: password.trim() });
-      student = getStudentByPhone(cleanPhone);
+      student = await getStudentByPhoneAsync(cleanPhone);
     } else if (!student) {
       // Auto-register on first OTP login so their account is permanently tracked
-      const regResult = registerStudentUser({
+      const regResult = await registerStudentUserAsync({
         phone: cleanPhone,
         name: resolvedName,
         stream: resolvedStream,
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const profile = getStudentProfile(cleanPhone);
+    const profile = await getStudentProfileAsync(cleanPhone);
 
     return NextResponse.json({
       success: true,

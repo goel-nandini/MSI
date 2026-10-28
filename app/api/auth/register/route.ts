@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
-import { registerStudentUser, getStudentProfile } from '@/lib/studentUserStore';
+import { registerStudentUserAsync, getStudentProfileAsync } from '@/lib/studentUserStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const resolvedEmail =
       email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`;
 
-    const regResult = registerStudentUser({
+    const regResult = await registerStudentUserAsync({
       phone: cleanPhone,
       name: name.trim(),
       stream: resolvedStream,
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const profile = getStudentProfile(cleanPhone);
+    const profile = await getStudentProfileAsync(cleanPhone);
 
     return NextResponse.json({
       success: true,

@@ -227,6 +227,16 @@ export default function SuperAdminMasterDashboard() {
   const [newGalleryDesc, setNewGalleryDesc] = useState('');
   const [isSubmittingGallery, setIsSubmittingGallery] = useState(false);
 
+  // 5b. Edit Gallery Item Modal
+  const [galleryToEdit, setGalleryToEdit] = useState<GalleryItem | null>(null);
+  const [editGalleryTitle, setEditGalleryTitle] = useState('');
+  const [editGalleryCategory, setEditGalleryCategory] = useState<'institute' | 'labs' | 'library' | 'events'>('institute');
+  const [editGalleryImage, setEditGalleryImage] = useState('');
+  const [editGalleryTagline, setEditGalleryTagline] = useState('Campus Excellence');
+  const [editGalleryDesc, setEditGalleryDesc] = useState('');
+  const [editGallerySpan, setEditGallerySpan] = useState<'normal' | 'wide'>('normal');
+  const [isUpdatingGallery, setIsUpdatingGallery] = useState(false);
+
   // 6. Delete Gallery Item
   const [galleryToDelete, setGalleryToDelete] = useState<GalleryItem | null>(null);
 
@@ -687,12 +697,16 @@ export default function SuperAdminMasterDashboard() {
           stream: newStudentStream,
           pass: assignedPassword,
         });
-        showToast(`Student ${newStudentName} registered and saved to disk.`);
+        showToast(`Student ${newStudentName} registered successfully and synced to database.`);
         setShowAddStudentModal(false);
         setNewStudentName('');
         setNewStudentPhone('');
         setNewStudentEmail('');
-        fetchStudents();
+        if (Array.isArray(data.students)) {
+          setStudents(data.students);
+        } else {
+          fetchStudents();
+        }
         try {
           window.dispatchEvent(new Event('storage'));
         } catch (_) {}
@@ -1107,8 +1121,43 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
+  // Helper for image compression to keep base64 within Vercel body limits
+  const compressImageFile = (file: File, maxWidth = 1600, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const raw = event.target?.result as string;
+        if (!raw) return resolve('');
+        if (typeof window === 'undefined') return resolve(raw);
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/webp', quality);
+            resolve(dataUrl);
+          } else {
+            resolve(raw);
+          }
+        };
+        img.onerror = () => resolve(raw);
+        img.src = raw;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // 4. Add Gallery Media (Direct File Upload & Instant Sync)
-  const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1117,14 +1166,109 @@ export default function SuperAdminMasterDashboard() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        setNewGalleryImage(base64);
+    try {
+      const compressed = await compressImageFile(file);
+      if (compressed) {
+        setNewGalleryImage(compressed);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setNewGalleryImage(base64);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 4b. Edit Gallery Media File Change
+  const handleEditGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    try {
+      const compressed = await compressImageFile(file);
+      if (compressed) {
+        setEditGalleryImage(compressed);
+      }
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setEditGalleryImage(base64);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOpenEditGallery = (item: GalleryItem) => {
+    setGalleryToEdit(item);
+    setEditGalleryTitle(item.title);
+    setEditGalleryCategory(item.category);
+    setEditGalleryImage(item.image);
+    setEditGalleryTagline(item.tagline || 'Campus Excellence');
+    setEditGalleryDesc(item.desc || '');
+    setEditGallerySpan(item.span || 'normal');
+  };
+
+  const handleUpdateGallery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryToEdit || !editGalleryTitle.trim() || !editGalleryImage.trim()) {
+      showToast('Please specify title and provide an image.');
+      return;
+    }
+
+    setIsUpdatingGallery(true);
+    try {
+      const res = await fetch('/api/admin/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: galleryToEdit.id,
+          title: editGalleryTitle.trim(),
+          category: editGalleryCategory,
+          image: editGalleryImage.trim(),
+          tagline: editGalleryTagline.trim(),
+          desc: editGalleryDesc.trim(),
+          span: editGallerySpan,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast('Gallery media updated successfully! Live on /gallery.');
+        setGalleryToEdit(null);
+        if (Array.isArray(data.items)) {
+          setGalleryItems(data.items);
+        } else {
+          fetchGallery();
+        }
+        try {
+          window.dispatchEvent(new Event('msi_gallery_sync'));
+          window.dispatchEvent(new Event('storage'));
+          if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'GALLERY_UPDATED' });
+            bc.close();
+          }
+        } catch (_) {}
+      } else {
+        showToast(data.message || 'Failed to update gallery media.');
+      }
+    } catch (err) {
+      showToast('Network error while updating gallery media.');
+    } finally {
+      setIsUpdatingGallery(false);
+    }
   };
 
   const handleCreateGallery = async (e: React.FormEvent) => {
@@ -1154,10 +1298,19 @@ export default function SuperAdminMasterDashboard() {
         setShowAddGalleryModal(false);
         setNewGalleryTitle('');
         setNewGalleryDesc('');
-        fetchGallery();
+        if (Array.isArray(data.items)) {
+          setGalleryItems(data.items);
+        } else {
+          fetchGallery();
+        }
         try {
           window.dispatchEvent(new Event('msi_gallery_sync'));
           window.dispatchEvent(new Event('storage'));
+          if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'GALLERY_UPDATED' });
+            bc.close();
+          }
         } catch (_) {}
       } else {
         showToast(data.message || 'Failed to upload gallery media.');
@@ -1180,10 +1333,19 @@ export default function SuperAdminMasterDashboard() {
       if (data.success) {
         showToast('Media removed from website gallery.');
         setGalleryToDelete(null);
-        fetchGallery();
+        if (Array.isArray(data.items)) {
+          setGalleryItems(data.items);
+        } else {
+          fetchGallery();
+        }
         try {
           window.dispatchEvent(new Event('msi_gallery_sync'));
           window.dispatchEvent(new Event('storage'));
+          if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('msi_sync_channel');
+            bc.postMessage({ type: 'GALLERY_UPDATED' });
+            bc.close();
+          }
         } catch (_) {}
       } else {
         showToast(data.message || 'Failed to delete gallery item.');
@@ -3850,13 +4012,24 @@ export default function SuperAdminMasterDashboard() {
                         <span className="text-[10px] font-mono text-gray-400">
                           ID: #{item.id}
                         </span>
-                        <button
-                          onClick={() => setGalleryToDelete(item)}
-                          className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white text-red-600 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenEditGallery(item)}
+                            className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Edit Gallery Media"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setGalleryToDelete(item)}
+                            className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white text-red-600 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Delete Gallery Media"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -5691,6 +5864,182 @@ export default function SuperAdminMasterDashboard() {
                     <Upload className="w-4 h-4" />
                   )}
                   <span>Publish to /gallery</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5b. Edit Gallery Media Modal */}
+      {galleryToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8EEFF] my-8">
+            <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                    Edit Gallery Media #{galleryToEdit.id}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Update title, category, description, or photo. Reflects live on /gallery.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setGalleryToEdit(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateGallery} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Media Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editGalleryTitle}
+                  onChange={(e) => setEditGalleryTitle(e.target.value)}
+                  placeholder="e.g. Moot Court Hall & Appellate Bench"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editGalleryCategory}
+                    onChange={(e) =>
+                      setEditGalleryCategory(e.target.value as 'institute' | 'labs' | 'library' | 'events')
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="institute">Institute Spaces</option>
+                    <option value="labs">Legal Research & Test Labs</option>
+                    <option value="library">Central Library</option>
+                    <option value="events">Moot Courts & Events</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Display Layout
+                  </label>
+                  <select
+                    value={editGallerySpan}
+                    onChange={(e) => setEditGallerySpan(e.target.value as 'normal' | 'wide')}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  >
+                    <option value="normal">Standard (4:3 ratio)</option>
+                    <option value="wide">Wide Featured (16:9 ratio)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Tagline
+                </label>
+                <input
+                  type="text"
+                  value={editGalleryTagline}
+                  onChange={(e) => setEditGalleryTagline(e.target.value)}
+                  placeholder="e.g. Campus Excellence"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              {/* Replace Photo */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Change Photo (Optional - Browse new from device)
+                </label>
+                <div className="border-2 border-dashed border-[#E8DCCB] rounded-2xl p-3 text-center hover:border-blue-500 transition-colors bg-[#F8FAFC]">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="edit-gallery-file-input"
+                    onChange={handleEditGalleryFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="edit-gallery-file-input"
+                    className="cursor-pointer flex flex-col items-center justify-center space-y-1"
+                  >
+                    <Upload className="w-5 h-5 text-blue-600" />
+                    <span className="text-xs font-bold text-[#10233F]">
+                      Click to Choose New Photo
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      Auto-compressed & optimized for high-speed cloud loading
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Current Preview */}
+              {editGalleryImage && (
+                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 flex items-center space-x-3">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-300 bg-white shrink-0">
+                    <img
+                      src={editGalleryImage}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] font-bold text-blue-700 block">
+                      Active Photo Preview
+                    </span>
+                    <p className="text-[10px] text-gray-500 truncate font-mono">
+                      {editGalleryImage.slice(0, 45)}...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={editGalleryDesc}
+                  onChange={(e) => setEditGalleryDesc(e.target.value)}
+                  placeholder="Facility details, bare act libraries, and seating capacity."
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setGalleryToEdit(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingGallery}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isUpdatingGallery ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Save Changes</span>
                 </button>
               </div>
             </form>

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
 import {
-  getStudentProfile,
-  saveStudentProfile,
+  getStudentProfileAsync,
+  saveStudentProfileAsync,
   buildDefaultStudentProfile,
   isStudentDeleted,
 } from '@/lib/studentUserStore';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    let profile = getStudentProfile(cleanPhone);
+    let profile = await getStudentProfileAsync(cleanPhone);
     if (!profile) {
       return NextResponse.json(
         {
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanPrevious = previousPhone ? sanitizeIndianPhone(previousPhone) : undefined;
-    const saved = saveStudentProfile(cleanPhone, profile, cleanPrevious);
+    const saved = await saveStudentProfileAsync(cleanPhone, profile, cleanPrevious);
 
     return NextResponse.json({
       success: true,
@@ -100,3 +102,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
