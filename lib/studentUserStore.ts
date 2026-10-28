@@ -292,6 +292,13 @@ export function registerStudentUser(data: {
 
     students[existingIndex] = existing;
     writeStudentsToDisk(students);
+
+    if (isMongoConfigured()) {
+      addStudentAsync(existing).catch((err) => {
+        console.warn('[StudentStore] Error syncing updated student to MongoDB:', err);
+      });
+    }
+
     return {
       success: true,
       student: existing,
@@ -319,6 +326,12 @@ export function registerStudentUser(data: {
 
   students.push(newStudent);
   writeStudentsToDisk(students);
+
+  if (isMongoConfigured()) {
+    addStudentAsync(newStudent).catch((err) => {
+      console.warn('[StudentStore] Error syncing new student to MongoDB:', err);
+    });
+  }
 
   return { success: true, student: newStudent };
 }
@@ -505,6 +518,13 @@ export function saveStudentProfile(
   students[studentIndex] = student;
 
   writeStudentsToDisk(students);
+
+  if (isMongoConfigured()) {
+    addStudentAsync(student).catch((err) => {
+      console.warn('[StudentStore] Error syncing profile update to MongoDB:', err);
+    });
+  }
+
   return updatedProfile;
 }
 
@@ -572,6 +592,86 @@ export function authenticateWithPassword(
 }
 
 /**
+ * Cloud-synchronized authentication of student verifying against MongoDB Atlas with disk fallback.
+ */
+export async function authenticateWithPasswordAsync(
+  rawPhone: string,
+  rawPassword: string
+): Promise<{
+  success: boolean;
+  student?: RegisteredStudentUser;
+  code?: 'NOT_FOUND' | 'INVALID_PASSWORD' | 'SUCCESS' | 'TERMINATED';
+  message: string;
+}> {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  const cleanInput = rawPhone.trim().toLowerCase();
+
+  const students = await getStudentsAsync();
+
+  if (isStudentDeleted(cleanPhone) || isStudentDeleted(cleanInput)) {
+    return {
+      success: false,
+      code: 'TERMINATED',
+      message: 'We are sorry, unable to login. Your student account access has been cancelled/terminated by Administration.',
+    };
+  }
+
+  const student = students.find(
+    (s) =>
+      (cleanPhone.length >= 10 && s.phone === cleanPhone) ||
+      (s.email && s.email.trim().toLowerCase() === cleanInput)
+  );
+
+  if (!student) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Mobile number not registered. Please register a new student account first.',
+    };
+  }
+
+  const isPasswordMatch =
+    student.password === rawPassword.trim() ||
+    student.password?.toLowerCase() === rawPassword.trim().toLowerCase();
+
+  if (!isPasswordMatch) {
+    return {
+      success: false,
+      code: 'INVALID_PASSWORD',
+      message: 'Incorrect password. Please verify and try again.',
+    };
+  }
+
+  student.lastLoginAt = new Date().toISOString();
+  if (isMongoConfigured()) {
+    addStudentAsync(student).catch(() => {});
+  } else {
+    const disk = readStudentsFromDisk();
+    const idx = disk.findIndex((s) => s.phone === cleanPhone || s.id === student.id);
+    if (idx >= 0) {
+      disk[idx].lastLoginAt = student.lastLoginAt;
+      writeStudentsToDisk(disk);
+    }
+  }
+
+  return {
+    success: true,
+    code: 'SUCCESS',
+    student,
+    message: 'Authentication successful.',
+  };
+}
+
+/**
+ * Cloud-synchronized fetch of a student by mobile number from MongoDB Atlas with disk fallback.
+ */
+export async function getStudentByPhoneAsync(rawPhone: string): Promise<RegisteredStudentUser | undefined> {
+  const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+  const students = await getStudentsAsync();
+  return students.find((s) => s.phone === cleanPhone);
+}
+
+/**
  * Updates a student's profile or password
  */
 export function updateStudentAccount(
@@ -585,6 +685,13 @@ export function updateStudentAccount(
 
   Object.assign(student, updates);
   writeStudentsToDisk(students);
+
+  if (isMongoConfigured()) {
+    addStudentAsync(student).catch((err) => {
+      console.warn('[StudentStore] Error syncing student account update to MongoDB:', err);
+    });
+  }
+
   return true;
 }
 

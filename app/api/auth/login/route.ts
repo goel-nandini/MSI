@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
-import { authenticateWithPassword, getStudentProfile } from '@/lib/studentUserStore';
+import { authenticateWithPasswordAsync, getStudentProfile } from '@/lib/studentUserStore';
 import { verifyFacultyCredentials } from '@/lib/teacherUserStore';
 import { verifyReceptionistCredentials } from '@/lib/receptionistStore';
 
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Check Student Credentials
-    const authResult = authenticateWithPassword(identifier, password);
+    const authResult = await authenticateWithPasswordAsync(identifier, password);
     if (authResult.code === 'TERMINATED') {
       return NextResponse.json(
         {

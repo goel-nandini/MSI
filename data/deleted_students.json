@@ -19,5 +19,12 @@
     "email": "student.4455@msi-institutes.edu.in",
     "name": "Aditya Roy",
     "deletedAt": "2026-10-24T16:58:19.166Z"
+  },
+  {
+    "id": "msi-stu-6622",
+    "phone": "9977556622",
+    "email": "student.6622@msi-institutes.edu.in",
+    "name": "Renu",
+    "deletedAt": "2026-10-28T09:38:15.544Z"
   }
 ]
