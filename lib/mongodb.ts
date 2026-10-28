@@ -21,18 +21,20 @@ export async function getMongoClient(): Promise<MongoClient | null> {
     return null;
   }
 
+  const connectionUri = process.env.MONGODB_URI || uri;
+
   if (process.env.NODE_ENV === 'development') {
     // In development mode, use a global variable so that the value
     // is preserved across module reloads caused by HMR (Hot Module Replacement).
     if (!global._mongoClientPromise) {
-      client = new MongoClient(uri, options);
+      client = new MongoClient(connectionUri, options);
       global._mongoClientPromise = client.connect();
     }
     clientPromise = global._mongoClientPromise;
   } else {
     // In production mode, it's best to not use a global variable.
     if (!clientPromise) {
-      client = new MongoClient(uri, options);
+      client = new MongoClient(connectionUri, options);
       clientPromise = client.connect();
     }
   }
@@ -41,6 +43,9 @@ export async function getMongoClient(): Promise<MongoClient | null> {
     return await clientPromise;
   } catch (err) {
     console.error('[MongoDB] Connection error:', err);
+    // Reset cached promise so subsequent requests can retry after network/IP access is resolved
+    global._mongoClientPromise = undefined;
+    clientPromise = null;
     return null;
   }
 }
