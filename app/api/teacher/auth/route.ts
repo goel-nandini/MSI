@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFacultyCredentials } from '@/lib/teacherUserStore';
+import { verifyFacultyCredentialsAsync } from '@/lib/teacherUserStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = verifyFacultyCredentials(identifier, password);
+    const result = await verifyFacultyCredentialsAsync(identifier, password);
 
     if (!result.success || !result.teacher) {
       return NextResponse.json(

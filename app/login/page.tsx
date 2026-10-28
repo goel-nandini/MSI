@@ -128,6 +128,7 @@ export default function UnifiedLoginPage() {
         localStorage.setItem('msi_active_teacher_email', user.email || '');
         localStorage.setItem('msi_active_teacher_phone', user.phone || '');
         localStorage.setItem('msi_active_teacher_stream', user.stream || 'Law');
+        localStorage.setItem('msi_teacher_user', JSON.stringify(user));
         setSuccessMessage(`Welcome Prof. ${user.name || 'Faculty'}! Access granted to Faculty Dashboard.`);
         setTimeout(() => router.push(resData.redirectTo || '/teacher/dashboard'), 500);
         return;

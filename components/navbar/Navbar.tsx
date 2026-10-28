@@ -104,6 +104,8 @@ export default function Navbar({ onOpenEnquiry }: NavbarProps) {
       localStorage.removeItem('msi_active_teacher_name');
       localStorage.removeItem('msi_active_teacher_email');
       localStorage.removeItem('msi_active_teacher_phone');
+      localStorage.removeItem('msi_active_teacher_stream');
+      localStorage.removeItem('msi_teacher_user');
       localStorage.removeItem('msi_active_student_phone');
       localStorage.removeItem('msi_active_student_name');
       localStorage.removeItem('msi_active_student_email');

@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, phone, specialization, experienceYears, password, temporaryPassword, department, designation, assignedCourseIds } = body;
+    const { id, name, email, phone, specialization, experienceYears, password, temporaryPassword, department, designation, assignedCourseIds } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await addTeacherAsync({
+      id: id?.trim() || undefined,
       name: name.trim(),
       email: email.trim(),
       phone: phone?.trim() || '+91 98000 00000',

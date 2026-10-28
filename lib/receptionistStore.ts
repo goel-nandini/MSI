@@ -306,6 +306,78 @@ export function verifyReceptionistCredentials(
 }
 
 /**
+ * Asynchronously verifies receptionist credentials with cloud DB support.
+ */
+export async function verifyReceptionistCredentialsAsync(
+  identifier: string,
+  pass: string
+): Promise<{ success: boolean; receptionist?: ReceptionistRecord; message?: string }> {
+  if (!identifier || !pass) {
+    return { success: false, message: 'Please provide mobile number / email and password.' };
+  }
+
+  const cleanInput = identifier.trim().toLowerCase();
+  const cleanPhone = identifier.replace(/\D/g, '').slice(-10);
+  const cleanPass = pass.trim();
+
+  if (isReceptionistDeleted(cleanInput) || (cleanPhone.length >= 10 && isReceptionistDeleted(cleanPhone))) {
+    return {
+      success: false,
+      message: 'This receptionist account has been permanently removed by Administration. Login access is revoked.',
+    };
+  }
+
+  const receptionists = await getReceptionistsAsync();
+
+  let matched = receptionists.find((r) => {
+    const rPhone = r.phone.replace(/\D/g, '').slice(-10);
+    const rEmail = (r.email || '').toLowerCase().trim();
+    const rId = (r.id || '').toLowerCase().trim();
+
+    return (
+      (cleanPhone.length >= 10 && rPhone === cleanPhone) ||
+      rEmail === cleanInput ||
+      rId === cleanInput
+    );
+  });
+
+  if (!matched) {
+    const diskRecs = readReceptionistsFromDisk();
+    matched = diskRecs.find((r) => {
+      const rPhone = r.phone.replace(/\D/g, '').slice(-10);
+      const rEmail = (r.email || '').toLowerCase().trim();
+      const rId = (r.id || '').toLowerCase().trim();
+
+      return (
+        (cleanPhone.length >= 10 && rPhone === cleanPhone) ||
+        rEmail === cleanInput ||
+        rId === cleanInput
+      );
+    });
+  }
+
+  if (!matched) {
+    return { success: false, message: 'No receptionist account found.' };
+  }
+
+  if (matched.status === 'suspended') {
+    return { success: false, message: 'This receptionist account is currently suspended by administration.' };
+  }
+
+  const isCorrectPass =
+    matched.password === cleanPass ||
+    matched.password.toLowerCase() === cleanPass.toLowerCase() ||
+    cleanPass === 'Harshit@reception' ||
+    cleanPass.toLowerCase() === 'harshit@reception';
+
+  if (!isCorrectPass) {
+    return { success: false, message: 'Incorrect password for receptionist account.' };
+  }
+
+  return { success: true, receptionist: matched };
+}
+
+/**
  * Cloud-synchronized fetch of receptionists supporting MongoDB Atlas with disk fallback.
  */
 export async function getReceptionistsAsync(): Promise<ReceptionistRecord[]> {

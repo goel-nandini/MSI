@@ -127,7 +127,9 @@ export default function TeacherLoginPage() {
           localStorage.setItem('msi_active_teacher_email', authTeacher.email);
           localStorage.setItem('msi_active_teacher_name', authTeacher.name);
           localStorage.setItem('msi_active_teacher_id', authTeacher.id);
+          localStorage.setItem('msi_active_teacher_stream', authTeacher.stream || 'Law');
           if (authTeacher.phone) localStorage.setItem('msi_active_teacher_phone', authTeacher.phone);
+          localStorage.setItem('msi_teacher_user', JSON.stringify(authTeacher));
 
           setIsLoading(false);
           router.push('/teacher/dashboard');
@@ -152,7 +154,7 @@ export default function TeacherLoginPage() {
         if (isEmailInput) {
           return tEmail === cleanInput;
         }
-        if (cleanPhone.length >= 10 && tPhone === cleanPhone) {
+        if (!isEmailInput && cleanPhone.length >= 10 && cleanPhone !== '9800000000' && cleanPhone !== '0000000000' && tPhone === cleanPhone) {
           return true;
         }
         return tEmail === cleanInput || tId === cleanInput || t.name.trim().toLowerCase() === cleanInput;
@@ -178,7 +180,9 @@ export default function TeacherLoginPage() {
         localStorage.setItem('msi_active_teacher_email', matched.email);
         localStorage.setItem('msi_active_teacher_name', matched.name);
         localStorage.setItem('msi_active_teacher_id', matched.id);
+        localStorage.setItem('msi_active_teacher_stream', matched.stream || 'Law');
         if (matched.phone) localStorage.setItem('msi_active_teacher_phone', matched.phone);
+        localStorage.setItem('msi_teacher_user', JSON.stringify(matched));
         setIsLoading(false);
         router.push('/teacher/dashboard');
         return;

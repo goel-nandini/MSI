@@ -109,7 +109,38 @@ export interface OneToOneSession {
 
 export const TEACHER_PROFILES: TeacherProfile[] = [
   {
-    id: 'fac-law-01',
+    id: 'fac-1793219999110',
+    name: 'Ankit',
+    title: 'Professor of Law & Faculty Jurist',
+    department: 'School of Law & Judicial Studies',
+    email: 'ankit@gmail.com',
+    phone: '+91 98000 00000',
+    avatarUrl: '/images/avatars/avatar-2.webp',
+    stream: 'Law',
+    cabin: 'Chamber 106, Jurists Block (Office Hours: 10 AM – 8 PM)',
+    assignedCourseCodes: ['MSI/PCSJ/01'],
+    assignedSubjects: [
+      'Constitutional Law & Jurisprudence',
+    ],
+  },
+  {
+    id: 'fac-harshit-01',
+    name: 'Harshit Singh',
+    title: 'Professor of Law & Faculty Jurist',
+    department: 'School of Law & Judicial Studies',
+    email: 'harshit@gmail.com',
+    phone: '+91 97923 03434',
+    avatarUrl: '/images/avatars/avatar-1.webp',
+    stream: 'Law',
+    cabin: 'Chamber 101, Jurists Block (Office Hours: 10 AM – 8 PM)',
+    assignedCourseCodes: ['MSI/PCSJ/01', 'MSI/LEGSTUDIES-/01'],
+    assignedSubjects: [
+      'Constitutional Law & Judicial Services Examination',
+      'Civil Procedure Code & Criminal Jurisprudence',
+    ],
+  },
+  {
+    id: 'fac-law-ekta',
     name: 'Dr. Ekta Gahlawat',
     title: 'Faculty – Legal Studies, MSI Group of Institutes',
     department: 'School of Law & Legal Studies',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherHeader from '@/components/teacher/TeacherHeader';
 import TeacherSidebar, { TeacherModuleTab } from '@/components/teacher/TeacherSidebar';
@@ -23,6 +23,7 @@ import {
   syncTeachersFromServer,
   syncCoursesFromServer,
   buildTeacherProfileFromRecord,
+  getDeletedTeacherIds,
   MSICourse,
   LMS_SYNC_EVENT,
   enrollStudentAction,
@@ -49,8 +50,51 @@ import {
 export default function TeacherDashboardPage() {
   const router = useRouter();
 
-  // Active Teacher Profile (Defaults to Law Faculty Dr. Ekta Gahlawat)
-  const [activeTeacher, setActiveTeacher] = useState<TeacherProfile>(TEACHER_PROFILES[0]);
+  // Active Teacher Profile (Initializes directly from active session to prevent wrong faculty flash)
+  const [activeTeacher, setActiveTeacher] = useState<TeacherProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const rawUser = localStorage.getItem('msi_teacher_user');
+        if (rawUser) {
+          const u = JSON.parse(rawUser);
+          if (u && (u.name || u.email || u.id)) {
+            return {
+              id: u.id || 'fac-active',
+              name: u.name || 'Faculty Jurist',
+              title: u.designation || 'Professor of Law & Faculty Jurist',
+              department: u.department || 'School of Law & Judicial Studies',
+              email: u.email || '',
+              phone: u.phone || '+91 98000 00000',
+              avatarUrl: u.avatarUrl || '/images/avatars/avatar-2.webp',
+              stream: (u.stream as 'Law' | 'JEE') || 'Law',
+              cabin: 'Academic Block A, Jurists Chamber #104',
+              assignedCourseCodes: u.assignedCourseIds || [],
+              assignedSubjects: [u.specialization || 'Law & Judicial Studies'],
+            };
+          }
+        }
+        const sName = localStorage.getItem('msi_active_teacher_name');
+        const sEmail = localStorage.getItem('msi_active_teacher_email');
+        const sId = localStorage.getItem('msi_active_teacher_id');
+        if (sName || sEmail || sId) {
+          return {
+            id: sId || 'fac-active',
+            name: sName || 'Faculty Jurist',
+            title: 'Professor of Law & Faculty Jurist',
+            department: 'School of Law & Judicial Studies',
+            email: sEmail || '',
+            phone: localStorage.getItem('msi_active_teacher_phone') || '+91 98000 00000',
+            avatarUrl: '/images/avatars/avatar-2.webp',
+            stream: (localStorage.getItem('msi_active_teacher_stream') as 'Law' | 'JEE') || 'Law',
+            cabin: 'Academic Block A, Jurists Chamber #104',
+            assignedCourseCodes: [],
+            assignedSubjects: ['Constitutional Law & Judicial Studies'],
+          };
+        }
+      } catch (_) {}
+    }
+    return TEACHER_PROFILES[0];
+  });
   const [activeTab, setActiveTab] = useState<TeacherModuleTab>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -123,20 +167,40 @@ export default function TeacherDashboardPage() {
 
       if (!storedId && !storedEmail && !storedPhone) return;
 
-      const teachers = await syncTeachersFromServer();
-      const stillExists = teachers.some((t) => {
-        const tId = (t.id || '').toLowerCase().trim();
-        const tEmail = (t.email || '').toLowerCase().trim();
-        const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
-        return (
-          (storedId && tId === storedId) ||
-          (storedEmail && tEmail === storedEmail) ||
-          (storedPhone.length >= 10 && tPhone === storedPhone)
-        );
-      });
-
-      if (!stillExists) {
+      const deletedIds = getDeletedTeacherIds();
+      if (
+        (storedId && deletedIds.includes(storedId)) ||
+        (storedEmail && deletedIds.includes(storedEmail)) ||
+        (storedPhone.length >= 10 && deletedIds.includes(storedPhone))
+      ) {
         triggerInstantRevocation();
+        return;
+      }
+
+      const teachers = await syncTeachersFromServer();
+      if (teachers && teachers.length > 0) {
+        const stillExists = teachers.some((t) => {
+          const tId = (t.id || '').toLowerCase().trim();
+          const tEmail = (t.email || '').toLowerCase().trim();
+          const tPhone = (t.phone || '').replace(/\D/g, '').slice(-10);
+          return (
+            (storedId && tId === storedId) ||
+            (storedEmail && tEmail === storedEmail) ||
+            (storedPhone.length >= 10 && tPhone === storedPhone)
+          );
+        });
+
+        // Only revoke if teacher is explicitly registered in deleted list
+        if (!stillExists) {
+          const freshDeleted = getDeletedTeacherIds();
+          if (
+            (storedId && freshDeleted.includes(storedId)) ||
+            (storedEmail && freshDeleted.includes(storedEmail)) ||
+            (storedPhone.length >= 10 && freshDeleted.includes(storedPhone))
+          ) {
+            triggerInstantRevocation();
+          }
+        }
       }
     } catch (err) {
       console.warn('Revocation check error:', err);
@@ -226,13 +290,50 @@ export default function TeacherDashboardPage() {
 
         // First check stored teachers (includes newly created faculty from Super Admin / disk)
         const storedRecs = getStoredTeachers();
-        const recMatched = storedRecs.find((r) => {
+        const isPlaceholderPhone = !storedPhone || storedPhone === '9800000000' || storedPhone === '0000000000';
+        let recMatched = storedRecs.find((r) => {
           if (storedId && r.id === storedId) return true;
           if (storedEmail && r.email.toLowerCase().trim() === storedEmail) return true;
           if (storedName && r.name.toLowerCase().trim() === storedName.toLowerCase()) return true;
-          if (storedPhone && r.phone && r.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
+          if (!isPlaceholderPhone && storedPhone.length >= 10 && r.phone) {
+            const rPhone = r.phone.replace(/\D/g, '').slice(-10);
+            return rPhone && rPhone !== '9800000000' && rPhone === storedPhone.slice(-10);
+          }
           return false;
         });
+
+        // Check if cached teacher user session exists
+        if (!recMatched) {
+          try {
+            const rawUser = localStorage.getItem('msi_teacher_user');
+            if (rawUser) {
+              const u = JSON.parse(rawUser);
+              if (u && (u.id || u.email || u.name)) {
+                recMatched = {
+                  id: u.id || storedId || `fac-${Date.now()}`,
+                  name: u.name || storedName || 'Faculty Jurist',
+                  email: u.email || storedEmail || '',
+                  phone: u.phone || storedPhone || '+91 98000 00000',
+                  avatarUrl: u.avatarUrl || '/images/avatars/avatar-2.webp',
+                  department: u.department || 'School of Law & Judicial Studies',
+                  designation: u.designation || 'Professor of Law & Faculty Jurist',
+                  qualifications: u.qualifications || 'LL.M. / Ph.D. in Law',
+                  experienceYears: Number(u.experienceYears) || 10,
+                  stream: (u.stream as 'Law' | 'JEE') || 'Law',
+                  bio: u.bio || '',
+                  specialization: u.specialization || 'Constitutional Law & Judicial Studies',
+                  sampleLectureTitle: '',
+                  sampleLectureDuration: '',
+                  status: 'approved',
+                  applicationDate: new Date().toISOString(),
+                  assignedCourseIds: u.assignedCourseIds || ['crs-msi-pcsj'],
+                  rating: 5.0,
+                  studentsCount: 120,
+                };
+              }
+            }
+          } catch (_) {}
+        }
 
         if (recMatched) {
           const profile = buildTeacherProfileFromRecord(recMatched);
@@ -243,18 +344,39 @@ export default function TeacherDashboardPage() {
 
         // Second check static mock profiles
         const matched = TEACHER_PROFILES.find((t) => {
+          if (storedId && t.id === storedId) return true;
           if (storedEmail && t.email.toLowerCase() === storedEmail) return true;
           if (storedName && t.name.toLowerCase().includes(storedName.toLowerCase())) return true;
-          if (storedPhone && t.phone.replace(/\D/g, '').includes(storedPhone.slice(-10))) return true;
+          if (!isPlaceholderPhone && storedPhone.length >= 10 && t.phone) {
+            const tPhone = t.phone.replace(/\D/g, '').slice(-10);
+            return tPhone && tPhone !== '9800000000' && tPhone === storedPhone.slice(-10);
+          }
           return false;
         });
 
         if (matched) {
           setActiveTeacher(matched);
           loadLmsCourses(matched);
-        } else if (storedName || storedEmail || storedId) {
-          // Record was deleted by administration: trigger revocation notice
-          triggerInstantRevocation();
+          return;
+        }
+
+        // If authenticated faculty with session, construct dynamic profile
+        if (storedLoggedIn && (storedName || storedEmail || storedId)) {
+          const customProfile: TeacherProfile = {
+            id: storedId || `fac-${Date.now()}`,
+            name: storedName || 'Faculty Jurist',
+            title: 'Professor of Law & Faculty Jurist',
+            department: 'School of Law & Judicial Studies',
+            email: storedEmail || 'faculty@msi-institutes.edu.in',
+            phone: storedPhone || '+91 98000 00000',
+            avatarUrl: '/images/avatars/avatar-2.webp',
+            stream: 'Law',
+            cabin: 'Academic Block A, Jurists Chamber #104',
+            assignedCourseCodes: [],
+            assignedSubjects: ['Constitutional Law & Judicial Services'],
+          };
+          setActiveTeacher(customProfile);
+          loadLmsCourses(customProfile);
         }
       }
     };
@@ -342,11 +464,29 @@ export default function TeacherDashboardPage() {
 
   const filteredOneToOne = oneToOneList.filter((o) => o.stream === activeTeacher.stream);
 
+  // Combined list of teachers for the switcher menu
+  const combinedTeachers = useMemo(() => {
+    const list = [...TEACHER_PROFILES];
+    if (activeTeacher && !list.some((t) => t.id === activeTeacher.id || (t.email && activeTeacher.email && t.email.toLowerCase() === activeTeacher.email.toLowerCase()))) {
+      list.unshift(activeTeacher);
+    }
+    return list;
+  }, [activeTeacher]);
+
   // Switch Faculty handler (Demonstrating Role-Based Data Isolation)
   const handleSwitchTeacher = (teacherId: string) => {
-    const found = TEACHER_PROFILES.find((t) => t.id === teacherId);
-    if (found) {
-      setActiveTeacher(found);
+    const foundMock = TEACHER_PROFILES.find((t) => t.id === teacherId);
+    if (foundMock) {
+      setActiveTeacher(foundMock);
+      loadLmsCourses(foundMock);
+      return;
+    }
+    const storedRecs = getStoredTeachers();
+    const foundRec = storedRecs.find((t) => t.id === teacherId);
+    if (foundRec) {
+      const profile = buildTeacherProfileFromRecord(foundRec);
+      setActiveTeacher(profile);
+      loadLmsCourses(profile);
     }
   };
 
@@ -354,6 +494,7 @@ export default function TeacherDashboardPage() {
   const handleLogout = () => {
     try {
       localStorage.removeItem('msi_teacher_logged_in');
+      localStorage.removeItem('msi_teacher_user');
       localStorage.removeItem('msi_active_teacher_id');
       localStorage.removeItem('msi_active_teacher_name');
       localStorage.removeItem('msi_active_teacher_email');
@@ -407,7 +548,7 @@ export default function TeacherDashboardPage() {
       {/* 1. Header Bar with Stream Switcher */}
       <TeacherHeader
         teacher={activeTeacher}
-        allTeachers={TEACHER_PROFILES}
+        allTeachers={combinedTeachers}
         onSwitchTeacher={handleSwitchTeacher}
         onLogout={handleLogout}
         onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeIndianPhone, isValidIndianPhone } from '@/lib/smsService';
 import { authenticateWithPasswordAsync, getStudentProfile } from '@/lib/studentUserStore';
-import { verifyFacultyCredentials } from '@/lib/teacherUserStore';
-import { verifyReceptionistCredentials } from '@/lib/receptionistStore';
+import { verifyFacultyCredentialsAsync } from '@/lib/teacherUserStore';
+import { verifyReceptionistCredentialsAsync } from '@/lib/receptionistStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Check Receptionist Credentials (from data/receptionists.json)
-    const recResult = verifyReceptionistCredentials(identifier, password);
+    // 2. Check Receptionist Credentials (from data/receptionists.json / MongoDB)
+    const recResult = await verifyReceptionistCredentialsAsync(identifier, password);
     if (recResult.success && recResult.receptionist) {
       const rec = recResult.receptionist;
       return NextResponse.json({
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Check Faculty Credentials
     // As instructed: "फैकल्टी तो अपने से लॉगिन नहीं कर सकता, उसको जो असाइन करेगा सुपर एडमिन वही होगा... सुपर एडमिन में फैकल्टी ऐड किया, उनका पासवर्ड और क्रेडेंशियल दिया, तो उस क्रेडेंशियल का यूज़ करके लॉगिन पेज पे जाएंगे तो उनको फैकल्टी का डैशबोर्ड ओपन हो जाना चाहिए"
-    const facultyResult = verifyFacultyCredentials(identifier, password);
+    const facultyResult = await verifyFacultyCredentialsAsync(identifier, password);
     if (facultyResult.message?.includes('cancelled/terminated') || facultyResult.message?.includes('revoked')) {
       return NextResponse.json(
         {
@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
           designation: teacher.designation,
           avatarUrl: teacher.avatarUrl,
           stream: teacher.stream,
+          assignedCourseIds: teacher.assignedCourseIds || [],
           role: 'teacher',
           redirectTo: '/teacher/dashboard',
         },
