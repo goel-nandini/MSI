@@ -1,5 +1,111 @@
 [
   {
+    "id": "lead-bulk-209443-3",
+    "name": "Kabir Singh",
+    "mobile": "+91 98987 65432",
+    "location": "Panchkula",
+    "targetCourse": "PU Law 3-Yr Entrance",
+    "source": "Local Walk-in",
+    "receivedDate": "Imported Today",
+    "status": "Converted",
+    "latestRemark": "Visited campus reception counter",
+    "fullRemark": "Visited campus reception counter",
+    "agent": "Counselor Rohit (Judiciary Services Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793268463740",
+        "outcome": "Needs More Info",
+        "text": "Visited campus reception counter",
+        "timestamp": "Oct 29, 03:37 PM",
+        "author": "Priya",
+        "leadStatus": "Converted",
+        "nextFollowupDate": "2026-10-29",
+        "nextFollowupTime": "11:30 AM"
+      },
+      {
+        "id": "rem-1793262209443-2",
+        "outcome": "Connected — Interested",
+        "text": "Visited campus reception counter",
+        "timestamp": "08:23 AM",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ],
+    "dueText": "Scheduled for 2026-10-29",
+    "isOverdue": false,
+    "nextFollowupDate": "2026-10-29",
+    "nextFollowupTime": "On Date 11:30 AM"
+  },
+  {
+    "id": "lead-bulk-209443-5",
+    "name": "harshit",
+    "mobile": "+91 55662 23388",
+    "location": "vk vk erv",
+    "targetCourse": "v fje jrv kw c",
+    "source": "dnv  shfehf v",
+    "receivedDate": "Imported Today",
+    "status": "Dead",
+    "latestRemark": "cn dv hew vh",
+    "fullRemark": "cn dv hew vh",
+    "agent": "dmnv hwwfwe vs",
+    "remarksHistory": [
+      {
+        "id": "rem-1793268445381",
+        "outcome": "Needs More Info",
+        "text": "cn dv hew vh",
+        "timestamp": "Oct 29, 03:37 PM",
+        "author": "Priya",
+        "leadStatus": "Dead",
+        "nextFollowupDate": "2026-10-29",
+        "nextFollowupTime": "11:30 AM"
+      },
+      {
+        "id": "rem-1793262209443-4",
+        "outcome": "Connected — Interested",
+        "text": "cn dv hew vh",
+        "timestamp": "08:23 AM",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ],
+    "dueText": "Scheduled for 2026-10-29",
+    "isOverdue": false,
+    "nextFollowupDate": "2026-10-29",
+    "nextFollowupTime": "On Date 11:30 AM"
+  },
+  {
+    "id": "lead-bulk-209443-6",
+    "name": "Tia",
+    "mobile": "+91 55669 98844",
+    "location": "vjrhv",
+    "targetCourse": "bvhf vjer",
+    "source": "buhvjew",
+    "receivedDate": "Imported Today",
+    "status": "Follow-up",
+    "latestRemark": "Status transitioned to Follow-up at Reception Desk.",
+    "fullRemark": "Status transitioned to Follow-up at Reception Desk.",
+    "agent": "bvh vjh ew",
+    "remarksHistory": [
+      {
+        "id": "rem-1793268438235",
+        "outcome": "Needs More Info",
+        "text": "Status transitioned to Follow-up at Reception Desk.",
+        "timestamp": "03:37 PM",
+        "author": "Priya (Reception)",
+        "leadStatus": "Follow-up"
+      },
+      {
+        "id": "rem-1793262209443-5",
+        "outcome": "Connected — Interested",
+        "text": "fhewvchwe",
+        "timestamp": "08:23 AM",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ],
+    "isOverdue": false
+  },
+  {
     "id": "lead-bulk-784757-1",
     "name": "Aarav Sharma",
     "mobile": "+91 98765 43210",
@@ -401,11 +507,21 @@
     "targetCourse": "PCS-J Punjab Judicial Services",
     "source": "College Workshop",
     "receivedDate": "Just now (Today)",
-    "status": "New",
+    "status": "Converted",
     "latestRemark": "Inbound lead from College Workshop",
     "fullRemark": "Inbound lead from College Workshop",
     "agent": "Harshit (Reception Desk)",
     "remarksHistory": [
+      {
+        "id": "rem-1793264183616",
+        "outcome": "Connected — Interested",
+        "text": "Inbound lead from College Workshop",
+        "timestamp": "Oct 29, 02:26 PM",
+        "author": "Priya",
+        "leadStatus": "Converted",
+        "nextFollowupDate": "2026-10-29",
+        "nextFollowupTime": "11:30 AM"
+      },
       {
         "id": "rem-1792930174075",
         "outcome": "Connected — Interested",
@@ -414,6 +530,10 @@
         "author": "Super Admin",
         "leadStatus": "New"
       }
-    ]
+    ],
+    "nextFollowupDate": "2026-10-29",
+    "nextFollowupTime": "On Date 11:30 AM",
+    "isOverdue": false,
+    "dueText": "Scheduled for 2026-10-29"
   }
 ]

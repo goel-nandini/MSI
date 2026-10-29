@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           remarksHistory: [
             {
               id: `rem-${Date.now()}-${idx}`,
-              outcome: 'Connected — Interested',
+              outcome: 'Needs More Info',
               text: raw.notes || 'Imported from Excel / CSV dataset',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               author: 'Super Admin Import',
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
               remarksHistory: [
                 {
                   id: `rem-meta-${Date.now()}`,
-                  outcome: 'Connected — Interested',
+                  outcome: 'Needs More Info',
                   text: 'Real-time webhook intake from Meta Lead Ads',
                   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                   author: 'Meta Webhook Sync',
@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
       remarksHistory: [
         {
           id: `rem-${Date.now()}`,
-          outcome: 'Connected — Interested',
+          outcome: 'Needs More Info',
           text: notes?.trim() || 'Generated via Super Admin Master Portal',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           author: 'Super Admin',
@@ -285,23 +285,48 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    let updatedLead: any = null;
+
+    // 1. Update in MongoDB if available
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          await db.collection('leads').updateOne({ id }, { $set: updates });
+          const doc = await db.collection('leads').findOne({ id });
+          if (doc) {
+            const { _id, ...clean } = doc;
+            updatedLead = clean;
+          }
+        }
+      } catch (err) {
+        console.warn('[Leads Mongo Patch Error]:', err);
+      }
+    }
+
+    // 2. Update on Disk
     const leads = readLeadsFromDisk();
     const index = leads.findIndex((l) => l.id === id);
 
-    if (index === -1) {
+    if (index !== -1) {
+      leads[index] = { ...leads[index], ...updates };
+      if (!updatedLead) updatedLead = leads[index];
+      writeLeadsToDisk(leads);
+    } else if (updatedLead) {
+      leads.unshift(updatedLead);
+      writeLeadsToDisk(leads);
+    } else {
+      // If neither disk nor mongo had it initially
       return NextResponse.json(
         { success: false, message: 'Lead not found.' },
         { status: 404 }
       );
     }
 
-    leads[index] = { ...leads[index], ...updates };
-    writeLeadsToDisk(leads);
-
     return NextResponse.json({
       success: true,
       message: 'Lead updated successfully.',
-      lead: leads[index],
+      lead: updatedLead,
       leads,
     });
   } catch (error: any) {

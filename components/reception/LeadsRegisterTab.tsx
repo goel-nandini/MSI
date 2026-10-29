@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -73,7 +73,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
   // Modal 1: Log Remark & Schedule Modal
   const [selectedLeadForRemark, setSelectedLeadForRemark] = useState<Lead | null>(null);
-  const [selectedOutcome, setSelectedOutcome] = useState<CallOutcome>('Connected — Interested');
+  const [selectedOutcome, setSelectedOutcome] = useState<CallOutcome>('Needs More Info');
   const [remarkText, setRemarkText] = useState('');
   const [modalStatus, setModalStatus] = useState<LeadStatus>('Follow-up');
   const [nextDate, setNextDate] = useState('2026-10-25');
@@ -305,8 +305,8 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
   // Open Log Remark Modal
   const handleOpenRemarkModal = (lead: Lead) => {
     setSelectedLeadForRemark(lead);
-    setModalStatus(lead.status === 'New' ? 'Follow-up' : lead.status);
-    setSelectedOutcome('Connected — Interested');
+    setModalStatus(lead.status);
+    setSelectedOutcome(lead.status === 'Dead' ? 'Not Interested' : 'Needs More Info');
     setRemarkText(lead.fullRemark || lead.latestRemark || '');
     setNextDate(lead.nextFollowupDate || new Date().toISOString().split('T')[0]);
     setNextTime('11:30 AM');
@@ -315,6 +315,28 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
   // Save Remark Handler
   const handleSaveRemark = (scheduleFollowup: boolean) => {
     if (!selectedLeadForRemark) return;
+
+    // Automatic status deduction: if remark contains "dead", outcome is "Not Interested", etc., auto-set to Dead!
+    let finalStatus: LeadStatus = modalStatus;
+    const lowerRemark = (remarkText || '').toLowerCase().trim();
+    if (
+      lowerRemark.includes('dead') ||
+      lowerRemark.includes('not interested') ||
+      lowerRemark.includes('drop') ||
+      lowerRemark.includes('cancel') ||
+      selectedOutcome === 'Not Interested' ||
+      selectedOutcome === 'Wrong Number'
+    ) {
+      finalStatus = 'Dead';
+    } else if (
+      lowerRemark.includes('convert') ||
+      lowerRemark.includes('enrolled') ||
+      lowerRemark.includes('admitted') ||
+      lowerRemark.includes('admission') ||
+      lowerRemark.includes('joined')
+    ) {
+      finalStatus = 'Converted';
+    }
 
     const authorName = currentStaff?.name || 'Harshit';
     const nowTimestamp = new Date().toLocaleDateString('en-US', {
@@ -330,7 +352,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       text: remarkText.trim() || `Outcome: ${selectedOutcome}`,
       timestamp: nowTimestamp,
       author: authorName,
-      leadStatus: modalStatus,
+      leadStatus: finalStatus,
       nextFollowupDate: scheduleFollowup ? nextDate : undefined,
       nextFollowupTime: scheduleFollowup ? nextTime : undefined,
     };
@@ -339,7 +361,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       if (l.id === selectedLeadForRemark.id) {
         return {
           ...l,
-          status: modalStatus,
+          status: finalStatus,
           latestRemark: remarkText.trim() || `Outcome: ${selectedOutcome}`,
           fullRemark: remarkText.trim() || `Outcome: ${selectedOutcome}`,
           nextFollowupDate: scheduleFollowup ? nextDate : undefined,
@@ -357,9 +379,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
     persistLeads(updated, updatedTarget);
     setSelectedLeadForRemark(null);
     showToast(
-      scheduleFollowup
-        ? `Remark saved & moved to ${modalStatus} for ${selectedLeadForRemark.name}!`
-        : `Telecall remark logged & moved to ${modalStatus} for ${selectedLeadForRemark.name}!`
+      `✓ Remark saved & Lead "${selectedLeadForRemark.name}" status updated to ${finalStatus}!`
     );
   };
 
@@ -374,7 +394,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
     const newRemarkRecord: RemarkEntry = {
       id: `rem-${Date.now()}`,
-      outcome: newStatus === 'Converted' ? 'Connected — Interested' : newStatus === 'Dead' ? 'Not Interested' : 'Needs More Info',
+      outcome: newStatus === 'Converted' ? 'Needs More Info' : newStatus === 'Dead' ? 'Not Interested' : 'Needs More Info',
       text: remarkText,
       timestamp: nowTime,
       author: authorName,
@@ -392,7 +412,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
     const updatedLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
     await persistLeads(updatedLeads, updatedLead);
-    showToast(`✓ Lead "${lead.name}" moved to ${newStatus} section!`);
+    showToast(`âœ“ Lead "${lead.name}" moved to ${newStatus} section!`);
   };
 
   // Add New Lead Submit
@@ -427,7 +447,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
       remarksHistory: [
         {
           id: `rem-${Date.now()}`,
-          outcome: 'Connected — Interested',
+          outcome: 'Needs More Info',
           text: newLeadNotes.trim() || 'Initial registration at front desk counter.',
           timestamp: nowFormatted,
           author: currentStaff?.name || 'Harshit',
@@ -557,7 +577,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                   #MSI-IMP-2410
                 </code>
               </span>
-              <span className="text-[#526174] text-xs">• 25 minutes ago</span>
+              <span className="text-[#526174] text-xs">â€¢ 25 minutes ago</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -1097,24 +1117,24 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
 
                   const isUrgent = lead.isOverdue;
 
-                  // Full row color styling: Super Admin color alignment (Blue: New, Amber: Follow-up, Emerald: Converted, Red: Dead)
+                  // Full row color styling: Bold pastel backgrounds that visibly cover the entire row
                   const rowClass =
                     lead.status === 'Dead'
-                      ? 'border-l-4 border-l-red-500 bg-red-50/40 hover:bg-red-50/80 border-b border-red-200/70 text-[#10233F]'
+                      ? 'border-l-[6px] border-l-red-600 bg-red-100/90 hover:bg-red-200/90 border-b border-red-300 text-red-950 font-medium'
                       : lead.status === 'Converted'
-                      ? 'border-l-4 border-l-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 border-b border-emerald-200/70 text-[#10233F]'
+                      ? 'border-l-[6px] border-l-emerald-600 bg-emerald-100/90 hover:bg-emerald-200/90 border-b border-emerald-300 text-emerald-950 font-medium'
                       : lead.status === 'Follow-up'
-                      ? 'border-l-4 border-l-amber-500 bg-amber-50/50 hover:bg-amber-50/90 border-b border-amber-200/70 text-[#10233F]'
-                      : 'border-l-4 border-l-blue-500 bg-blue-50/30 hover:bg-blue-50/70 border-b border-blue-200/60 text-[#10233F]';
+                      ? 'border-l-[6px] border-l-amber-500 bg-amber-100/90 hover:bg-amber-200/90 border-b border-amber-300 text-amber-950 font-medium'
+                      : 'border-l-[6px] border-l-blue-500 bg-blue-50/70 hover:bg-blue-100/70 border-b border-blue-200 text-[#10233F]';
 
                   const stickyActionBg =
                     lead.status === 'Dead'
-                      ? 'bg-red-50/90 group-hover:bg-red-100/90'
+                      ? 'bg-red-100 group-hover:bg-red-200/90'
                       : lead.status === 'Converted'
-                      ? 'bg-emerald-50/90 group-hover:bg-emerald-100/90'
+                      ? 'bg-emerald-100 group-hover:bg-emerald-200/90'
                       : lead.status === 'Follow-up'
-                      ? 'bg-amber-50/90 group-hover:bg-amber-100/90'
-                      : 'bg-blue-50/80 group-hover:bg-blue-100/90';
+                      ? 'bg-amber-100 group-hover:bg-amber-200/90'
+                      : 'bg-blue-50 group-hover:bg-blue-100/90';
 
                   return (
                     <tr key={lead.id} className={`group transition-colors ${rowClass}`}>
@@ -1346,7 +1366,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
               {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
             </span>
             <span className="text-[11px] text-[#526174]/80">
-              Terminal Counter 01 • Reception Desk ({currentStaff?.name || 'Harshit'})
+              Terminal Counter 01 â€¢ Reception Desk ({currentStaff?.name || 'Harshit'})
             </span>
           </div>
 
@@ -1676,11 +1696,11 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                   </span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-serif font-bold text-[#10233F]">
-                  Log Telecall Remark • {selectedLeadForRemark.name}
+                  Log Telecall Remark â€¢ {selectedLeadForRemark.name}
                 </h2>
                 <div className="text-xs text-[#526174] flex items-center gap-2 font-mono">
                   <span>Contact: {selectedLeadForRemark.mobile}</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   {selectedLeadForRemark.isOverdue ? (
                     <span className="text-[#BA1A1A] font-bold">
                       {selectedLeadForRemark.overdueText || 'Overdue Follow-up'}
@@ -1709,7 +1729,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
-                      'Connected — Interested',
+                      'Needs More Info',
                       'Needs More Info',
                       'Callback Requested',
                       'No Answer / Switched Off',
@@ -1723,7 +1743,16 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                       <button
                         key={outcome}
                         type="button"
-                        onClick={() => setSelectedOutcome(outcome)}
+                        onClick={() => {
+                          setSelectedOutcome(outcome);
+                          if (outcome === 'Not Interested' || outcome === 'Wrong Number') {
+                            setModalStatus('Dead');
+                          } else if (outcome.includes('Interested') && !outcome.includes('Not')) {
+                            setModalStatus('Converted');
+                          } else {
+                            setModalStatus('Follow-up');
+                          }
+                        }}
                         className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                           isSelected
                             ? 'bg-[#89190E] text-white shadow-xs'
@@ -1748,7 +1777,18 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                 </div>
                 <textarea
                   value={remarkText}
-                  onChange={(e) => setRemarkText(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRemarkText(val);
+                    const lower = val.toLowerCase();
+                    if (lower.includes('dead') || lower.includes('not interested') || lower.includes('drop') || lower.includes('cancel')) {
+                      setModalStatus('Dead');
+                    } else if (lower.includes('convert') || lower.includes('admitted') || lower.includes('admission') || lower.includes('enrolled') || lower.includes('joined')) {
+                      setModalStatus('Converted');
+                    } else if (lower.includes('follow') || lower.includes('callback') || lower.includes('call later')) {
+                      setModalStatus('Follow-up');
+                    }
+                  }}
                   placeholder="Type conversation points, candidate queries, parent feedback..."
                   rows={4}
                   className="w-full rounded-xl bg-[#F8F9FB] border border-[#E5E9F0] p-3 text-xs sm:text-sm text-[#10233F] placeholder-[#526174]/70 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#89190E]/30 focus:border-[#89190E]"
@@ -1921,7 +1961,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
               <div>
                 <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#89190E]">
                   <span>Front Desk Intake</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   <span>Reception Station</span>
                 </div>
                 <h2 className="text-xl font-serif font-bold text-[#10233F] mt-0.5">
@@ -2086,7 +2126,7 @@ export default function LeadsRegisterTab({ currentStaff }: LeadsRegisterTabProps
                   <span className="font-mono text-xs font-bold text-[#89190E] bg-[#FFF3DD] border border-[#EFC988] px-2 py-0.5 rounded-md">
                     {auditLead.id}
                   </span>
-                  <span className="text-xs text-[#526174]">• Intake Audit Trail</span>
+                  <span className="text-xs text-[#526174]">â€¢ Intake Audit Trail</span>
                 </div>
                 <h3 className="text-lg font-serif font-bold text-[#10233F] mt-1">
                   Telecall History: {auditLead.name}

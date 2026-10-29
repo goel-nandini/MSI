@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
@@ -147,7 +147,7 @@ export default function SuperAdminMasterDashboard() {
     setTimeout(() => setToastMessage(null), 3600);
   };
 
-  // ── Modals State ────────────────────────────────────────────────────────────
+  // â”€â”€ Modals State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // 1. Add Student Modal
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -418,7 +418,7 @@ export default function SuperAdminMasterDashboard() {
           invoiceNumber: verifyData.invoiceNumber || 'INV-MSI-2026-TEST',
           timestamp: new Date().toLocaleTimeString('en-IN'),
         });
-        showToast(`Gateway Handshake Passed! Latency: ${latency}ms • HMAC Signature Verified ✓`);
+        showToast(`Gateway Handshake Passed! Latency: ${latency}ms â€¢ HMAC Signature Verified âœ“`);
         fetchTransactions();
       } else {
         throw new Error(verifyData.message || 'HMAC Signature verification rejected');
@@ -430,7 +430,7 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
-  // ── Authentication Check ────────────────────────────────────────────────────
+  // â”€â”€ Authentication Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const isLoggedIn =
       localStorage.getItem('msi_superadmin_logged_in') === 'true' ||
@@ -474,7 +474,7 @@ export default function SuperAdminMasterDashboard() {
     showToast('Logged out of Super Admin Master Portal.');
   };
 
-  // ── Live Clock ─────────────────────────────────────────────────────────────
+  // â”€â”€ Live Clock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -490,14 +490,14 @@ export default function SuperAdminMasterDashboard() {
         second: '2-digit',
         hour12: true,
       });
-      setCurrentDateTime(`${dateStr} • ${timeStr}`);
+      setCurrentDateTime(`${dateStr} â€¢ ${timeStr}`);
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // ── Master Data Fetchers ───────────────────────────────────────────────────
+  // â”€â”€ Master Data Fetchers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchStudents = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/students', { cache: 'no-store' });
@@ -666,7 +666,7 @@ export default function SuperAdminMasterDashboard() {
     }
   }, [activeTab, isAuthenticated, fetchStudents, fetchLeads, fetchReceptionists, fetchFaculty, fetchCourses, fetchTransactions]);
 
-  // ── Action Handlers ────────────────────────────────────────────────────────
+  // â”€â”€ Action Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // 1. Add Student
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2188,7 +2188,7 @@ export default function SuperAdminMasterDashboard() {
   };
 
 
-  // ── Filtered Search Results ────────────────────────────────────────────────
+  // â”€â”€ Filtered Search Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredStudents = useMemo(() => {
     if (!searchQuery.trim()) return students;
     const q = searchQuery.toLowerCase();
@@ -2212,7 +2212,7 @@ export default function SuperAdminMasterDashboard() {
     );
   }, [leads, searchQuery]);
 
-  // ── Render Gatekeeper if Unauthenticated ───────────────────────────────────
+  // â”€â”€ Render Gatekeeper if Unauthenticated â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#FFF9EF] flex flex-col justify-between selection:bg-[#EFC988] selection:text-[#89190E] relative overflow-hidden">
@@ -2332,7 +2332,7 @@ export default function SuperAdminMasterDashboard() {
             </form>
 
             <div className="mt-6 pt-4 border-t border-[#E8DCCB]/60 text-center text-[11px] text-[#526174]">
-              Protected by SHA-256 session encryption • MSI Institutional Server
+              Protected by SHA-256 session encryption â€¢ MSI Institutional Server
             </div>
           </div>
         </main>
@@ -2340,7 +2340,7 @@ export default function SuperAdminMasterDashboard() {
     );
   }
 
-  // ── Render Authenticated Master Dashboard ──────────────────────────────────
+  // â”€â”€ Render Authenticated Master Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="min-h-screen bg-[#F8F9FD] text-[#071B37] antialiased flex">
       {/* Toast Notification */}
@@ -2351,7 +2351,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* ── Fixed Sidebar (Matching code.html design) ────────────────────────── */}
+      {/* â”€â”€ Fixed Sidebar (Matching code.html design) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <aside className="fixed left-0 top-0 bottom-0 w-[260px] bg-white z-50 flex flex-col border-r border-[#E8EEFF] shadow-[0_1px_8px_rgba(0,0,0,0.04)] select-none">
         {/* Brand header */}
         <div className="p-4 flex items-center gap-3">
@@ -2564,7 +2564,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       </aside>
 
-      {/* ── Main View Container ─────────────────────────────────────────────── */}
+      {/* â”€â”€ Main View Container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="pl-[260px] flex-1 flex flex-col min-w-0">
         {/* Fixed Top Header (Matching code.html design) */}
         <header className="sticky top-0 h-16 bg-white/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-6 border-b border-[#E8EEFF]">
@@ -2613,7 +2613,7 @@ export default function SuperAdminMasterDashboard() {
           </div>
         </header>
 
-        {/* ── Tab Content ────────────────────────────────────────────────────── */}
+        {/* â”€â”€ Tab Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <main className="p-6 sm:p-8 space-y-6">
           {/* TAB 1: EXECUTIVE DASHBOARD */}
           {activeTab === 'dashboard' && (
@@ -2629,7 +2629,7 @@ export default function SuperAdminMasterDashboard() {
                     Good Morning, Administrator
                   </h1>
                   <p className="text-xs text-[#58413D] mt-0.5">
-                    Live operational overview for MSI Group of Institutes • All data synced with permanent storage
+                    Live operational overview for MSI Group of Institutes â€¢ All data synced with permanent storage
                   </p>
                 </div>
 
@@ -2828,7 +2828,7 @@ export default function SuperAdminMasterDashboard() {
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-[#89190E] font-bold mt-0.5">
                       <Sparkles className="w-3 h-3" />
-                      <span>CLAT • Judiciary • NET</span>
+                      <span>CLAT â€¢ Judiciary â€¢ NET</span>
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] text-[#58413D] truncate border-t border-gray-100 pt-1.5">
@@ -2878,7 +2878,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   <div>
                     <div className="font-serif text-3xl font-bold text-[#89190E]">
-                      ₹4.85L
+                      â‚¹4.85L
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-0.5">
                       <CheckCircle2 className="w-3 h-3" />
@@ -3023,7 +3023,7 @@ export default function SuperAdminMasterDashboard() {
                           Captured Fees
                         </span>
                         <div className="font-serif text-xl font-bold text-[#89190E] mt-0.5">
-                          ₹4,85,000
+                          â‚¹4,85,000
                         </div>
                         <span className="text-[10px] text-gray-500">142 settled orders</span>
                       </div>
@@ -3032,7 +3032,7 @@ export default function SuperAdminMasterDashboard() {
                           Avg Order Value
                         </span>
                         <div className="font-serif text-xl font-bold text-[#071B37] mt-0.5">
-                          ₹34,154
+                          â‚¹34,154
                         </div>
                         <span className="text-[10px] text-gray-500">Across legal batches</span>
                       </div>
@@ -3090,7 +3090,7 @@ export default function SuperAdminMasterDashboard() {
                         </h3>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-red-100 text-[#89190E] text-[10px] font-bold animate-pulse">
-                        ● 1 In Progress
+                        â— 1 In Progress
                       </span>
                     </div>
 
@@ -3107,7 +3107,7 @@ export default function SuperAdminMasterDashboard() {
                             Judiciary CrPC Procedural Law Masterclass
                           </h4>
                           <p className="text-[11px] text-gray-500">
-                            Dr. Ekta Gahlawat • 48 Active Scholars
+                            Dr. Ekta Gahlawat â€¢ 48 Active Scholars
                           </p>
                         </div>
                         <Link
@@ -3131,7 +3131,7 @@ export default function SuperAdminMasterDashboard() {
                             CLAT Legal Reasoning & Case Briefing
                           </h4>
                           <p className="text-[11px] text-gray-500">
-                            Mr. Anurag Dwivedi • Afternoon Cohort
+                            Mr. Anurag Dwivedi â€¢ Afternoon Cohort
                           </p>
                         </div>
                         <span className="text-[10px] font-bold text-gray-400">Scheduled</span>
@@ -3219,7 +3219,7 @@ export default function SuperAdminMasterDashboard() {
                     Active Student Accounts ({filteredStudents.length})
                   </h2>
                   <p className="text-xs text-[#58413D] mt-0.5">
-                    Live disk-backed records. Hard-refresh safe • Deletions and additions sync with student portal.
+                    Live disk-backed records. Hard-refresh safe â€¢ Deletions and additions sync with student portal.
                   </p>
                 </div>
 
@@ -3276,7 +3276,7 @@ export default function SuperAdminMasterDashboard() {
                                 <span className="bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
                                   {showStudentPasswords[stu.phone]
                                     ? (stu.password || 'Student@MSI2026')
-                                    : '••••••••'}
+                                    : 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'}
                                 </span>
                                 <button
                                   type="button"
@@ -3307,7 +3307,7 @@ export default function SuperAdminMasterDashboard() {
                               {stu.stream}
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                              {stu.email || '—'}
+                              {stu.email || 'â€”'}
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
                               {stu.registeredAt
@@ -3414,7 +3414,7 @@ export default function SuperAdminMasterDashboard() {
                     title="Open Excel Studio to directly form an Excel sheet or upload spreadsheet"
                   >
                     <FileSpreadsheet className="w-4 h-4 text-[#89190E]" />
-                    <span>📊 Excel Sheet Studio (Upload / Form Sheet)</span>
+                    <span>ðŸ“Š Excel Sheet Studio (Upload / Form Sheet)</span>
                   </button>
 
                   <button
@@ -3455,12 +3455,12 @@ export default function SuperAdminMasterDashboard() {
                         filteredLeads.map((ld) => {
                           const rowClass =
                             ld.status === 'Dead'
-                              ? 'border-l-4 border-l-red-500 bg-red-50/30 hover:bg-red-50/60'
+                              ? 'border-l-[6px] border-l-red-600 bg-red-100/90 hover:bg-red-200/90 border-b border-red-300 text-red-950 font-medium'
                               : ld.status === 'Converted'
-                              ? 'border-l-4 border-l-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60'
+                              ? 'border-l-[6px] border-l-emerald-600 bg-emerald-100/90 hover:bg-emerald-200/90 border-b border-emerald-300 text-emerald-950 font-medium'
                               : ld.status === 'Follow-up'
-                              ? 'border-l-4 border-l-amber-500 bg-amber-50/40 hover:bg-amber-50/70'
-                              : 'border-l-4 border-l-blue-500 bg-blue-50/20 hover:bg-blue-50/50';
+                              ? 'border-l-[6px] border-l-amber-500 bg-amber-100/90 hover:bg-amber-200/90 border-b border-amber-300 text-amber-950 font-medium'
+                              : 'border-l-[6px] border-l-blue-500 bg-blue-50/70 hover:bg-blue-100/70 border-b border-blue-200 text-[#10233F]';
 
                           return (
                             <tr key={ld.id} className={`transition-colors ${rowClass}`}>
@@ -3662,7 +3662,7 @@ export default function SuperAdminMasterDashboard() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
-                            {rec.email || '—'}
+                            {rec.email || 'â€”'}
                           </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
@@ -3888,7 +3888,7 @@ export default function SuperAdminMasterDashboard() {
                           {crs.category}
                         </span>
                         <span className="font-bold text-xs text-[#071B37]">
-                          ₹{crs.price.toLocaleString('en-IN')}
+                          â‚¹{crs.price.toLocaleString('en-IN')}
                         </span>
                       </div>
                       <h3 className="font-serif font-bold text-base text-[#071B37] mb-1">
@@ -3902,10 +3902,10 @@ export default function SuperAdminMasterDashboard() {
                           <strong>Assigned Faculty:</strong> <span className="text-[#89190E] font-bold">{crs.instructorName}</span>
                         </div>
                         <div>
-                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules • {crs.totalDuration} • {crs.totalLectures || 0} Lectures
+                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules â€¢ {crs.totalDuration} â€¢ {crs.totalLectures || 0} Lectures
                         </div>
                         <div>
-                          <strong>Rating:</strong> ⭐ {crs.rating} ({crs.reviewCount} reviews)
+                          <strong>Rating:</strong> â­ {crs.rating} ({crs.reviewCount} reviews)
                         </div>
 
                         {/* Recent Sequential Lectures Preview */}
@@ -3918,7 +3918,7 @@ export default function SuperAdminMasterDashboard() {
                               {crs.sections[0].lectures.slice(0, 3).map((lec) => (
                                 <div key={lec.id} className="flex items-center justify-between text-[10px] text-gray-600 truncate">
                                   <span className="truncate pr-1">
-                                    • {lec.title}
+                                    â€¢ {lec.title}
                                   </span>
                                   <span className="font-mono text-[9px] text-gray-400 shrink-0">{lec.duration}</span>
                                 </div>
@@ -4173,7 +4173,7 @@ export default function SuperAdminMasterDashboard() {
                       Razorpay Node.js SDK
                     </span>
                     <span className="text-[10px] text-gray-500 font-mono">
-                      v2.9.6 • Order & Verify API
+                      v2.9.6 â€¢ Order & Verify API
                     </span>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -4420,7 +4420,7 @@ export default function SuperAdminMasterDashboard() {
                     Total Captured Revenue
                   </span>
                   <div className="font-serif font-bold text-2xl text-[#071B37] mt-1">
-                    ₹
+                    â‚¹
                     {(
                       transactions.reduce((acc, t) => acc + (t.amount || 0), 0) || 4999
                     ).toLocaleString('en-IN')}
@@ -4516,7 +4516,7 @@ export default function SuperAdminMasterDashboard() {
                             Legal Reasoning for CLAT
                           </td>
                           <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
-                            ₹4,999
+                            â‚¹4,999
                           </td>
                           <td className="py-3.5 px-4 text-[#58413D]">
                             Razorpay UPI (Test Gateway)
@@ -4524,7 +4524,7 @@ export default function SuperAdminMasterDashboard() {
                           <td className="py-3.5 px-4">
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                               <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                              HMAC Verified ✓
+                              HMAC Verified âœ“
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
@@ -4576,7 +4576,7 @@ export default function SuperAdminMasterDashboard() {
                               {txn.courseTitle}
                             </td>
                             <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
-                              ₹{txn.amount?.toLocaleString('en-IN') || '4,999'}
+                              â‚¹{txn.amount?.toLocaleString('en-IN') || '4,999'}
                             </td>
                             <td className="py-3.5 px-4 text-[#58413D]">
                               {txn.paymentMethod || 'Razorpay Gateway'}
@@ -4584,7 +4584,7 @@ export default function SuperAdminMasterDashboard() {
                             <td className="py-3.5 px-4">
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                                HMAC Verified ✓
+                                HMAC Verified âœ“
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
@@ -4673,13 +4673,13 @@ export default function SuperAdminMasterDashboard() {
                       <div className="flex justify-between items-center pt-2 border-t border-[#E8DCCB]">
                         <span className="font-bold text-[#071B37] text-sm">Total Paid:</span>
                         <span className="font-serif font-extrabold text-[#89190E] text-lg">
-                          ₹{selectedTxnForReceipt.amount?.toLocaleString('en-IN')}
+                          â‚¹{selectedTxnForReceipt.amount?.toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-gray-500 font-mono mb-5">
-                      <span>Status: CAPTURED (Verified ✓)</span>
+                      <span>Status: CAPTURED (Verified âœ“)</span>
                       <span>Date: {selectedTxnForReceipt.timestamp}</span>
                     </div>
 
@@ -4708,7 +4708,7 @@ export default function SuperAdminMasterDashboard() {
         </main>
       </div>
 
-      {/* ── MODALS ─────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ MODALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* 1. Add Student Modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
@@ -4873,7 +4873,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="flex justify-between py-1 border-b border-gray-200">
                 <span className="text-gray-500">Official Email:</span>
                 <span className="font-mono text-[#10233F]">
-                  {selectedStudentForView.email || '—'}
+                  {selectedStudentForView.email || 'â€”'}
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-200">
@@ -4985,7 +4985,7 @@ export default function SuperAdminMasterDashboard() {
                   <option value="">-- Choose a course program --</option>
                   {courses.map((crs) => (
                     <option key={crs.id} value={crs.id}>
-                      {crs.title} ({crs.category} • {crs.instructorName})
+                      {crs.title} ({crs.category} â€¢ {crs.instructorName})
                     </option>
                   ))}
                 </select>
@@ -5631,7 +5631,7 @@ export default function SuperAdminMasterDashboard() {
                   How Ankit can configure Meta Lead Ads:
                 </span>
                 <ol className="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
-                  <li>Go to <strong>Meta for Developers / Facebook Business Manager</strong> → Webhooks.</li>
+                  <li>Go to <strong>Meta for Developers / Facebook Business Manager</strong> â†’ Webhooks.</li>
                   <li>Subscribe to the <strong>Page</strong> object and check the <code>leadgen</code> topic.</li>
                   <li>Enter the Callback URL and Verify Token above. Verification is handled automatically.</li>
                   <li>Whenever an ad form is submitted on Instagram or Facebook, the lead is instantly parsed and routed to your telecallers!</li>
@@ -5765,7 +5765,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-[11px] font-bold text-emerald-700 block">
-                      ✓ Image Ready to Publish
+                      âœ“ Image Ready to Publish
                     </span>
                     <p className="text-[10px] text-gray-500 truncate font-mono">
                       {newGalleryImage.slice(0, 45)}...
@@ -6359,7 +6359,7 @@ export default function SuperAdminMasterDashboard() {
                     }}
                     className="text-[10px] text-[#89190E] font-bold hover:underline cursor-pointer"
                   >
-                    ⚡ Auto-Generate
+                    âš¡ Auto-Generate
                   </button>
                 </div>
                 <input
@@ -6576,7 +6576,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Enrolment Fee (₹) *
+                    Enrolment Fee (â‚¹) *
                   </label>
                   <input
                     type="number"
@@ -6589,7 +6589,7 @@ export default function SuperAdminMasterDashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Original Fee (₹)
+                    Original Fee (â‚¹)
                   </label>
                   <input
                     type="number"
@@ -6642,7 +6642,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   {newCourseThumbnail && (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      ✓ Thumbnail Selected
+                      âœ“ Thumbnail Selected
                     </span>
                   )}
                 </div>
@@ -6888,7 +6888,7 @@ export default function SuperAdminMasterDashboard() {
                       }
                       className="text-[10px] text-[#89190E] font-bold hover:underline cursor-pointer"
                     >
-                      ⭐ Bunny Stream Preset
+                      â­ Bunny Stream Preset
                     </button>
                   </div>
                   <input
@@ -6940,7 +6940,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* ── MODAL 1: EDIT COURSE ────────────────────────────────────────── */}
+      {/* â”€â”€ MODAL 1: EDIT COURSE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {courseToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
@@ -7035,7 +7035,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Offer Price (₹)
+                    Offer Price (â‚¹)
                   </label>
                   <input
                     type="number"
@@ -7046,7 +7046,7 @@ export default function SuperAdminMasterDashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Original Price (₹)
+                    Original Price (â‚¹)
                   </label>
                   <input
                     type="number"
@@ -7122,7 +7122,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* ── MODAL 2: EDIT FACULTY ───────────────────────────────────────── */}
+      {/* â”€â”€ MODAL 2: EDIT FACULTY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {facultyToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
@@ -7265,7 +7265,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* ── MODAL 3: EDIT STUDENT ───────────────────────────────────────── */}
+      {/* â”€â”€ MODAL 3: EDIT STUDENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {studentToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
@@ -7388,7 +7388,7 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* ── MODAL 4: EDIT RECEPTIONIST ───────────────────────────────────── */}
+      {/* â”€â”€ MODAL 4: EDIT RECEPTIONIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {receptionistToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">

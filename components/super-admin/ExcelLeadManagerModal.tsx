@@ -138,8 +138,14 @@ export default function ExcelLeadManagerModal({
   const cleanMobile = (m: string) => m.replace(/\D/g, '').slice(-10);
   const isValidRow = (r: ExcelLeadRow) => r.name.trim().length > 0 && cleanMobile(r.mobile).length === 10;
 
+  // Build set of existing mobile numbers (last 10 digits) to detect duplicates
+  const existingMobileSet = new Set((existingLeads || []).map((l) => cleanMobile(l.mobile)));
+  const isDuplicateRow = (r: ExcelLeadRow) => existingMobileSet.has(cleanMobile(r.mobile));
+
   const validCount = rows.filter(isValidRow).length;
   const invalidCount = rows.length - validCount;
+  const duplicateCount = rows.filter((r) => isValidRow(r) && isDuplicateRow(r)).length;
+  const newUniqueCount = validCount - duplicateCount;
 
   const displayedRows = filterInvalidOnly ? rows.filter((r) => !isValidRow(r)) : rows;
 
@@ -310,9 +316,15 @@ export default function ExcelLeadManagerModal({
         return;
       }
 
+      const dupCount = parsed.filter((r) => isValidRow(r) && existingMobileSet.has(cleanMobile(r.mobile))).length;
+
       setRows(parsed);
       setActiveTab('sheet');
-      showToast(`Successfully parsed ${parsed.length} rows from Excel! Review and generate leads.`);
+      if (dupCount > 0) {
+        showToast(`Parsed ${parsed.length} rows â€” âš ï¸ ${dupCount} already in CRM (highlighted in amber). Review and generate.`);
+      } else {
+        showToast(`Successfully parsed ${parsed.length} rows from Excel! Review and generate leads.`);
+      }
     } catch (err: any) {
       console.error(err);
       showToast('Error reading Excel/CSV file. Please check file format.');
@@ -364,7 +376,12 @@ export default function ExcelLeadManagerModal({
     setRows(parsed);
     setActiveTab('sheet');
     setRawPasteText('');
-    showToast(`Loaded ${parsed.length} entries into spreadsheet editor!`);
+    const pastedDupCount = parsed.filter((r) => isValidRow(r) && existingMobileSet.has(cleanMobile(r.mobile))).length;
+    if (pastedDupCount > 0) {
+      showToast(`Loaded ${parsed.length} entries â€” âš ï¸ ${pastedDupCount} already in CRM (shown in amber). Duplicates will be skipped on generate.`);
+    } else {
+      showToast(`Loaded ${parsed.length} entries into spreadsheet editor!`);
+    }
   };
 
   // Submit & Generate All Leads
@@ -373,6 +390,19 @@ export default function ExcelLeadManagerModal({
     if (validRows.length === 0) {
       showToast('Please ensure at least one row has a Candidate Name and a valid 10-digit Mobile Number.');
       return;
+    }
+
+    // Deduplicate: filter out rows whose mobile number already exists in CRM
+    const newRows = validRows.filter((r) => !existingMobileSet.has(cleanMobile(r.mobile)));
+    const skippedCount = validRows.length - newRows.length;
+
+    if (newRows.length === 0) {
+      showToast('Ã¢Å¡Â Ã¯Â¸Â Sab entries already CRM mein hain Ã¢â‚¬â€ koi naya lead nahi milega. Nayi entries daalo!');
+      return;
+    }
+
+    if (skippedCount > 0) {
+      showToast(`Ã¢â€žÂ¹Ã¯Â¸Â ${skippedCount} duplicate(s) skip kiye gaye Ã¢â‚¬â€ ${newRows.length} naye leads generate ho rahe hain...`);
     }
 
     setIsSubmitting(true);
@@ -384,7 +414,7 @@ export default function ExcelLeadManagerModal({
         'Counselor Simran (CLAT & Entrance Desk)',
       ];
 
-      const payloadLeads = validRows.map((r, i) => {
+      const payloadLeads = newRows.map((r, i) => {
         const assignedAgent =
           r.agent === 'Auto Round-Robin Distribution' || !r.agent.trim()
             ? telecallersList[i % telecallersList.length]
@@ -412,7 +442,7 @@ export default function ExcelLeadManagerModal({
 
       const data = await res.json();
       if (data.success) {
-        showToast(`🎉 Successfully generated and dispatched ${payloadLeads.length} leads to Reception Desk!`);
+        showToast(`ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â‚¬Â° Successfully generated and dispatched ${payloadLeads.length} new leads to Reception Desk` + (skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ``) + `!`);
         onLeadsGenerated(payloadLeads.length);
 
         if (typeof window !== 'undefined') {
@@ -650,12 +680,17 @@ export default function ExcelLeadManagerModal({
                           const validPhone = cleanMobile(r.mobile).length === 10;
                           const validName = r.name.trim().length > 0;
                           const rowHasError = !validPhone || !validName;
+                          const isDup = validPhone && validName && existingMobileSet.has(cleanMobile(r.mobile));
 
                           return (
                             <tr
                               key={r.id}
                               className={`transition-colors ${
-                                rowHasError ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-gray-50'
+                                isDup
+                                  ? 'bg-amber-50/60 hover:bg-amber-50/90'
+                                  : rowHasError
+                                  ? 'bg-red-50/40 hover:bg-red-50/70'
+                                  : 'hover:bg-gray-50'
                               }`}
                             >
                               {/* Row number */}
@@ -695,7 +730,16 @@ export default function ExcelLeadManagerModal({
                                   />
                                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                     {validPhone ? (
-                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                      isDup ? (
+                                        <span
+                                          className="text-[10px] text-amber-600 font-bold"
+                                          title="Already exists in CRM â€” will be skipped"
+                                        >
+                                          DUP
+                                        </span>
+                                      ) : (
+                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                      )
                                     ) : (
                                       <span
                                         className="text-[10px] text-red-500 font-mono font-bold"
@@ -923,13 +967,19 @@ export default function ExcelLeadManagerModal({
           <div className="text-xs text-gray-500">
             <span>Total rows: </span>
             <strong className="text-[#10233F] font-mono">{rows.length}</strong>
-            <span className="mx-2">•</span>
-            <span>Valid to insert: </span>
-            <strong className="text-emerald-700 font-mono">{validCount}</strong>
+            <span className="mx-2">ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</span>
+            <span>New to insert: </span>
+            <strong className="text-emerald-700 font-mono">{newUniqueCount}</strong>
+            {duplicateCount > 0 && (
+              <>
+                <span className="mx-2">•</span>
+                <span className="text-amber-700 font-semibold">⚠️ {duplicateCount} already in CRM (will be skipped)</span>
+              </>
+            )}
             {invalidCount > 0 && (
               <>
                 <span className="mx-2">•</span>
-                <span className="text-amber-700">({invalidCount} row(s) missing name or 10-digit phone)</span>
+                <span className="text-red-600">({invalidCount} row(s) missing name or 10-digit phone)</span>
               </>
             )}
           </div>
@@ -947,7 +997,7 @@ export default function ExcelLeadManagerModal({
             <button
               type="button"
               onClick={handleGenerateAllLeads}
-              disabled={isSubmitting || validCount === 0}
+              disabled={isSubmitting || newUniqueCount === 0}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isSubmitting ? (
@@ -958,7 +1008,7 @@ export default function ExcelLeadManagerModal({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Generate All Leads ({validCount} Leads)</span>
+                  <span>Generate {newUniqueCount} New Leads</span>
                 </>
               )}
             </button>
