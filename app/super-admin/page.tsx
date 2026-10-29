@@ -92,6 +92,8 @@ import { Lead } from '@/components/reception/data/leadsMockData';
 import { ReceptionistRecord } from '@/lib/receptionistStore';
 import { GalleryItem } from '../api/admin/gallery/route';
 import { AdminTransaction } from '../api/admin/transactions/route';
+import * as XLSX from 'xlsx';
+import ExcelLeadManagerModal from '@/components/super-admin/ExcelLeadManagerModal';
 
 
 type AdminTab =
@@ -935,6 +937,53 @@ export default function SuperAdminMasterDashboard() {
       }
     } catch (err) {
       console.error('Failed to update lead status:', err);
+    }
+  };
+
+  // 3b-2. Export Leads to Excel (.xlsx)
+  const handleExportLeadsToExcel = () => {
+    try {
+      if (filteredLeads.length === 0) {
+        showToast('No leads available to export.');
+        return;
+      }
+      const dataToExport = filteredLeads.map((l, idx) => ({
+        '#': idx + 1,
+        'Lead ID': l.id,
+        'Candidate Name': l.name,
+        'Mobile Number': l.mobile,
+        'Location / City': l.location,
+        'Target Course': l.targetCourse,
+        'Lead Source': l.source,
+        'Status': l.status,
+        'Assigned Telecaller': l.agent,
+        'Latest Remark': l.latestRemark,
+        'Received Date': l.receivedDate,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 32 },
+        { wch: 28 },
+        { wch: 14 },
+        { wch: 30 },
+        { wch: 45 },
+        { wch: 20 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'MSI_Leads');
+      const filename = `MSI_Leads_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      showToast(`Exported ${filteredLeads.length} leads to ${filename}!`);
+    } catch (err) {
+      console.error(err);
+      showToast('Error exporting leads to Excel.');
     }
   };
 
@@ -3340,27 +3389,41 @@ export default function SuperAdminMasterDashboard() {
 
                 <div className="flex flex-wrap items-center gap-2.5">
                   <button
+                    type="button"
                     onClick={() => setShowMetaWebhookModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] hover:bg-[#FFF9EF] text-[#10233F] text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E8DCCB] hover:bg-[#FFF9EF] text-[#10233F] text-xs font-bold transition-all shadow-2xs cursor-pointer"
                   >
-                    <Share2 className="w-4 h-4 text-[#89190E]" />
-                    <span>Meta & Google Webhook</span>
+                    <Share2 className="w-3.5 h-3.5 text-[#89190E]" />
+                    <span>Meta Webhook</span>
                   </button>
 
                   <button
+                    type="button"
+                    onClick={handleExportLeadsToExcel}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    title="Export all current leads to an Excel spreadsheet (.xlsx)"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Export to Excel (.xlsx)</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setShowBulkLeadModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FFF9EF] hover:bg-[#FCEFD8] border border-[#EFC988] text-[#89190E] text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    title="Open Excel Studio to directly form an Excel sheet or upload spreadsheet"
                   >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>📥 Bulk Import (Excel / CSV)</span>
+                    <FileSpreadsheet className="w-4 h-4 text-[#89190E]" />
+                    <span>📊 Excel Sheet Studio (Upload / Form Sheet)</span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => setShowAddLeadModal(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ Generate New Lead</span>
+                    <span>+ Generate Single Lead</span>
                   </button>
                 </div>
               </div>
@@ -5483,138 +5546,17 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* 4b. Bulk Import Leads Modal (Excel / CSV) */}
-      {showBulkLeadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative max-h-[92vh] overflow-y-auto">
-            <button
-              onClick={() => setShowBulkLeadModal(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#89190E]/10 text-[#89190E] flex items-center justify-center">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-serif text-lg font-bold text-[#10233F]">
-                  Bulk Import Leads (Excel / CSV)
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Import multiple inbound leads from Meta, Google Ads, or campus workshop spreadsheets.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleBulkImportLeads} className="space-y-4">
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
-                    Default Source
-                  </label>
-                  <select
-                    value={bulkDefaultSource}
-                    onChange={(e) => setBulkDefaultSource(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
-                  >
-                    <option value="Meta Ads (Facebook/Instagram)">Meta Ads</option>
-                    <option value="Google Ads">Google Ads</option>
-                    <option value="College Workshop">College Workshop</option>
-                    <option value="Local Walk-in">Local Walk-in</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
-                    Default Course
-                  </label>
-                  <select
-                    value={bulkDefaultCourse}
-                    onChange={(e) => setBulkDefaultCourse(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
-                  >
-                    <option value="PCS-J Punjab Judicial Services">PCS-J Punjab</option>
-                    <option value="CLAT 2027 (2-Yr Class)">CLAT 2027</option>
-                    <option value="CLAT 2026 (1-Yr Target)">CLAT 2026</option>
-                    <option value="Judiciary Mains Answer Writing">Judiciary Mains</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-[#10233F] mb-1">
-                    Telecaller Assignee
-                  </label>
-                  <select
-                    value={bulkDefaultAgent}
-                    onChange={(e) => setBulkDefaultAgent(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F]"
-                  >
-                    <option value="Auto Round-Robin Distribution">Auto Round-Robin</option>
-                    <option value="Harshit (Reception Desk)">Harshit</option>
-                    <option value="Counselor Priya (Law Admissions Desk)">Counselor Priya</option>
-                    <option value="Counselor Rohit (Judiciary Services Desk)">Counselor Rohit</option>
-                    <option value="Counselor Simran (CLAT & Entrance Desk)">Counselor Simran</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold uppercase text-[#10233F]">
-                    Paste CSV or Tab-Separated Excel Data
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBulkLeadsText(
-                        `Priyanshu Verma, 9876543210, Chandigarh, PCS-J Punjab Judicial Services, Meta Ads, Harshit (Reception Desk), High intent lead\nRohan Khanna, 9812345678, Mohali, CLAT 2027 (2-Yr Class), Google Ads, Counselor Priya (Law Admissions Desk), Wants weekend demo batch\nSimran Kaur, 9898765432, Ludhiana, PCS-J Punjab Judicial Services, College Workshop, Counselor Rohit (Judiciary Services Desk), Met at campus law seminar`
-                      );
-                    }}
-                    className="text-xs text-[#89190E] font-bold hover:underline cursor-pointer"
-                  >
-                    Load Sample Excel Data
-                  </button>
-                </div>
-                <textarea
-                  rows={6}
-                  required
-                  value={bulkLeadsText}
-                  onChange={(e) => setBulkLeadsText(e.target.value)}
-                  placeholder="Format: Name, Mobile, City, Course, Source, Assigned Telecaller, Notes&#10;e.g. Rohit Sharma, 9876543210, Chandigarh, PCS-J, Meta Ads, Harshit, Demo requested"
-                  className="w-full p-3 rounded-2xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
-                />
-                <p className="text-[11px] text-gray-500 mt-1">
-                  💡 You can copy rows directly from Excel or Google Sheets and paste here.
-                </p>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowBulkLeadModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isImportingBulk}
-                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                >
-                  {isImportingBulk ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                  <span>Import All Leads to CRM</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 4b. Excel Sheet Studio & Bulk Lead Generator Modal */}
+      <ExcelLeadManagerModal
+        isOpen={showBulkLeadModal}
+        onClose={() => setShowBulkLeadModal(false)}
+        onLeadsGenerated={(count) => {
+          fetchLeads();
+          showToast(`Successfully generated and dispatched ${count} leads to Reception Desk!`);
+        }}
+        showToast={showToast}
+        existingLeads={leads}
+      />
 
       {/* 4c. Meta Ads Webhook Integration Guide (For Ankit) */}
       {showMetaWebhookModal && (

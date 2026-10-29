@@ -1,5 +1,362 @@
 [
   {
+    "id": "lead-bulk-784757-1",
+    "name": "Aarav Sharma",
+    "mobile": "+91 98765 43210",
+    "location": "Chandigarh",
+    "targetCourse": "PCS-J Punjab Judicial Services",
+    "source": "Meta Ads (Facebook/Instagram)",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Inquired about Judiciary foundation batch",
+    "fullRemark": "Inquired about Judiciary foundation batch",
+    "agent": "Harshit (Reception Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784757-0",
+        "outcome": "Connected — Interested",
+        "text": "Inquired about Judiciary foundation batch",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-784758-2",
+    "name": "Meera Sen",
+    "mobile": "+91 98123 45678",
+    "location": "Mohali",
+    "targetCourse": "CLAT 2027 (2-Yr Class)",
+    "source": "Google Ads",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Interested in weekend scholarship test",
+    "fullRemark": "Interested in weekend scholarship test",
+    "agent": "Counselor Priya (Law Admissions Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784758-1",
+        "outcome": "Connected — Interested",
+        "text": "Interested in weekend scholarship test",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-784758-3",
+    "name": "Kabir Singh",
+    "mobile": "+91 98987 65432",
+    "location": "Panchkula",
+    "targetCourse": "PU Law 3-Yr Entrance",
+    "source": "Local Walk-in",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Visited campus reception counter",
+    "fullRemark": "Visited campus reception counter",
+    "agent": "Counselor Rohit (Judiciary Services Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784758-2",
+        "outcome": "Connected — Interested",
+        "text": "Visited campus reception counter",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-784759-4",
+    "name": "Nandini",
+    "mobile": "+91 65952 36523",
+    "location": "vknndj brej v",
+    "targetCourse": "vkf heb her v",
+    "source": "fmb nef kaevn",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "nmdw vh wehjv w",
+    "fullRemark": "nmdw vh wehjv w",
+    "agent": "cm dhv ewk v",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784759-3",
+        "outcome": "Connected — Interested",
+        "text": "nmdw vh wehjv w",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-784759-5",
+    "name": "harshit",
+    "mobile": "+91 55662 23388",
+    "location": "vk vk erv",
+    "targetCourse": "v fje jrv kw c",
+    "source": "dnv  shfehf v",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "cn dv hew vh",
+    "fullRemark": "cn dv hew vh",
+    "agent": "dmnv hwwfwe vs",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784759-4",
+        "outcome": "Connected — Interested",
+        "text": "cn dv hew vh",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-784759-6",
+    "name": "Tia",
+    "mobile": "+91 55669 98844",
+    "location": "vjrhv",
+    "targetCourse": "bvhf vjer",
+    "source": "buhvjew",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "fhewvchwe",
+    "fullRemark": "fhewvchwe",
+    "agent": "bvh vjh ew",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261784759-5",
+        "outcome": "Connected — Interested",
+        "text": "fhewvchwe",
+        "timestamp": "01:46 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-243599-1",
+    "name": "Aarav Sharma",
+    "mobile": "+91 98765 43210",
+    "location": "Chandigarh",
+    "targetCourse": "PCS-J Punjab Judicial Services",
+    "source": "Meta Ads (Facebook/Instagram)",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Inquired about Judiciary foundation batch",
+    "fullRemark": "Inquired about Judiciary foundation batch",
+    "agent": "Harshit (Reception Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261243599-0",
+        "outcome": "Connected — Interested",
+        "text": "Inquired about Judiciary foundation batch",
+        "timestamp": "01:37 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-243600-2",
+    "name": "Meera Sen",
+    "mobile": "+91 98123 45678",
+    "location": "Mohali",
+    "targetCourse": "CLAT 2027 (2-Yr Class)",
+    "source": "Google Ads",
+    "receivedDate": "Imported Today",
+    "status": "Converted",
+    "latestRemark": "Status transitioned to Converted at Reception Desk.",
+    "fullRemark": "Status transitioned to Converted at Reception Desk.",
+    "agent": "Counselor Priya (Law Admissions Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261641778",
+        "outcome": "Connected — Interested",
+        "text": "Status transitioned to Converted at Reception Desk.",
+        "timestamp": "01:44 PM",
+        "author": "Rani (Reception)",
+        "leadStatus": "Converted"
+      },
+      {
+        "id": "rem-1793261243600-1",
+        "outcome": "Connected — Interested",
+        "text": "Interested in weekend scholarship test",
+        "timestamp": "01:37 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ],
+    "nextFollowupDate": "2026-10-29",
+    "nextFollowupTime": "On Date 11:30 AM",
+    "isOverdue": false,
+    "dueText": "Scheduled for 2026-10-29"
+  },
+  {
+    "id": "lead-bulk-243600-3",
+    "name": "Kabir Singh",
+    "mobile": "+91 98987 65432",
+    "location": "Panchkula",
+    "targetCourse": "PU Law 3-Yr Entrance",
+    "source": "Local Walk-in",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Visited campus reception counter",
+    "fullRemark": "Visited campus reception counter",
+    "agent": "Counselor Rohit (Judiciary Services Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261243600-2",
+        "outcome": "Connected — Interested",
+        "text": "Visited campus reception counter",
+        "timestamp": "01:37 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-243600-4",
+    "name": "Nandini",
+    "mobile": "+91 65952 36523",
+    "location": "vknndj brej v",
+    "targetCourse": "vkf heb her v",
+    "source": "fmb nef kaevn",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "nmdw vh wehjv w",
+    "fullRemark": "nmdw vh wehjv w",
+    "agent": "cm dhv ewk v",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261243600-3",
+        "outcome": "Connected — Interested",
+        "text": "nmdw vh wehjv w",
+        "timestamp": "01:37 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-243600-5",
+    "name": "harshit",
+    "mobile": "+91 55662 23388",
+    "location": "vk vk erv",
+    "targetCourse": "v fje jrv kw c",
+    "source": "dnv  shfehf v",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "cn dv hew vh",
+    "fullRemark": "cn dv hew vh",
+    "agent": "dmnv hwwfwe vs",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261243600-4",
+        "outcome": "Connected — Interested",
+        "text": "cn dv hew vh",
+        "timestamp": "01:37 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-092278-1",
+    "name": "Priyanshu Verma",
+    "mobile": "+91 98765 43210",
+    "location": "Chandigarh",
+    "targetCourse": "PCS-J Punjab Judicial Services",
+    "source": "Meta Ads (Facebook/Instagram)",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "High intent candidate, requested scholarship details",
+    "fullRemark": "High intent candidate, requested scholarship details",
+    "agent": "Harshit (Reception Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261092278-0",
+        "outcome": "Connected — Interested",
+        "text": "High intent candidate, requested scholarship details",
+        "timestamp": "01:34 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-092289-2",
+    "name": "Rohan Khanna",
+    "mobile": "+91 98123 45678",
+    "location": "Mohali",
+    "targetCourse": "CLAT 2027 (2-Yr Class)",
+    "source": "Google Ads",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Interested in weekend classroom batch",
+    "fullRemark": "Interested in weekend classroom batch",
+    "agent": "Counselor Priya (Law Admissions Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261092289-1",
+        "outcome": "Connected — Interested",
+        "text": "Interested in weekend classroom batch",
+        "timestamp": "01:34 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-092289-3",
+    "name": "Simran Kaur",
+    "mobile": "+91 98987 65432",
+    "location": "Ludhiana",
+    "targetCourse": "Judiciary Mains Answer Writing",
+    "source": "College Workshop",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Met at GNDU campus law seminar",
+    "fullRemark": "Met at GNDU campus law seminar",
+    "agent": "Counselor Rohit (Judiciary Services Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261092289-2",
+        "outcome": "Connected — Interested",
+        "text": "Met at GNDU campus law seminar",
+        "timestamp": "01:34 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
+    "id": "lead-bulk-092290-4",
+    "name": "Nandini",
+    "mobile": "+91 99558 86622",
+    "location": "Chandigarh / Mohali",
+    "targetCourse": "UPSC Law Optional",
+    "source": "College Workshop",
+    "receivedDate": "Imported Today",
+    "status": "New",
+    "latestRemark": "Working hard",
+    "fullRemark": "Working hard",
+    "agent": "Counselor Priya (Law Admissions Desk)",
+    "remarksHistory": [
+      {
+        "id": "rem-1793261092290-3",
+        "outcome": "Connected — Interested",
+        "text": "Working hard",
+        "timestamp": "01:34 pm",
+        "author": "Super Admin Import",
+        "leadStatus": "New"
+      }
+    ]
+  },
+  {
     "id": "lead-sa-540435",
     "name": "NIKHIL",
     "mobile": "+91 76543 32345",

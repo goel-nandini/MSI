@@ -148,6 +148,17 @@ export async function POST(req: NextRequest) {
       const updated = [...newItems, ...diskLeads];
       writeLeadsToDisk(updated);
 
+      if (isMongoConfigured()) {
+        try {
+          const db = await getDb();
+          if (db && newItems.length > 0) {
+            await db.collection('leads').insertMany(newItems as any);
+          }
+        } catch (err) {
+          console.warn('[Bulk Leads Mongo Error]:', err);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: `Successfully imported ${newItems.length} leads into Reception CRM.`,

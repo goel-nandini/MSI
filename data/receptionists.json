@@ -1,5 +1,25 @@
 [
   {
+    "id": "rec-912851",
+    "name": "Priya",
+    "phone": "6688552233",
+    "email": "reception.6688552233@msi-institutes.edu.in",
+    "password": "Reception@MSI2026",
+    "status": "active",
+    "createdAt": "2026-10-29T08:18:32.851Z",
+    "role": "reception"
+  },
+  {
+    "id": "rec-334655",
+    "name": "Rani",
+    "phone": "6699884455",
+    "email": "reception.6699884455@msi-institutes.edu.in",
+    "password": "Reception@MSI2026",
+    "status": "active",
+    "createdAt": "2026-10-29T08:08:54.655Z",
+    "role": "reception"
+  },
+  {
     "id": "rec-631526",
     "name": "Pooja Verma",
     "phone": "9811223344",
