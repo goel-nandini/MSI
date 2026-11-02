@@ -119,10 +119,16 @@ export interface GSTInvoiceData {
 export interface FeeReceiptModalProps {
   transaction: any;
   student?: Partial<StudentProfile> | any;
+  allowEdit?: boolean;
   onClose: () => void;
 }
 
-export default function FeeReceiptModal({ transaction, student, onClose }: FeeReceiptModalProps) {
+export default function FeeReceiptModal({
+  transaction,
+  student,
+  allowEdit = false,
+  onClose,
+}: FeeReceiptModalProps) {
   if (!transaction) return null;
 
   // Format Date DD/MM/YYYY
@@ -240,6 +246,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
   const [invoice, setInvoice] = useState<GSTInvoiceData>(calculateDefaults());
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
+  const canEdit = Boolean(allowEdit && isEditMode);
 
   useEffect(() => {
     setInvoice(calculateDefaults());
@@ -677,26 +684,30 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
             <span className="text-xs font-mono text-[#EFC988] font-bold uppercase tracking-wider">
-              MSI Official GST Tax Invoice • Fee Receipt
+              {allowEdit
+                ? 'MSI Official GST Tax Invoice • Accounts & Administration Portal'
+                : 'Official Institutional E-Receipt • Verified Authenticity'}
             </span>
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer border ${
-                isEditMode
-                  ? 'bg-amber-400 text-gray-900 border-amber-300 font-bold shadow-md'
-                  : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-              }`}
-              title="Toggle editable fields"
-            >
-              {isEditMode ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5 text-[#EFC988]" />}
-              <span>{isEditMode ? 'Done Editing' : 'Edit Values'}</span>
-            </button>
+            {allowEdit && (
+              <button
+                type="button"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer border ${
+                  isEditMode
+                    ? 'bg-amber-400 text-gray-900 border-amber-300 font-bold shadow-md'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                }`}
+                title="Toggle editable fields (Super Admin / Accounts Auditor only)"
+              >
+                {isEditMode ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5 text-[#EFC988]" />}
+                <span>{isEditMode ? 'Done Editing' : 'Edit Values'}</span>
+              </button>
+            )}
 
-            {isEditMode && (
+            {allowEdit && isEditMode && (
               <>
                 <button
                   type="button"
@@ -740,7 +751,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
         </div>
 
         {/* Edit Mode Notice Banner */}
-        {isEditMode && (
+        {canEdit && (
           <div className="print:hidden bg-amber-50 border-b border-amber-200 px-4 py-1.5 text-xs text-amber-900 flex items-center justify-between">
             <span>
               ✍️ <strong>Edit Mode Active:</strong> You can edit any value, student name, address, dates, amounts, or terms. Click <strong>&quot;Auto Calc GST&quot;</strong> anytime to recompute tax breakdown.
@@ -768,7 +779,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
             <div className="grid grid-cols-3 items-center border-b border-black px-2 py-1 font-bold text-[10px] sm:text-[11px]">
               <div>
                 GST NO:
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.gstin}
@@ -784,7 +795,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               </div>
               <div className="text-right">
                 PAN NO:
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.pan}
@@ -810,7 +821,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 />
               </div>
               <div className="flex-1 text-center pr-10 sm:pr-14">
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.instituteName}
@@ -823,7 +834,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   </h1>
                 )}
 
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.instituteAddress}
@@ -838,7 +849,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                 <div className="text-[9.5px] sm:text-[10px] font-bold text-gray-800 mt-0.5">
                   CONTACT:
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.contact}
@@ -861,7 +872,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                     SOLD TO &amp; SHIPPED TO M/S:
                   </div>
 
-                  {isEditMode ? (
+                  {canEdit ? (
                     <div className="space-y-1 mt-0.5">
                       <input
                         type="text"
@@ -897,7 +908,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 <div className="pt-2 flex justify-between items-center text-[10px] font-bold">
                   <div>
                     GST:
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.buyerGst}
@@ -910,7 +921,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   </div>
                   <div>
                     PHONE:
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.buyerPhone}
@@ -928,7 +939,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               <div className="col-span-5 p-2 font-bold text-[10.5px] sm:text-[11px] space-y-0.5">
                 <div className="flex">
                   <span className="w-32 shrink-0">INVOICE NO:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.invoiceNo}
@@ -942,7 +953,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                 <div className="flex">
                   <span className="w-32 shrink-0">INVOICE DT:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.invoiceDate}
@@ -956,7 +967,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                 <div className="flex">
                   <span className="w-32 shrink-0">PLACE OF SUPPLY:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.placeOfSupply}
@@ -970,7 +981,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                 <div className="flex">
                   <span className="w-32 shrink-0">MODE OF SUPPLY:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.modeOfSupply}
@@ -989,7 +1000,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               <div className="grid grid-cols-12 gap-2 pb-0.5">
                 <div className="col-span-4 flex items-center">
                   <span>GR/MARKA:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.grMarka}
@@ -1002,7 +1013,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 </div>
                 <div className="col-span-4 flex items-center">
                   <span>PO NO:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.poNo}
@@ -1015,7 +1026,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 </div>
                 <div className="col-span-4 flex items-center">
                   <span>PO DT:</span>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.poDate}
@@ -1029,7 +1040,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               </div>
               <div className="flex items-center pt-0.5">
                 <span>REMARKS:</span>
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.remarks}
@@ -1066,7 +1077,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         {idx + 1}
                       </td>
                       <td className="border-r border-black py-1 px-2">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <div className="flex items-center gap-1">
                             <input
                               type="text"
@@ -1090,7 +1101,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-center font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.hsn}
@@ -1102,7 +1113,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-center uppercase font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.qty}
@@ -1114,7 +1125,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-right font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.mrp}
@@ -1126,7 +1137,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-right font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.ntRate}
@@ -1138,7 +1149,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-right font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.txRate}
@@ -1150,7 +1161,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-center font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.disc}
@@ -1162,7 +1173,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1 text-center font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.gstRate}
@@ -1174,7 +1185,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="py-1 px-2 text-right font-mono">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={item.amount}
@@ -1226,7 +1237,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 </tfoot>
               </table>
 
-              {isEditMode && (
+              {canEdit && (
                 <div className="print:hidden p-1.5 bg-gray-50 border-t border-dashed border-gray-300 text-center">
                   <button
                     type="button"
@@ -1258,7 +1269,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   <tbody>
                     <tr className="font-mono">
                       <td className="border-r border-black py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxGstRate}
@@ -1270,7 +1281,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxTaxable}
@@ -1282,7 +1293,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxSgst}
@@ -1294,7 +1305,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxCgst}
@@ -1306,7 +1317,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="border-r border-black py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxIgst}
@@ -1318,7 +1329,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                         )}
                       </td>
                       <td className="py-1 px-1">
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={invoice.taxCess}
@@ -1339,7 +1350,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 <div className="grid grid-cols-2 gap-x-2">
                   <div className="flex justify-between">
                     <span>TCS</span>
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.tcs}
@@ -1352,7 +1363,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   </div>
                   <div className="flex justify-between">
                     <span>DISCOUNT</span>
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.discount}
@@ -1366,7 +1377,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                   <div className="flex justify-between">
                     <span>LABOUR</span>
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.labour}
@@ -1384,7 +1395,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                   <div className="flex justify-between">
                     <span>FRIEIGHT</span>
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.freight}
@@ -1402,7 +1413,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
 
                   <div className="flex justify-between">
                     <span>RND OFF</span>
-                    {isEditMode ? (
+                    {canEdit ? (
                       <input
                         type="text"
                         value={invoice.rndOff}
@@ -1430,7 +1441,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
             <div className="grid grid-cols-12 items-center border-b border-black px-2 py-1 font-bold">
               <div className="col-span-8 text-[10px] sm:text-[10.5px] uppercase">
                 IN WORDS:
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.inWords}
@@ -1443,7 +1454,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               </div>
               <div className="col-span-4 text-right flex justify-end items-center gap-2">
                 <span className="text-[11px] sm:text-[11.5px] uppercase tracking-wider">NET-AMOUNT</span>
-                {isEditMode ? (
+                {canEdit ? (
                   <input
                     type="text"
                     value={invoice.netAmount}
@@ -1474,7 +1485,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                   <ul className="text-[8.5px] sm:text-[9px] space-y-0.5 font-semibold text-gray-900 leading-tight">
                     {invoice.terms.map((term, idx) => (
                       <li key={idx}>
-                        {isEditMode ? (
+                        {canEdit ? (
                           <input
                             type="text"
                             value={term}
@@ -1498,7 +1509,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
               <div className="col-span-3 p-2 border-r border-black text-[9.5px] sm:text-[10px] font-bold space-y-0.5">
                 <div>BANK DETAILS :</div>
                 <div>
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.bankName}
@@ -1511,7 +1522,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 </div>
                 <div>
                   A/C:
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.bankAccount}
@@ -1524,7 +1535,7 @@ export default function FeeReceiptModal({ transaction, student, onClose }: FeeRe
                 </div>
                 <div>
                   IFSC:
-                  {isEditMode ? (
+                  {canEdit ? (
                     <input
                       type="text"
                       value={invoice.bankIfsc}

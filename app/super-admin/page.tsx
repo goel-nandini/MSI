@@ -4612,6 +4612,7 @@ export default function SuperAdminMasterDashboard() {
               {selectedTxnForReceipt && (
                 <FeeReceiptModal
                   transaction={selectedTxnForReceipt}
+                  allowEdit={true}
                   onClose={() => setSelectedTxnForReceipt(null)}
                 />
               )}
