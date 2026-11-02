@@ -1,5 +1,36 @@
 [
   {
+    "id": "msi-stu-8855662233",
+    "phone": "8855662233",
+    "name": "Nand",
+    "stream": "Full Outstanding Academic Dues Settlement",
+    "password": "Student@MSI2026",
+    "email": "student.2233@msi-institutes.edu.in",
+    "registeredAt": "2026-11-02T18:37:32.151Z",
+    "role": "student",
+    "profile": {
+      "id": "msi-stu-2233",
+      "name": "Nand",
+      "email": "student.2233@msi-institutes.edu.in",
+      "phone": "+91 88556 62233",
+      "dob": "2003-01-15",
+      "age": 22,
+      "gender": "Male",
+      "enrollmentNo": "MSI/2026/2233",
+      "rollNo": "26-MSI-2233",
+      "batch": "PCS-J Punjab Judicial Services, 2026–2027",
+      "courseTitle": "Full Outstanding Academic Dues Settlement",
+      "semester": "Academic Year 2026–2027",
+      "avatarUrl": "/images/avatars/avatar-1.webp",
+      "bloodGroup": "B+",
+      "address": "Kharar, Mohali, Punjab",
+      "guardianName": "Guardian",
+      "guardianContact": "+91 88556 00000",
+      "admissionDate": "01 July 2026",
+      "validUntil": "30 June 2028"
+    }
+  },
+  {
     "id": "msi-stu-9368410022",
     "phone": "9368410022",
     "name": "Nandini",
@@ -231,5 +262,36 @@
       "validUntil": "30 June 2028"
     },
     "lastLoginAt": "2026-10-25T06:49:18.410Z"
+  },
+  {
+    "id": "msi-stu-9792303434",
+    "phone": "9792303434",
+    "name": "Super Admin Diagnostic",
+    "stream": "Razorpay Gateway Cryptographic Handshake",
+    "password": "Student@MSI2026",
+    "email": "student.3434@msi-institutes.edu.in",
+    "registeredAt": "2026-11-02T18:35:54.327Z",
+    "role": "student",
+    "profile": {
+      "id": "msi-stu-3434",
+      "name": "Super Admin Diagnostic",
+      "email": "student.3434@msi-institutes.edu.in",
+      "phone": "+91 97923 03434",
+      "dob": "2003-01-15",
+      "age": 22,
+      "gender": "Male",
+      "enrollmentNo": "MSI/2026/3434",
+      "rollNo": "26-MSI-3434",
+      "batch": "Razorpay Gateway Cryptographic Handshake, 2026–2027",
+      "courseTitle": "Razorpay Gateway Cryptographic Handshake",
+      "semester": "Academic Year 2026–2027",
+      "avatarUrl": "/images/avatars/avatar-1.webp",
+      "bloodGroup": "B+",
+      "address": "Kharar, Mohali, Punjab",
+      "guardianName": "Guardian",
+      "guardianContact": "+91 97923 00000",
+      "admissionDate": "01 July 2026",
+      "validUntil": "30 June 2028"
+    }
   }
 ]
