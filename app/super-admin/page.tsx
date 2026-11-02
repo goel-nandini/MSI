@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
@@ -94,6 +94,7 @@ import { GalleryItem } from '../api/admin/gallery/route';
 import { AdminTransaction } from '../api/admin/transactions/route';
 import * as XLSX from 'xlsx';
 import ExcelLeadManagerModal from '@/components/super-admin/ExcelLeadManagerModal';
+import FeeReceiptModal from '@/components/student/FeeReceiptModal';
 
 
 type AdminTab =
@@ -4607,101 +4608,12 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
-              {/* Printable Tax Invoice Modal */}
+              {/* Official GST Tax Invoice & Fee Receipt Modal */}
               {selectedTxnForReceipt && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-                  <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTxnForReceipt(null)}
-                      className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-
-                    <div className="flex items-center gap-3 pb-4 border-b border-gray-100 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-[#0C2340] text-white flex items-center justify-center font-serif font-bold text-sm">
-                        MSI
-                      </div>
-                      <div>
-                        <h3 className="font-serif text-lg font-bold text-[#10233F]">
-                          MSI Group of Institutes
-                        </h3>
-                        <p className="text-[11px] text-gray-500">
-                          Official Institutional Fee Receipt & Tax Invoice
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#FFF9EF] p-4 rounded-2xl border border-[#E8DCCB] text-xs space-y-2.5 mb-5">
-                      <div className="flex justify-between items-center pb-2 border-b border-[#E8DCCB]">
-                        <span className="text-gray-500">Receipt No:</span>
-                        <span className="font-mono font-bold text-[#071B37]">
-                          {(selectedTxnForReceipt as any).receiptNumber || `INV-MSI-2026-${selectedTxnForReceipt.id.replace(/\D/g, '') || '8849'}`}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Transaction ID:</span>
-                        <span className="font-mono font-bold text-[#89190E]">{selectedTxnForReceipt.id}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Razorpay Payment ID:</span>
-                        <span className="font-mono font-bold text-gray-700">
-                          {selectedTxnForReceipt.razorpayPaymentId || 'pay_test_msi'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Order Reference:</span>
-                        <span className="font-mono text-gray-600">
-                          {selectedTxnForReceipt.orderId || selectedTxnForReceipt.razorpayOrderId || 'order_msi_standard'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Candidate Scholar:</span>
-                        <span className="font-bold text-[#071B37]">{selectedTxnForReceipt.studentName}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Enrolled Program:</span>
-                        <span className="font-medium text-[#071B37] max-w-xs truncate text-right">
-                          {selectedTxnForReceipt.courseTitle}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Payment Rail:</span>
-                        <span className="text-gray-700">{selectedTxnForReceipt.paymentMethod}</span>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-[#E8DCCB]">
-                        <span className="font-bold text-[#071B37] text-sm">Total Paid:</span>
-                        <span className="font-serif font-extrabold text-[#89190E] text-lg">
-                          â‚¹{selectedTxnForReceipt.amount?.toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-gray-500 font-mono mb-5">
-                      <span>Status: CAPTURED (Verified âœ“)</span>
-                      <span>Date: {selectedTxnForReceipt.timestamp}</span>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => window.print()}
-                        className="flex-1 py-3 rounded-xl border border-[#D5E1ED] text-xs font-bold text-[#071B37] hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                      >
-                        <Printer className="w-4 h-4 text-gray-600" />
-                        <span>Print Invoice</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTxnForReceipt(null)}
-                        className="flex-1 py-3 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold flex items-center justify-center cursor-pointer shadow-sm"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <FeeReceiptModal
+                  transaction={selectedTxnForReceipt}
+                  onClose={() => setSelectedTxnForReceipt(null)}
+                />
               )}
             </div>
           )}
