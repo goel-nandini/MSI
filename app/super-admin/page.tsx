@@ -116,6 +116,10 @@ interface RegisteredStudent {
   registeredAt: string;
   role?: string;
   profile?: Record<string, any>;
+  totalFee?: number;
+  paidFee?: number;
+  dueFee?: number;
+  nextDueDate?: string;
 }
 
 export default function SuperAdminMasterDashboard() {
@@ -157,6 +161,21 @@ export default function SuperAdminMasterDashboard() {
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentPassword, setNewStudentPassword] = useState('Student@MSI2026');
   const [isSubmittingStudent, setIsSubmittingStudent] = useState(false);
+  const [newStudentTotalFee, setNewStudentTotalFee] = useState('50000');
+  const [newStudentPaidFee, setNewStudentPaidFee] = useState('0');
+  const [newStudentNextDueDate, setNewStudentNextDueDate] = useState('');
+
+  const [editStudentTotalFee, setEditStudentTotalFee] = useState('0');
+  const [editStudentPaidFee, setEditStudentPaidFee] = useState('0');
+  const [editStudentDueFee, setEditStudentDueFee] = useState('0');
+  const [editStudentNextDueDate, setEditStudentNextDueDate] = useState('');
+
+  // Collect Fee Modal State
+  const [studentForCollectFee, setStudentForCollectFee] = useState<RegisteredStudent | null>(null);
+  const [collectFeeAmount, setCollectFeeAmount] = useState('');
+  const [collectFeePaymentMethod, setCollectFeePaymentMethod] = useState('UPI');
+  const [collectFeeRemarks, setCollectFeeRemarks] = useState('Academic Tuition Settlement');
+  const [isSubmittingCollectFee, setIsSubmittingCollectFee] = useState(false);
 
   // 2. View Student Details Modal
   const [selectedStudentForView, setSelectedStudentForView] = useState<RegisteredStudent | null>(null);
@@ -228,6 +247,10 @@ export default function SuperAdminMasterDashboard() {
   }, [receptionists, seniorDeskRecord]);
 
   const totalReceptionistCount = (seniorDeskRecord ? 1 : 0) + visibleReceptionists.length;
+
+  const totalRevenue = useMemo(() => {
+    return transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  }, [transactions]);
   const [showAddReceptionistModal, setShowAddReceptionistModal] = useState(false);
   const [newReceptionistName, setNewReceptionistName] = useState('');
   const [newReceptionistPhone, setNewReceptionistPhone] = useState('');
@@ -452,7 +475,7 @@ export default function SuperAdminMasterDashboard() {
           invoiceNumber: verifyData.invoiceNumber || 'INV-MSI-2026-TEST',
           timestamp: new Date().toLocaleTimeString('en-IN'),
         });
-        showToast(`Gateway Handshake Passed! Latency: ${latency}ms â€¢ HMAC Signature Verified âœ“`);
+        showToast(`Gateway Handshake Passed! Latency: ${latency}ms • HMAC Signature Verified ✓`);
         fetchTransactions();
       } else {
         throw new Error(verifyData.message || 'HMAC Signature verification rejected');
@@ -524,7 +547,7 @@ export default function SuperAdminMasterDashboard() {
         second: '2-digit',
         hour12: true,
       });
-      setCurrentDateTime(`${dateStr} â€¢ ${timeStr}`);
+      setCurrentDateTime(`${dateStr} • ${timeStr}`);
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
@@ -761,10 +784,22 @@ export default function SuperAdminMasterDashboard() {
   // 2. Delete Student
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return;
+    const targetStudent = studentToDelete;
+    const targetPhone = (targetStudent.phone || '').replace(/\D/g, '').slice(-10);
+    const targetId = targetStudent.id;
+
+    // Optimistically remove from state immediately
+    setStudents((prev) =>
+      prev.filter((s) => {
+        const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+        return s.id !== targetId && (!targetPhone || sPhone !== targetPhone);
+      })
+    );
+
     setIsDeletingStudent(true);
     try {
-      const phoneParam = encodeURIComponent(studentToDelete.phone || '');
-      const idParam = encodeURIComponent(studentToDelete.id || '');
+      const phoneParam = encodeURIComponent(targetPhone || targetStudent.phone || '');
+      const idParam = encodeURIComponent(targetId || '');
       const res = await fetch(`/api/admin/students?phone=${phoneParam}&id=${idParam}`, {
         method: 'DELETE',
       });
@@ -775,15 +810,15 @@ export default function SuperAdminMasterDashboard() {
 
       const data = await res.json();
       if (data.success) {
-        showToast(`Student account (${studentToDelete.name}) permanently removed from disk.`);
+        showToast(`Student account (${targetStudent.name}) permanently removed from system.`);
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           const bc = new BroadcastChannel('msi_sync_channel');
           bc.postMessage({
             type: 'STUDENT_DELETED',
-            studentId: studentToDelete.id,
-            studentPhone: studentToDelete.phone,
-            studentName: studentToDelete.name,
+            studentId: targetId,
+            studentPhone: targetPhone,
+            studentName: targetStudent.name,
           });
           bc.close();
         }
@@ -791,7 +826,6 @@ export default function SuperAdminMasterDashboard() {
         // Revoke active session if active student is the one deleted
         if (typeof window !== 'undefined') {
           const activePhone = (localStorage.getItem('msi_active_student_phone') || '').replace(/\D/g, '').slice(-10);
-          const targetPhone = (studentToDelete.phone || '').replace(/\D/g, '').slice(-10);
           if (activePhone && activePhone === targetPhone) {
             localStorage.removeItem('msi_student_logged_in');
             localStorage.removeItem('msi_active_student_phone');
@@ -802,7 +836,7 @@ export default function SuperAdminMasterDashboard() {
           }
         }
 
-        if (data.students) {
+        if (data.students && Array.isArray(data.students)) {
           setStudents(data.students);
         }
         setStudentToDelete(null);
@@ -812,9 +846,11 @@ export default function SuperAdminMasterDashboard() {
         } catch (_) {}
       } else {
         showToast(data.message || 'Failed to delete student.');
+        fetchStudents();
       }
     } catch (err) {
       showToast('Network error while deleting student.');
+      fetchStudents();
     } finally {
       setIsDeletingStudent(false);
     }
@@ -1921,6 +1957,13 @@ export default function SuperAdminMasterDashboard() {
     setEditStudentStream(stu.stream || 'PCS-J Punjab Judicial Services');
     setEditStudentEmail(stu.email || '');
     setEditStudentPassword(stu.password || 'Student@MSI2026');
+    const tFee = stu.totalFee ?? 0;
+    const pFee = stu.paidFee ?? 0;
+    const dFee = stu.dueFee ?? Math.max(0, tFee - pFee);
+    setEditStudentTotalFee(String(tFee));
+    setEditStudentPaidFee(String(pFee));
+    setEditStudentDueFee(String(dFee));
+    setEditStudentNextDueDate(stu.nextDueDate || '');
   };
 
   // 7g. Submit Student Update
@@ -1932,20 +1975,33 @@ export default function SuperAdminMasterDashboard() {
     }
     setIsSubmittingEditStudent(true);
     try {
+      const totalNum = Number(editStudentTotalFee) || 0;
+      const paidNum = Number(editStudentPaidFee) || 0;
+      const dueNum = Number(editStudentDueFee) || Math.max(0, totalNum - paidNum);
+
       const res = await fetch('/api/admin/students', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: studentToEdit.id,
           phone: studentToEdit.phone,
           updates: {
             name: editStudentName.trim(),
             stream: editStudentStream.trim(),
             email: editStudentEmail.trim(),
             password: editStudentPassword.trim() || 'Student@MSI2026',
+            totalFee: totalNum,
+            paidFee: paidNum,
+            dueFee: dueNum,
+            nextDueDate: editStudentNextDueDate || '',
             profile: {
               name: editStudentName.trim(),
               courseTitle: editStudentStream.trim(),
               email: editStudentEmail.trim(),
+              totalFee: totalNum,
+              paidFee: paidNum,
+              dueFee: dueNum,
+              nextDueDate: editStudentNextDueDate || '',
             },
           },
         }),
@@ -1953,6 +2009,17 @@ export default function SuperAdminMasterDashboard() {
       const data = await res.json();
       if (data.success) {
         showToast(`Student "${editStudentName}" updated successfully.`);
+        if (data.students && Array.isArray(data.students)) {
+          setStudents(data.students);
+        } else if (data.student) {
+          setStudents((prev) =>
+            prev.map((s) =>
+              s.id === studentToEdit.id || (s.phone && s.phone.replace(/\D/g, '').slice(-10) === studentToEdit.phone.replace(/\D/g, '').slice(-10))
+                ? { ...s, ...data.student }
+                : s
+            )
+          );
+        }
         setStudentToEdit(null);
         fetchStudents();
         try {
@@ -2009,6 +2076,95 @@ export default function SuperAdminMasterDashboard() {
       showToast('Network error while updating receptionist.');
     } finally {
       setIsSubmittingEditReceptionist(false);
+    }
+  };
+
+  // 7j. Submit Collected Fee Payment
+  const handleRecordFeePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentForCollectFee || !collectFeeAmount || Number(collectFeeAmount) <= 0) {
+      showToast('Please specify a valid payment amount.');
+      return;
+    }
+
+    const payAmt = Number(collectFeeAmount);
+    setIsSubmittingCollectFee(true);
+
+    try {
+      const cleanPhone = (studentForCollectFee.phone || '').replace(/\D/g, '').slice(-10);
+      const currentTotal = studentForCollectFee.totalFee ?? payAmt;
+      const currentPaid = (studentForCollectFee.paidFee ?? 0) + payAmt;
+      const currentDue = Math.max(0, currentTotal - currentPaid);
+
+      // 1. Update Student Ledger in database
+      const stuRes = await fetch('/api/admin/students', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: cleanPhone,
+          updates: {
+            totalFee: currentTotal,
+            paidFee: currentPaid,
+            dueFee: currentDue,
+          },
+        }),
+      });
+
+      // 2. Record Transaction in Ledger
+      const invoiceNo = `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      const txnRes = await fetch('/api/admin/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: studentForCollectFee.name,
+          studentPhone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+          courseId: 'fee-settlement',
+          courseTitle: studentForCollectFee.stream || 'Institutional Fee Settlement',
+          amount: payAmt,
+          paymentMethod: `Direct Cash / ${collectFeePaymentMethod}`,
+          orderId: `rec_${Date.now().toString().slice(-8)}`,
+          status: 'captured',
+          receiptNumber: invoiceNo,
+          timestamp: timeStr,
+        }),
+      });
+
+      const txnData = await txnRes.json();
+      showToast(`Fee payment of ₹${payAmt.toLocaleString('en-IN')} recorded for ${studentForCollectFee.name}!`);
+      
+      const newTxnObj = txnData.transaction || {
+        id: `#TXN-${Date.now().toString().slice(-5)}`,
+        studentName: studentForCollectFee.name,
+        studentPhone: `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`,
+        courseTitle: studentForCollectFee.stream || 'Institutional Fee Settlement',
+        amount: payAmt,
+        paymentMethod: `Direct Cash / ${collectFeePaymentMethod}`,
+        status: 'captured',
+        receiptNumber: invoiceNo,
+        timestamp: timeStr,
+      };
+
+      setStudentForCollectFee(null);
+      setCollectFeeAmount('');
+      fetchStudents();
+      fetchTransactions();
+
+      // Open authentic non-editable receipt immediately
+      setSelectedTxnForReceipt(newTxnObj as any);
+    } catch (err) {
+      showToast('Network error while recording fee payment.');
+    } finally {
+      setIsSubmittingCollectFee(false);
     }
   };
 
@@ -2368,7 +2524,7 @@ export default function SuperAdminMasterDashboard() {
             </form>
 
             <div className="mt-6 pt-4 border-t border-[#E8DCCB]/60 text-center text-[11px] text-[#526174]">
-              Protected by SHA-256 session encryption â€¢ MSI Institutional Server
+              Protected by SHA-256 session encryption • MSI Institutional Server
             </div>
           </div>
         </main>
@@ -2665,7 +2821,7 @@ export default function SuperAdminMasterDashboard() {
                     Good Morning, Administrator
                   </h1>
                   <p className="text-xs text-[#58413D] mt-0.5">
-                    Live operational overview for MSI Group of Institutes â€¢ All data synced with permanent storage
+                    Live operational overview for MSI Group of Institutes • All data synced with permanent storage
                   </p>
                 </div>
 
@@ -2814,7 +2970,7 @@ export default function SuperAdminMasterDashboard() {
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] text-[#58413D] truncate border-t border-gray-100 pt-1.5">
-                    Harshit, Ankit & Registered
+                    {students.length > 0 ? `${students.length} Verified Student Account${students.length > 1 ? "s" : ""}` : "No Students Enrolled"}
                   </div>
                 </div>
 
@@ -2864,7 +3020,7 @@ export default function SuperAdminMasterDashboard() {
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-[#89190E] font-bold mt-0.5">
                       <Sparkles className="w-3 h-3" />
-                      <span>CLAT â€¢ Judiciary â€¢ NET</span>
+                      <span>CLAT • Judiciary • NET</span>
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] text-[#58413D] truncate border-t border-gray-100 pt-1.5">
@@ -2914,7 +3070,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   <div>
                     <div className="font-serif text-3xl font-bold text-[#89190E]">
-                      â‚¹4.85L
+                      {totalRevenue > 0 ? `₹${(totalRevenue / 100000).toFixed(2)}L` : "₹0"}
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-0.5">
                       <CheckCircle2 className="w-3 h-3" />
@@ -3059,16 +3215,16 @@ export default function SuperAdminMasterDashboard() {
                           Captured Fees
                         </span>
                         <div className="font-serif text-xl font-bold text-[#89190E] mt-0.5">
-                          â‚¹4,85,000
+                          {totalRevenue > 0 ? `₹${totalRevenue.toLocaleString("en-IN")}` : "₹0"}
                         </div>
-                        <span className="text-[10px] text-gray-500">142 settled orders</span>
+                        <span className="text-[10px] text-gray-500">{transactions.length} settled order{transactions.length === 1 ? "" : "s"}</span>
                       </div>
                       <div className="p-3.5 rounded-xl bg-[#F0F3FF]">
                         <span className="text-[10px] uppercase font-bold text-[#8C716C] block">
                           Avg Order Value
                         </span>
                         <div className="font-serif text-xl font-bold text-[#071B37] mt-0.5">
-                          â‚¹34,154
+                          {transactions.length > 0 ? `₹${Math.round(totalRevenue / transactions.length).toLocaleString("en-IN")}` : "₹0"}
                         </div>
                         <span className="text-[10px] text-gray-500">Across legal batches</span>
                       </div>
@@ -3143,7 +3299,7 @@ export default function SuperAdminMasterDashboard() {
                             Judiciary CrPC Procedural Law Masterclass
                           </h4>
                           <p className="text-[11px] text-gray-500">
-                            Dr. Ekta Gahlawat â€¢ 48 Active Scholars
+                            Dr. Ekta Gahlawat • 48 Active Scholars
                           </p>
                         </div>
                         <Link
@@ -3167,7 +3323,7 @@ export default function SuperAdminMasterDashboard() {
                             CLAT Legal Reasoning & Case Briefing
                           </h4>
                           <p className="text-[11px] text-gray-500">
-                            Mr. Anurag Dwivedi â€¢ Afternoon Cohort
+                            Mr. Anurag Dwivedi • Afternoon Cohort
                           </p>
                         </div>
                         <span className="text-[10px] font-bold text-gray-400">Scheduled</span>
@@ -3255,7 +3411,7 @@ export default function SuperAdminMasterDashboard() {
                     Active Student Accounts ({filteredStudents.length})
                   </h2>
                   <p className="text-xs text-[#58413D] mt-0.5">
-                    Live disk-backed records. Hard-refresh safe â€¢ Deletions and additions sync with student portal.
+                    Live disk-backed records. Hard-refresh safe • Deletions and additions sync with student portal.
                   </p>
                 </div>
 
@@ -3278,19 +3434,19 @@ export default function SuperAdminMasterDashboard() {
                       <tr className="bg-[#F0F3FF] uppercase font-bold text-[10px] text-[#8C716C] tracking-wider border-b border-[#E8EEFF]">
                         <th className="py-3.5 px-4">Student Name</th>
                         <th className="py-3.5 px-4">Mobile Number</th>
-                        <th className="py-3.5 px-4">Portal Password</th>
                         <th className="py-3.5 px-4">Enrolled Stream / Batch</th>
-                        <th className="py-3.5 px-4">Email ID</th>
-                        <th className="py-3.5 px-4">Registration Date</th>
-                        <th className="py-3.5 px-4">Portal Role</th>
+                        <th className="py-3.5 px-4 font-mono">Total Fee</th>
+                        <th className="py-3.5 px-4 font-mono">Paid</th>
+                        <th className="py-3.5 px-4 font-mono">Fee Due</th>
+                        <th className="py-3.5 px-4">Password</th>
                         <th className="py-3.5 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E8EEFF]">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="text-center py-12 text-gray-500">
-                            No registered students found matching your search.
+                          <td colSpan={8} className="text-center py-12 text-gray-500 font-sans">
+                            No registered students found. Click "+ Add New Student" to enroll the first student.
                           </td>
                         </tr>
                       ) : (
@@ -3299,20 +3455,43 @@ export default function SuperAdminMasterDashboard() {
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full bg-[#89190E]/10 text-[#89190E] flex items-center justify-center font-bold text-xs shrink-0">
-                                  {stu.name.slice(0, 2).toUpperCase()}
+                                  {(stu.name || 'ST').slice(0, 2).toUpperCase()}
                                 </div>
-                                <span className="font-bold text-[#071B37]">{stu.name}</span>
+                                <div>
+                                  <span className="font-bold text-[#071B37] block">{stu.name}</span>
+                                  <span className="text-[10px] text-gray-500 font-mono">{stu.email || '—'}</span>
+                                </div>
                               </div>
                             </td>
                             <td className="py-3.5 px-4 font-mono font-semibold text-[#10233F]">
                               +91 {stu.phone.slice(0, 5)} {stu.phone.slice(5)}
+                            </td>
+                            <td className="py-3.5 px-4 text-[#58413D] font-medium max-w-xs truncate">
+                              {stu.stream}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-[#10233F]">
+                              ₹{(stu.totalFee || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
+                              ₹{(stu.paidFee || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              {stu.dueFee && stu.dueFee > 0 ? (
+                                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                  ₹{stu.dueFee.toLocaleString('en-IN')} Due
+                                </span>
+                              ) : (
+                                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  Cleared ✓
+                                </span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 font-mono">
                               <div className="flex items-center gap-1.5">
                                 <span className="bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
                                   {showStudentPasswords[stu.phone]
                                     ? (stu.password || 'Student@MSI2026')
-                                    : 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'}
+                                    : '••••••••'}
                                 </span>
                                 <button
                                   type="button"
@@ -3339,30 +3518,19 @@ export default function SuperAdminMasterDashboard() {
                                 </button>
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-[#58413D] font-medium">
-                              {stu.stream}
-                            </td>
-                            <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                              {stu.email || 'â€”'}
-                            </td>
-                            <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                              {stu.registeredAt
-                                ? new Date(stu.registeredAt).toLocaleDateString('en-IN')
-                                : 'Active'}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  stu.role === 'reception'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-emerald-100 text-emerald-800'
-                                }`}
-                              >
-                                {stu.role === 'reception' ? 'Reception Desk' : 'Verified Student'}
-                              </span>
-                            </td>
                             <td className="py-3.5 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStudentForCollectFee(stu);
+                                    setCollectFeeAmount(String(stu.dueFee && stu.dueFee > 0 ? stu.dueFee : (stu.totalFee || 5000)));
+                                  }}
+                                  className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-700 transition-colors cursor-pointer"
+                                  title="Record / Collect Fee Payment & Generate Receipt"
+                                >
+                                  <Receipt className="w-3.5 h-3.5" />
+                                </button>
                                 <button
                                   onClick={() => {
                                     setSelectedStudentForCourseAssign(stu);
@@ -3383,7 +3551,7 @@ export default function SuperAdminMasterDashboard() {
                                 <button
                                   onClick={() => handleOpenEditStudent(stu)}
                                   className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 transition-colors cursor-pointer"
-                                  title="Edit Student Profile & Stream"
+                                  title="Edit Student Profile, Stream & Fee Structure"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
@@ -3715,7 +3883,7 @@ export default function SuperAdminMasterDashboard() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
-                            {rec.email || 'â€”'}
+                            {rec.email || '—'}
                           </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
@@ -3941,7 +4109,7 @@ export default function SuperAdminMasterDashboard() {
                           {crs.category}
                         </span>
                         <span className="font-bold text-xs text-[#071B37]">
-                          â‚¹{crs.price.toLocaleString('en-IN')}
+                          ₹{crs.price.toLocaleString('en-IN')}
                         </span>
                       </div>
                       <h3 className="font-serif font-bold text-base text-[#071B37] mb-1">
@@ -3955,7 +4123,7 @@ export default function SuperAdminMasterDashboard() {
                           <strong>Assigned Faculty:</strong> <span className="text-[#89190E] font-bold">{crs.instructorName}</span>
                         </div>
                         <div>
-                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules â€¢ {crs.totalDuration} â€¢ {crs.totalLectures || 0} Lectures
+                          <strong>Curriculum:</strong> {crs.sections?.length || 0} Modules • {crs.totalDuration} • {crs.totalLectures || 0} Lectures
                         </div>
                         <div>
                           <strong>Rating:</strong> â­ {crs.rating} ({crs.reviewCount} reviews)
@@ -3971,7 +4139,7 @@ export default function SuperAdminMasterDashboard() {
                               {crs.sections[0].lectures.slice(0, 3).map((lec) => (
                                 <div key={lec.id} className="flex items-center justify-between text-[10px] text-gray-600 truncate">
                                   <span className="truncate pr-1">
-                                    â€¢ {lec.title}
+                                    • {lec.title}
                                   </span>
                                   <span className="font-mono text-[9px] text-gray-400 shrink-0">{lec.duration}</span>
                                 </div>
@@ -4226,7 +4394,7 @@ export default function SuperAdminMasterDashboard() {
                       Razorpay Node.js SDK
                     </span>
                     <span className="text-[10px] text-gray-500 font-mono">
-                      v2.9.6 â€¢ Order & Verify API
+                      v2.9.6 • Order & Verify API
                     </span>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -4474,7 +4642,7 @@ export default function SuperAdminMasterDashboard() {
                     Total Captured Revenue
                   </span>
                   <div className="font-serif font-bold text-2xl text-[#071B37] mt-1">
-                    â‚¹
+                    ₹
                     {(
                       transactions.reduce((acc, t) => acc + (t.amount || 0), 0) || 4999
                     ).toLocaleString('en-IN')}
@@ -4553,60 +4721,9 @@ export default function SuperAdminMasterDashboard() {
                     </thead>
                     <tbody className="divide-y divide-[#E8EEFF]">
                       {transactions.length === 0 ? (
-                        <tr className="hover:bg-[#F0F3FF]/50 transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
-                            #TXN-88491
-                            <span className="block text-[9px] font-mono text-gray-400">
-                              pay_test_msi9921
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-[#071B37]">
-                            Harshit
-                            <span className="block text-[10px] text-gray-400 font-mono">
-                              +91 97923 03434
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-[#58413D] font-medium max-w-xs truncate">
-                            Legal Reasoning for CLAT
-                          </td>
-                          <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
-                            â‚¹4,999
-                          </td>
-                          <td className="py-3.5 px-4 text-[#58413D]">
-                            Razorpay UPI (Test Gateway)
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                              HMAC Verified âœ“
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
-                            Today, 02:45 PM
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedTxnForReceipt({
-                                  id: '#TXN-88491',
-                                  studentName: 'Harshit',
-                                  studentPhone: '+91 97923 03434',
-                                  courseId: 'clat-legal-reasoning',
-                                  courseTitle: 'Legal Reasoning for CLAT',
-                                  amount: 4999,
-                                  paymentMethod: 'Razorpay UPI (Test Gateway)',
-                                  status: 'captured',
-                                  razorpayOrderId: 'order_msi_clat_88491',
-                                  razorpayPaymentId: 'pay_test_msi9921',
-                                  razorpaySignature: 'sig_verified_sha256_demo',
-                                  timestamp: 'Today, 02:45 PM',
-                                } as any)
-                              }
-                              className="px-2.5 py-1 rounded-lg border border-[#D5E1ED] text-[11px] font-bold text-[#071B37] hover:bg-gray-100 cursor-pointer"
-                            >
-                              Receipt
-                            </button>
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-xs text-gray-400 font-sans">
+                            No payment transactions recorded yet. Real transactions will automatically appear here when student fees are settled via Razorpay or direct fee collection.
                           </td>
                         </tr>
                       ) : (
@@ -4630,7 +4747,7 @@ export default function SuperAdminMasterDashboard() {
                               {txn.courseTitle}
                             </td>
                             <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
-                              â‚¹{txn.amount?.toLocaleString('en-IN') || '4,999'}
+                              ₹{txn.amount?.toLocaleString('en-IN') || '4,999'}
                             </td>
                             <td className="py-3.5 px-4 text-[#58413D]">
                               {txn.paymentMethod || 'Razorpay Gateway'}
@@ -4638,7 +4755,7 @@ export default function SuperAdminMasterDashboard() {
                             <td className="py-3.5 px-4">
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                                HMAC Verified âœ“
+                                HMAC Verified ✓
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
@@ -4661,11 +4778,133 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
-              {/* Official GST Tax Invoice & Fee Receipt Modal */}
+                    {/* ── MODAL: COLLECT / RECORD FEE PAYMENT ── */}
+      {studentForCollectFee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative">
+            <button
+              onClick={() => setStudentForCollectFee(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                  Accounts & Fee Reconciliation
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#10233F]">
+                  Record Fee Payment
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Record official fee collection & generate authentic receipt.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#F0F3FF] text-xs space-y-1.5 mb-4">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Student:</span>
+                <strong className="text-[#10233F]">{studentForCollectFee.name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Mobile:</span>
+                <span className="font-mono text-[#10233F]">+91 {studentForCollectFee.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Course / Stream:</span>
+                <span className="font-semibold text-indigo-900">{studentForCollectFee.stream}</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-200 pt-1.5 mt-1.5">
+                <span className="text-gray-500">Current Balance Due:</span>
+                <span className="font-mono font-bold text-[#89190E]">
+                  ₹{(studentForCollectFee.dueFee ?? Math.max(0, (studentForCollectFee.totalFee || 0) - (studentForCollectFee.paidFee || 0))).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleRecordFeePayment} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Amount to Collect (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={collectFeeAmount}
+                  onChange={(e) => setCollectFeeAmount(e.target.value)}
+                  placeholder="e.g. 25000"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Payment Mode *
+                </label>
+                <select
+                  value={collectFeePaymentMethod}
+                  onChange={(e) => setCollectFeePaymentMethod(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                >
+                  <option value="UPI">UPI (Google Pay / PhonePe / Paytm)</option>
+                  <option value="Cash Counter">Cash Counter / Campus Desk</option>
+                  <option value="Bank Transfer (NEFT/RTGS)">Bank Transfer (NEFT / RTGS)</option>
+                  <option value="Cheque / DD">Demand Draft / Cheque</option>
+                  <option value="Card (POS Machine)">Debit / Credit Card (POS Machine)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Fee Category / Remarks
+                </label>
+                <input
+                  type="text"
+                  value={collectFeeRemarks}
+                  onChange={(e) => setCollectFeeRemarks(e.target.value)}
+                  placeholder="e.g. First Installment Tuition Clearance"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStudentForCollectFee(null)}
+                  disabled={isSubmittingCollectFee}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCollectFee || !collectFeeAmount}
+                  className="flex-1 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#65130D] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingCollectFee ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Record & View Receipt</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Official GST Tax Invoice & Fee Receipt Modal */}
               {selectedTxnForReceipt && (
                 <FeeReceiptModal
                   transaction={selectedTxnForReceipt}
-                  allowEdit={true}
+                  allowEdit={false}
                   onClose={() => setSelectedTxnForReceipt(null)}
                 />
               )}
@@ -4761,7 +5000,7 @@ export default function SuperAdminMasterDashboard() {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                  Password
+                  Portal Login Password
                 </label>
                 <input
                   type="text"
@@ -4769,6 +5008,48 @@ export default function SuperAdminMasterDashboard() {
                   onChange={(e) => setNewStudentPassword(e.target.value)}
                   placeholder="Student@MSI2026"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Total Course Fee (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newStudentTotalFee}
+                    onChange={(e) => setNewStudentTotalFee(e.target.value)}
+                    placeholder="e.g. 50000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Initial Paid Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newStudentPaidFee}
+                    onChange={(e) => setNewStudentPaidFee(e.target.value)}
+                    placeholder="e.g. 20000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-emerald-700 focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Next Due Date (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={newStudentNextDueDate}
+                  onChange={(e) => setNewStudentNextDueDate(e.target.value)}
+                  placeholder="e.g. 15 Dec 2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
               </div>
 
@@ -4839,7 +5120,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="flex justify-between py-1 border-b border-gray-200">
                 <span className="text-gray-500">Official Email:</span>
                 <span className="font-mono text-[#10233F]">
-                  {selectedStudentForView.email || 'â€”'}
+                  {selectedStudentForView.email || '—'}
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-200">
@@ -4951,7 +5232,7 @@ export default function SuperAdminMasterDashboard() {
                   <option value="">-- Choose a course program --</option>
                   {courses.map((crs) => (
                     <option key={crs.id} value={crs.id}>
-                      {crs.title} ({crs.category} â€¢ {crs.instructorName})
+                      {crs.title} ({crs.category} • {crs.instructorName})
                     </option>
                   ))}
                 </select>
@@ -5597,7 +5878,7 @@ export default function SuperAdminMasterDashboard() {
                   How Ankit can configure Meta Lead Ads:
                 </span>
                 <ol className="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
-                  <li>Go to <strong>Meta for Developers / Facebook Business Manager</strong> â†’ Webhooks.</li>
+                  <li>Go to <strong>Meta for Developers / Facebook Business Manager</strong> → Webhooks.</li>
                   <li>Subscribe to the <strong>Page</strong> object and check the <code>leadgen</code> topic.</li>
                   <li>Enter the Callback URL and Verify Token above. Verification is handled automatically.</li>
                   <li>Whenever an ad form is submitted on Instagram or Facebook, the lead is instantly parsed and routed to your telecallers!</li>
@@ -5731,7 +6012,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-[11px] font-bold text-emerald-700 block">
-                      âœ“ Image Ready to Publish
+                      ✓ Image Ready to Publish
                     </span>
                     <p className="text-[10px] text-gray-500 truncate font-mono">
                       {newGalleryImage.slice(0, 45)}...
@@ -6542,7 +6823,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Enrolment Fee (â‚¹) *
+                    Enrolment Fee (₹) *
                   </label>
                   <input
                     type="number"
@@ -6555,7 +6836,7 @@ export default function SuperAdminMasterDashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Original Fee (â‚¹)
+                    Original Fee (₹)
                   </label>
                   <input
                     type="number"
@@ -6608,7 +6889,7 @@ export default function SuperAdminMasterDashboard() {
                   </div>
                   {newCourseThumbnail && (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      âœ“ Thumbnail Selected
+                      ✓ Thumbnail Selected
                     </span>
                   )}
                 </div>
@@ -7001,7 +7282,7 @@ export default function SuperAdminMasterDashboard() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Offer Price (â‚¹)
+                    Offer Price (₹)
                   </label>
                   <input
                     type="number"
@@ -7012,7 +7293,7 @@ export default function SuperAdminMasterDashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
-                    Original Price (â‚¹)
+                    Original Price (₹)
                   </label>
                   <input
                     type="number"
@@ -7325,6 +7606,70 @@ export default function SuperAdminMasterDashboard() {
                   value={editStudentPassword}
                   onChange={(e) => setEditStudentPassword(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Total Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editStudentTotalFee}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditStudentTotalFee(val);
+                      const t = Number(val) || 0;
+                      const p = Number(editStudentPaidFee) || 0;
+                      setEditStudentDueFee(String(Math.max(0, t - p)));
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Paid (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editStudentPaidFee}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditStudentPaidFee(val);
+                      const t = Number(editStudentTotalFee) || 0;
+                      const p = Number(val) || 0;
+                      setEditStudentDueFee(String(Math.max(0, t - p)));
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-emerald-700 focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Balance Due (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editStudentDueFee}
+                    onChange={(e) => setEditStudentDueFee(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Next Due Date
+                </label>
+                <input
+                  type="text"
+                  value={editStudentNextDueDate}
+                  onChange={(e) => setEditStudentNextDueDate(e.target.value)}
+                  placeholder="e.g. 15 Dec 2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
                 />
               </div>
 

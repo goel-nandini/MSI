@@ -83,15 +83,15 @@ async function connectClient(uri: string): Promise<MongoClient> {
     return await c.connect();
   } catch (err: any) {
     // If SRV lookup failed (e.g. querySrv ECONNREFUSED), automatically fallback to the direct replica set nodes URI
-    if (
-      uri.includes('+srv') &&
-      (err?.code === 'ECONNREFUSED' ||
-        err?.syscall === 'querySrv' ||
-        err?.message?.includes('querySrv'))
-    ) {
-      console.warn('[MongoDB] SRV lookup refused, connecting via direct replica set nodes URI...');
-      const fallbackClient = new MongoClient(DIRECT_REPLICA_SET_URI, options);
-      return await fallbackClient.connect();
+    if (uri !== DIRECT_REPLICA_SET_URI) {
+      console.warn('[MongoDB] Primary connection failed, connecting via direct replica set URI...', err?.message || err);
+      try {
+        const fallbackClient = new MongoClient(DIRECT_REPLICA_SET_URI, options);
+        return await fallbackClient.connect();
+      } catch (fallbackErr: any) {
+        console.error('[MongoDB] Direct fallback error:', fallbackErr?.message || fallbackErr);
+        throw fallbackErr;
+      }
     }
     throw err;
   }

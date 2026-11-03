@@ -223,15 +223,48 @@ export default function StudentDashboardPage() {
               : prev.rollNo,
           }));
         }
-        // 4. Restore custom fee ledger if student previously paid dues online
+        // 4. Fetch live student account & fee ledger from database
         if (cleanPhone) {
           try {
-            const cachedTxns = localStorage.getItem(`msi_fee_transactions_${cleanPhone}`);
-            if (cachedTxns) setFeeTransactions(JSON.parse(cachedTxns));
-            const cachedBreakdown = localStorage.getItem(`msi_fee_breakdown_${cleanPhone}`);
-            if (cachedBreakdown) setFeeBreakdown(JSON.parse(cachedBreakdown));
+            const res = await fetch('/api/admin/students', { cache: 'no-store' });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.students)) {
+              const liveStu = data.students.find((s: any) => s.phone === cleanPhone);
+              if (liveStu) {
+                setStudent((prev) => ({
+                  ...prev,
+                  name: liveStu.name,
+                  email: liveStu.email || prev.email,
+                  courseTitle: liveStu.stream || prev.courseTitle,
+                  totalFee: liveStu.totalFee ?? 0,
+                  paidFee: liveStu.paidFee ?? 0,
+                  dueFee: liveStu.dueFee ?? 0,
+                  nextDueDate: liveStu.nextDueDate || '',
+                } as any));
+              }
+            }
+
+            // Also load student transactions from server
+            const txnRes = await fetch('/api/admin/transactions', { cache: 'no-store' });
+            const txnData = await txnRes.json();
+            if (txnData.success && Array.isArray(txnData.transactions)) {
+              const myTxns = txnData.transactions
+                .filter((t: any) => (t.studentPhone || '').replace(/\D/g, '').slice(-10) === cleanPhone)
+                .map((t: any) => ({
+                  id: t.id,
+                  receiptNo: t.receiptNumber || t.id,
+                  date: t.timestamp || 'Today',
+                  amount: Number(t.amount) || 0,
+                  mode: t.paymentMethod?.includes('UPI') ? 'UPI' : 'Net Banking',
+                  status: 'Successful',
+                  remarks: `${t.courseTitle || 'Course Fee'} Settlement`,
+                }));
+              if (myTxns.length > 0) {
+                setFeeTransactions(myTxns);
+              }
+            }
           } catch (e) {
-            console.warn('Could not read cached fee ledger:', e);
+            console.warn('Could not fetch server fee records:', e);
           }
         }
       } catch (err) {

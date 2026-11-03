@@ -13,6 +13,10 @@ export interface RegisteredStudentUser {
   lastLoginAt?: string;
   role?: string;
   profile?: Record<string, any>; // Permanently persisted profile details
+  totalFee?: number;
+  paidFee?: number;
+  dueFee?: number;
+  nextDueDate?: string;
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -20,18 +24,7 @@ const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 const DELETED_STUDENTS_FILE = path.join(DATA_DIR, 'deleted_students.json');
 
 // Default seeded staff accounts: Harshit (Reception Desk)
-const SEED_STUDENTS: RegisteredStudentUser[] = [
-  {
-    id: 'staff-harshit',
-    phone: '9792303434',
-    name: 'Harshit',
-    stream: 'Reception Desk & Visitor Management',
-    password: 'Harshit@reception',
-    email: 'harshit.reception@msi-institutes.edu.in',
-    registeredAt: '2026-01-01T00:00:00.000Z',
-    role: 'reception',
-  },
-];
+const SEED_STUDENTS: RegisteredStudentUser[] = [];
 
 export interface DeletedStudentRecord {
   id?: string;
@@ -367,7 +360,8 @@ export function buildDefaultStudentProfile(
   phone: string,
   name?: string,
   stream?: string,
-  email?: string
+  email?: string,
+  feeData?: { totalFee?: number; paidFee?: number; dueFee?: number; nextDueDate?: string }
 ): Record<string, any> {
   const cleanPhone = phone.replace(/\D/g, '').slice(-10);
   const currentYear = new Date().getFullYear();
@@ -379,8 +373,17 @@ export function buildDefaultStudentProfile(
     email?.trim() ||
     (cleanPhone ? `student.${last4}@msi-institutes.edu.in` : 'student@msi-institutes.edu.in');
 
+  const totalFeeVal = feeData?.totalFee ?? 0;
+  const paidFeeVal = feeData?.paidFee ?? 0;
+  const dueFeeVal = feeData?.dueFee ?? Math.max(0, totalFeeVal - paidFeeVal);
+  const nextDueDateVal = feeData?.nextDueDate || '';
+
   return {
     id: `msi-stu-${last4}`,
+    totalFee: totalFeeVal,
+    paidFee: paidFeeVal,
+    dueFee: dueFeeVal,
+    nextDueDate: nextDueDateVal,
     name: resolvedName,
     email: resolvedEmail,
     phone: cleanPhone ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : '+91 98765 00000',
@@ -774,24 +777,42 @@ export async function getStudentsAsync(): Promise<RegisteredStudentUser[]> {
     const db = await getDb();
     if (db) {
       const col = db.collection<RegisteredStudentUser>('students');
-      const count = await col.countDocuments();
+      const deletedCol = db.collection('deleted_students');
 
-      if (count === 0) {
-        const disk = readStudentsFromDisk();
-        if (disk.length > 0) {
-          try {
-            await col.insertMany(disk as any);
-          } catch (_) {}
+      const [raw, mongoDeleted] = await Promise.all([
+        col.find({}).sort({ registeredAt: -1 }).toArray(),
+        deletedCol.find({}).toArray().catch(() => []),
+      ]);
+
+      const diskDeleted = readDeletedStudentsFromDisk();
+      const isDeletedDoc = (s: any) => {
+        const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+        const sId = (s.id || '').toLowerCase().trim();
+        const sEmail = (s.email || '').toLowerCase().trim();
+
+        if (isStudentDeleted(sPhone) || (sId && isStudentDeleted(sId)) || (sEmail && isStudentDeleted(sEmail))) {
+          return true;
         }
-      }
 
-      const raw = await col.find({}).sort({ registeredAt: -1 }).toArray();
-      if (raw && raw.length > 0) {
-        return raw.map((s: any) => {
+        return (mongoDeleted || []).some((d: any) => {
+          const dPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+          const dId = (d.id || '').toLowerCase().trim();
+          const dEmail = (d.email || '').toLowerCase().trim();
+          if (sPhone.length >= 10 && dPhone.length >= 10 && sPhone === dPhone) return true;
+          if (sId && dId && sId === dId) return true;
+          if (sEmail && dEmail && sEmail === dEmail) return true;
+          return false;
+        });
+      };
+
+      const validStudents = (raw || [])
+        .filter((s: any) => !isDeletedDoc(s))
+        .map((s: any) => {
           const { _id, ...rest } = s;
           return rest as RegisteredStudentUser;
         });
-      }
+
+      return validStudents;
     }
   } catch (err) {
     console.warn('[StudentStore] MongoDB read error, falling back to disk:', err);
@@ -889,11 +910,17 @@ export async function deleteStudentAsync(phoneOrId: string, additionalId?: strin
   const orConditions: any[] = [];
   if (cleanPhone.length >= 10) {
     orConditions.push({ phone: cleanPhone });
+    orConditions.push({ phone: `+91 ${cleanPhone}` });
     orConditions.push({ 'profile.phone': { $regex: cleanPhone } });
+    orConditions.push({ id: `msi-stu-${cleanPhone}` });
+    orConditions.push({ id: `msi-stu-${cleanPhone.slice(-4)}` });
   }
   if (addPhone.length >= 10) {
     orConditions.push({ phone: addPhone });
+    orConditions.push({ phone: `+91 ${addPhone}` });
     orConditions.push({ 'profile.phone': { $regex: addPhone } });
+    orConditions.push({ id: `msi-stu-${addPhone}` });
+    orConditions.push({ id: `msi-stu-${addPhone.slice(-4)}` });
   }
   if (cleanId) {
     orConditions.push({ id: cleanId });
@@ -915,24 +942,19 @@ export async function deleteStudentAsync(phoneOrId: string, additionalId?: strin
       const deletedCol = db.collection('deleted_students');
       const enrollmentsCol = db.collection('enrollments');
 
-      // 1. Mark in deleted_students registry
-      const resolvedPhone = cleanPhone.length >= 10 ? cleanPhone : (addPhone.length >= 10 ? addPhone : undefined);
-      const resolvedId = cleanId || addId || phoneOrId;
-
-      await deletedCol.updateOne(
-        { $or: orConditions },
-        {
-          $set: {
-            phone: resolvedPhone,
-            id: resolvedId,
-            deletedAt: new Date().toISOString(),
-          },
-        },
-        { upsert: true }
-      );
-
-      // 2. Permanently delete from students collection
+      // 1. Permanently delete from students collection in Mongo
       await col.deleteMany({ $or: orConditions });
+
+      // 2. Mark in deleted_students registry in Mongo
+      const resolvedPhone = cleanPhone.length >= 10 ? cleanPhone : (addPhone.length >= 10 ? addPhone : undefined);
+      const resolvedId = addId || cleanId || phoneOrId;
+
+      await deletedCol.deleteMany({ $or: orConditions });
+      await deletedCol.insertOne({
+        phone: resolvedPhone,
+        id: resolvedId,
+        deletedAt: new Date().toISOString(),
+      });
 
       // 3. Cascade delete enrollments
       const enrollConditions: any[] = [];
@@ -944,7 +966,7 @@ export async function deleteStudentAsync(phoneOrId: string, additionalId?: strin
         await enrollmentsCol.deleteMany({ $or: enrollConditions });
       }
 
-      // Also update local disk
+      // 4. Also update local disk
       try {
         deleteStudentFromDisk(phoneOrId, additionalId);
       } catch (_) {}

@@ -44,5 +44,12 @@
     "phone": "+91 98144 23003",
     "name": "Ms. Riya Hooda",
     "deletedAt": "2026-10-25T11:52:03.477Z"
+  },
+  {
+    "id": "fac-law-vikram",
+    "email": "dr.vikramaditya@msi-institutes.edu.in",
+    "phone": "+91 98112 34567",
+    "name": "Dr. Vikramaditya Sharma",
+    "deletedAt": "2026-11-03T14:17:35.109Z"
   }
 ]

@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { ensureStudentExists } from '@/lib/studentUserStore';
 import { verifyRazorpaySignature, getRazorpayCredentials } from '@/lib/razorpay';
+import { getDb, isMongoConfigured } from '@/lib/mongodb';
+import { getStudentsAsync, addStudentAsync } from '@/lib/studentUserStore';
 
 const TRANSACTIONS_FILE = path.join(process.cwd(), 'data', 'transactions.json');
 
@@ -100,6 +102,46 @@ export async function POST(req: Request) {
 
     const updated = [newTransaction, ...currentTransactions];
     fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+
+    // Sync transaction to MongoDB Atlas
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          const { _id, ...cleanTxn }: any = newTransaction;
+          await db.collection('transactions').insertOne(cleanTxn);
+        }
+      } catch (err) {
+        console.warn('[Razorpay Verify] MongoDB insert error:', err);
+      }
+    }
+
+    // Update Student Fee Balance in database
+    if (studentPhone) {
+      try {
+        const cleanPhone = studentPhone.replace(/\D/g, '').slice(-10);
+        const students = await getStudentsAsync();
+        const student = students.find((s) => s.phone === cleanPhone);
+        if (student) {
+          const currentTotal = student.totalFee || Number(amount) || 0;
+          const currentPaid = (student.paidFee || 0) + (Number(amount) || 0);
+          const currentDue = Math.max(0, currentTotal - currentPaid);
+          const updatedStu = {
+            ...student,
+            paidFee: currentPaid,
+            dueFee: currentDue,
+            profile: {
+              ...(student.profile || {}),
+              paidFee: currentPaid,
+              dueFee: currentDue,
+            },
+          };
+          await addStudentAsync(updatedStu);
+        }
+      } catch (err) {
+        console.warn('[Razorpay Verify] Could not update student fee ledger:', err);
+      }
+    }
 
     // Auto-record student in permanent students database
     if (studentPhone) {

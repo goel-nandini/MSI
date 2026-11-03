@@ -28,7 +28,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, phone, stream, email, password } = body;
+    const { name, phone, stream, email, password, totalFee, paidFee, dueFee, nextDueDate } = body;
 
     const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
     if (cleanPhone.length !== 10) {
@@ -50,11 +50,16 @@ export async function POST(req: NextRequest) {
       email?.trim() || `student.${cleanPhone.slice(-4)}@msi-institutes.edu.in`;
     const resolvedPassword = password?.trim() || 'Student@MSI2026';
 
+    const totalFeeNum = typeof totalFee !== 'undefined' ? Number(totalFee) || 0 : 0;
+    const paidFeeNum = typeof paidFee !== 'undefined' ? Number(paidFee) || 0 : 0;
+    const dueFeeNum = typeof dueFee !== 'undefined' ? Number(dueFee) || 0 : Math.max(0, totalFeeNum - paidFeeNum);
+
     const defaultProfile = buildDefaultStudentProfile(
       cleanPhone,
       name.trim(),
       resolvedStream,
-      resolvedEmail
+      resolvedEmail,
+      { totalFee: totalFeeNum, paidFee: paidFeeNum, dueFee: dueFeeNum, nextDueDate: nextDueDate || '' }
     );
 
     const newStudent: RegisteredStudentUser = {
@@ -66,7 +71,17 @@ export async function POST(req: NextRequest) {
       email: resolvedEmail,
       registeredAt: new Date().toISOString(),
       role: 'student',
-      profile: defaultProfile,
+      totalFee: totalFeeNum,
+      paidFee: paidFeeNum,
+      dueFee: dueFeeNum,
+      nextDueDate: nextDueDate || '',
+      profile: {
+        ...defaultProfile,
+        totalFee: totalFeeNum,
+        paidFee: paidFeeNum,
+        dueFee: dueFeeNum,
+        nextDueDate: nextDueDate || '',
+      },
     };
 
     const updatedStudents = await addStudentAsync(newStudent);
@@ -106,7 +121,10 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    await deleteStudentAsync(phone || '', id || '');
+    const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+    const cleanId = (id || '').trim();
+
+    await deleteStudentAsync(cleanPhone || cleanId, cleanId || cleanPhone);
 
     const updatedStudents = await getStudentsAsync();
 
@@ -126,18 +144,23 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, updates } = body;
+    const { phone, id, updates } = body;
 
     const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
-    if (!cleanPhone) {
+    const targetId = (id || '').trim();
+
+    if (!cleanPhone && !targetId) {
       return NextResponse.json(
-        { success: false, message: 'Valid phone is required for update.' },
+        { success: false, message: 'Valid phone or ID is required for update.' },
         { status: 400 }
       );
     }
 
     const students = await getStudentsAsync();
-    const student = students.find((s) => s.phone === cleanPhone);
+    const student = students.find((s) => {
+      const sPhone = (s.phone || '').replace(/\D/g, '').slice(-10);
+      return (cleanPhone && sPhone === cleanPhone) || (targetId && s.id === targetId);
+    });
 
     if (!student) {
       return NextResponse.json(
@@ -146,10 +169,30 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const resolvedTotalFee = typeof updates.totalFee !== 'undefined' ? (Number(updates.totalFee) || 0) : (student.totalFee ?? 0);
+    const resolvedPaidFee = typeof updates.paidFee !== 'undefined' ? (Number(updates.paidFee) || 0) : (student.paidFee ?? 0);
+    const resolvedDueFee = typeof updates.dueFee !== 'undefined' ? (Number(updates.dueFee) || 0) : Math.max(0, resolvedTotalFee - resolvedPaidFee);
+    const resolvedNextDueDate = updates.nextDueDate !== undefined ? updates.nextDueDate : (student.nextDueDate || '');
+
     const updatedStudent: RegisteredStudentUser = {
       ...student,
       ...updates,
-      profile: student.profile && updates.profile ? { ...student.profile, ...updates.profile } : (student.profile || updates.profile),
+      totalFee: resolvedTotalFee,
+      paidFee: resolvedPaidFee,
+      dueFee: resolvedDueFee,
+      nextDueDate: resolvedNextDueDate,
+      profile: {
+        ...(student.profile || {}),
+        ...(updates.profile || {}),
+        name: updates.name ? updates.name.trim() : student.name,
+        email: updates.email ? updates.email.trim() : student.email,
+        courseTitle: updates.stream ? updates.stream.trim() : (student.stream || student.profile?.courseTitle),
+        batch: updates.stream ? updates.stream.trim() : (student.profile?.batch || student.stream),
+        totalFee: resolvedTotalFee,
+        paidFee: resolvedPaidFee,
+        dueFee: resolvedDueFee,
+        nextDueDate: resolvedNextDueDate,
+      },
     };
 
     const updatedStudents = await addStudentAsync(updatedStudent);

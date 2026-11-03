@@ -129,6 +129,18 @@ export async function POST(req: NextRequest) {
     const updated = [newTxn, ...txns];
     writeTransactionsToDisk(updated);
 
+    if (isMongoConfigured()) {
+      try {
+        const db = await getDb();
+        if (db) {
+          const { _id, ...cleanTxn }: any = newTxn;
+          await db.collection('transactions').insertOne(cleanTxn);
+        }
+      } catch (err) {
+        console.warn('[Transactions API] MongoDB insert error:', err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Razorpay test payment captured and reconciled in ledger.',

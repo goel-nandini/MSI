@@ -246,7 +246,7 @@ export default function FeeReceiptModal({
   const [invoice, setInvoice] = useState<GSTInvoiceData>(calculateDefaults());
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
-  const canEdit = Boolean(allowEdit && isEditMode);
+  const canEdit = false;
 
   useEffect(() => {
     setInvoice(calculateDefaults());
@@ -684,52 +684,11 @@ export default function FeeReceiptModal({
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
             <span className="text-xs font-mono text-[#EFC988] font-bold uppercase tracking-wider">
-              {allowEdit
-                ? 'MSI Official GST Tax Invoice • Accounts & Administration Portal'
-                : 'Official Institutional E-Receipt • Verified Authenticity'}
+              Official Institutional E-Receipt • Verified Authenticity
             </span>
           </div>
 
           <div className="flex items-center space-x-2">
-            {allowEdit && (
-              <button
-                type="button"
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer border ${
-                  isEditMode
-                    ? 'bg-amber-400 text-gray-900 border-amber-300 font-bold shadow-md'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                }`}
-                title="Toggle editable fields (Super Admin / Accounts Auditor only)"
-              >
-                {isEditMode ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5 text-[#EFC988]" />}
-                <span>{isEditMode ? 'Done Editing' : 'Edit Values'}</span>
-              </button>
-            )}
-
-            {allowEdit && isEditMode && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleAutoCalculateFromNet()}
-                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
-                  title="Auto recalculate 18% GST (SGST 9% + CGST 9%) & in-words from Net Amount"
-                >
-                  <Calculator className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Auto Calc GST</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInvoice(calculateDefaults())}
-                  className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
-                  title="Reset all values to original"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-gray-300" />
-                  <span className="hidden sm:inline">Reset</span>
-                </button>
-              </>
-            )}
-
             <button
               type="button"
               onClick={handlePrintSingleSheet}
@@ -749,22 +708,6 @@ export default function FeeReceiptModal({
             </button>
           </div>
         </div>
-
-        {/* Edit Mode Notice Banner */}
-        {canEdit && (
-          <div className="print:hidden bg-amber-50 border-b border-amber-200 px-4 py-1.5 text-xs text-amber-900 flex items-center justify-between">
-            <span>
-              ✍️ <strong>Edit Mode Active:</strong> You can edit any value, student name, address, dates, amounts, or terms. Click <strong>&quot;Auto Calc GST&quot;</strong> anytime to recompute tax breakdown.
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsEditMode(false)}
-              className="text-xs text-amber-800 underline font-semibold ml-2 cursor-pointer"
-            >
-              Preview Clean Print
-            </button>
-          </div>
-        )}
 
         {/* Live Invoice Preview (Exact visual match to sample PDF) */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-100 text-black font-sans flex justify-center">

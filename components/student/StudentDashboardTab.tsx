@@ -779,14 +779,16 @@ export default function StudentDashboardTab({
               <CreditCard className="w-5 h-5" />
             </div>
             <span className="text-xs font-mono font-bold text-emerald-700">
-              ₹85,000 Paid
+              ₹{((student as any).paidFee || 0).toLocaleString('en-IN')} Paid
             </span>
           </div>
           <h3 className="font-serif text-base font-bold text-[#10233F] mt-3">
             Fee Status
           </h3>
           <p className="text-xs text-[#526174] mt-0.5">
-            Due: ₹40,000 (15 Oct)
+            {(student as any).dueFee && (student as any).dueFee > 0
+              ? `Due: ₹${(student as any).dueFee.toLocaleString('en-IN')}${(student as any).nextDueDate ? ` (${(student as any).nextDueDate})` : ''}`
+              : 'All Dues Cleared ✓'}
           </p>
           <div className="mt-3 text-[11px] font-semibold text-[#89190E] flex items-center space-x-1">
             <Clock className="w-3.5 h-3.5" />
@@ -1118,19 +1120,27 @@ export default function StudentDashboardTab({
             <div className="mt-4 space-y-2 text-xs">
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DCCB]">
                 <span className="text-[#526174]">Total Course Fee:</span>
-                <span className="font-mono font-bold text-[#10233F]">₹1,25,000</span>
+                <span className="font-mono font-bold text-[#10233F]">
+                  ₹{((student as any).totalFee || 0).toLocaleString('en-IN')}
+                </span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DCCB]">
                 <span className="text-[#526174]">Total Paid (Receipted):</span>
-                <span className="font-mono font-bold text-emerald-700">₹85,000</span>
+                <span className="font-mono font-bold text-emerald-700">
+                  ₹{((student as any).paidFee || 0).toLocaleString('en-IN')}
+                </span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DCCB]">
                 <span className="text-[#526174]">Pending Balance:</span>
-                <span className="font-mono font-bold text-[#89190E]">₹40,000</span>
+                <span className="font-mono font-bold text-[#89190E]">
+                  ₹{((student as any).dueFee || 0).toLocaleString('en-IN')}
+                </span>
               </div>
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[#526174]">Next Installment Due:</span>
-                <span className="font-bold text-[#10233F]">15 Oct 2025</span>
+                <span className="font-bold text-[#10233F]">
+                  {(student as any).nextDueDate || ((student as any).dueFee ? 'On Demand' : 'None (Cleared ✓)')}
+                </span>
               </div>
             </div>
 

@@ -32,7 +32,7 @@ export interface FeePaymentRequest {
 }
 
 interface StudentFeesTabProps {
-  student: StudentProfile;
+  student: StudentProfile & { totalFee?: number; paidFee?: number; dueFee?: number; nextDueDate?: string };
   breakdown: FeeBreakdownItem[];
   transactions: FeeTransaction[];
   onViewReceipt: (tx: FeeTransaction) => void;
@@ -48,18 +48,23 @@ export default function StudentFeesTab({
 }: StudentFeesTabProps) {
   // Dynamic summary computation based on breakdown and transactions
   const totalFee =
-    breakdown.length > 0
+    typeof student?.totalFee === 'number'
+      ? student.totalFee
+      : breakdown.length > 0
       ? breakdown.reduce((sum, item) => sum + item.amount, 0)
-      : FEE_SUMMARY.totalFee || 70000;
+      : 0;
 
   const paidFee =
-    transactions.length > 0
-      ? transactions.reduce((sum, tx) => (tx.status === 'Successful' ? sum + tx.amount : sum), 0)
-      : breakdown.filter((b) => b.status === 'Paid').reduce((sum, b) => sum + b.amount, 0) ||
-        FEE_SUMMARY.paidFee ||
-        40000;
+    typeof student?.paidFee === 'number'
+      ? student.paidFee
+      : transactions.length > 0
+      ? transactions.reduce((sum, tx) => (tx.status === 'Successful' || (tx.status as string) === 'captured' ? sum + tx.amount : sum), 0)
+      : breakdown.filter((b) => b.status === 'Paid').reduce((sum, b) => sum + b.amount, 0) || 0;
 
-  const pendingFee = Math.max(0, totalFee - paidFee);
+  const pendingFee =
+    typeof student?.dueFee === 'number'
+      ? student.dueFee
+      : Math.max(0, totalFee - paidFee);
   const paidRatio = totalFee > 0 ? Math.min(100, Math.round((paidFee / totalFee) * 100)) : 100;
   const hasFee = totalFee > 0;
 
