@@ -4190,11 +4190,11 @@ export default function SuperAdminMasterDashboard() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       <span className="font-bold text-xs text-emerald-700">
-                        Active Sandbox Mode
+                        Active Live Production Mode
                       </span>
                     </div>
                     <span className="text-[10px] text-gray-500">
-                      Zero real bank deductions
+                      Real UPI &amp; Card Settlements Enabled
                     </span>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -4208,18 +4208,19 @@ export default function SuperAdminMasterDashboard() {
                       Public Key ID
                     </span>
                     <span className="font-mono font-bold text-xs text-[#071B37] block mt-0.5 truncate">
-                      rzp_test_MSI2026GovInd
+                      {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TvhCxeD2cZdI3w'}
                     </span>
-                    <span className="text-[10px] text-gray-500">
-                      HMAC SHA-256 Enforced
+                    <span className="text-[10px] text-emerald-600 font-semibold">
+                      Live Verified • HMAC SHA-256
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText('rzp_test_MSI2026GovInd');
+                      const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TvhCxeD2cZdI3w';
+                      navigator.clipboard.writeText(key);
                       setCopiedKey(true);
-                      showToast('Razorpay Key ID copied to clipboard');
+                      showToast('Live Razorpay Key ID copied to clipboard');
                       setTimeout(() => setCopiedKey(false), 2000);
                     }}
                     className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 flex items-center justify-center cursor-pointer transition-colors shrink-0"

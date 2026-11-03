@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { ensureStudentExists } from '@/lib/studentUserStore';
+import { verifyRazorpaySignature, getRazorpayCredentials } from '@/lib/razorpay';
 
 const TRANSACTIONS_FILE = path.join(process.cwd(), 'data', 'transactions.json');
 
@@ -38,23 +38,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const keySecret =
-      process.env.RAZORPAY_KEY_SECRET || 'msi_secret_razorpay_2026_sandbox';
+    const { isLive } = getRazorpayCredentials();
 
     // 1. Official HMAC SHA-256 Signature Verification
-    const payloadToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const generatedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(payloadToSign)
-      .digest('hex');
-
-    // In production, signature must match exactly.
-    // In sandbox test environment, accept matching generated signature or simulated test signatures.
-    const isVerified =
-      generatedSignature === razorpay_signature ||
-      razorpay_signature?.startsWith('sig_test_') ||
-      razorpay_signature?.startsWith('sig_') ||
-      keySecret === 'msi_secret_razorpay_2026_sandbox';
+    const isVerified = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature || ''
+    );
 
     if (!isVerified) {
       return NextResponse.json(
@@ -104,7 +95,7 @@ export async function POST(req: Request) {
       receiptNumber: invoiceNumber,
       timestamp,
       createdAt: now.toISOString(),
-      isSandbox: keySecret === 'msi_secret_razorpay_2026_sandbox',
+      isSandbox: !isLive,
     };
 
     const updated = [newTransaction, ...currentTransactions];

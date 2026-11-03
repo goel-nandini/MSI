@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import Razorpay from 'razorpay';
+import { getRazorpayClient, getRazorpayCredentials } from '@/lib/razorpay';
 
 export async function POST(req: Request) {
   try {
@@ -21,50 +21,35 @@ export async function POST(req: Request) {
       );
     }
 
-    const keyId =
-      process.env.RAZORPAY_KEY_ID ||
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-      'rzp_test_MSI2026GovInd';
-    const keySecret =
-      process.env.RAZORPAY_KEY_SECRET || 'msi_secret_razorpay_2026_sandbox';
-
+    const { keyId, keySecret, isLive } = getRazorpayCredentials();
     const receiptId = `rcpt_${(courseId || 'msi').slice(-6)}_${Date.now().toString().slice(-6)}`;
     const amountInPaise = Math.round(Number(amount) * 100);
 
     let order = null;
+    let isLiveOrder = false;
 
-    // 1. Attempt official Razorpay SDK Order Creation
+    // 1. Attempt official Razorpay SDK Order Creation with Live / Configured credentials
     try {
-      if (
-        keyId &&
-        keySecret &&
-        !keyId.includes('MSI2026GovInd') &&
-        keySecret !== 'msi_secret_razorpay_2026_sandbox'
-      ) {
-        const razorpay = new Razorpay({
-          key_id: keyId,
-          key_secret: keySecret,
-        });
-
-        order = await razorpay.orders.create({
-          amount: amountInPaise,
-          currency,
-          receipt: receiptId,
-          notes: {
-            institute: 'MSI Group of Institutes',
-            courseId: courseId || 'general',
-            courseTitle: courseTitle || 'MSI Legal Coaching Program',
-            studentName,
-            studentPhone,
-            studentEmail,
-          },
-        });
-      }
+      const razorpay = getRazorpayClient();
+      order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency,
+        receipt: receiptId,
+        notes: {
+          institute: 'MSI Group of Institutes',
+          courseId: courseId || 'general',
+          courseTitle: courseTitle || 'MSI Legal Coaching Program',
+          studentName,
+          studentPhone,
+          studentEmail,
+        },
+      });
+      isLiveOrder = true;
     } catch (sdkError: any) {
-      console.warn('Razorpay SDK Order error, falling back to compliant sandbox order:', sdkError?.message);
+      console.warn('Razorpay SDK Order error, falling back to compliant order structure:', sdkError?.message);
     }
 
-    // 2. If test keys or fallback, generate compliant Razorpay order representation
+    // 2. Fallback representation if offline or test environment
     if (!order) {
       order = {
         id: `order_${Math.random().toString(36).substring(2, 10)}${Date.now().toString().slice(-4)}`,
@@ -94,6 +79,8 @@ export async function POST(req: Request) {
       keyId,
       currency,
       amountInRupees: amount,
+      isLive,
+      isLiveOrder,
     });
   } catch (error: any) {
     console.error('Error generating Razorpay Order:', error);

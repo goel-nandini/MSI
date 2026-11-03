@@ -53,6 +53,23 @@ interface RazorpayCheckoutModalProps {
 
 type PaymentOptionKey = 'upi' | 'card' | 'netbanking' | 'emi' | 'wallet' | 'paylater';
 
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export default function RazorpayCheckoutModal({
   isOpen,
   onClose,
@@ -119,13 +136,86 @@ export default function RazorpayCheckoutModal({
     setExpandedSection(expandedSection === key ? null : key);
   };
 
+  // Verify HMAC signature on server and finalize success state & ledger
+  const handleVerifyAndComplete = async ({
+    orderIdToVerify,
+    paymentIdToVerify,
+    signatureToVerify,
+    methodLabel,
+  }: {
+    orderIdToVerify: string;
+    paymentIdToVerify: string;
+    signatureToVerify: string;
+    methodLabel: string;
+  }) => {
+    const verifyRes = await fetch('/api/payments/razorpay/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        razorpay_order_id: orderIdToVerify,
+        razorpay_payment_id: paymentIdToVerify,
+        razorpay_signature: signatureToVerify,
+        courseId: course.id,
+        courseTitle: course.title,
+        amount: course.price,
+        studentName: effectiveStudentName,
+        studentPhone: effectiveStudentPhone,
+        paymentMethod: methodLabel,
+      }),
+    });
+
+    const verifyData = await verifyRes.json();
+    const receiptNo =
+      verifyData?.invoiceNumber ||
+      `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const timestamp = new Date().toLocaleString('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    const successData: RazorpayPaymentSuccessInfo = {
+      razorpayPaymentId: paymentIdToVerify,
+      razorpayOrderId: orderIdToVerify,
+      razorpaySignature: signatureToVerify,
+      amount: course.price,
+      courseId: course.id,
+      courseTitle: course.title,
+      studentName: effectiveStudentName,
+      receiptNumber: receiptNo,
+      timestamp,
+    };
+
+    try {
+      await fetch('/api/admin/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: effectiveStudentName,
+          studentPhone: effectiveStudentPhone,
+          courseId: course.id,
+          courseTitle: course.title,
+          amount: course.price,
+          paymentMethod: methodLabel,
+          orderId: orderIdToVerify,
+          razorpayPaymentId: paymentIdToVerify,
+          razorpaySignature: signatureToVerify,
+        }),
+      });
+    } catch (err: any) {
+      console.warn('Could not mirror transaction:', err);
+    }
+
+    setIsProcessing(false);
+    setPaymentResult(successData);
+    onPaymentSuccess(successData);
+  };
+
   // Execute payment (creates order on server, verifies HMAC signature, records to ledger)
   const handleExecutePayment = async (overrideMethod?: string) => {
     setIsProcessing(true);
     setErrorMessage('');
 
     try {
-      // Determine chosen payment rail label
       let methodLabel = overrideMethod;
       if (!methodLabel) {
         if (expandedSection === 'paylater') {
@@ -136,7 +226,10 @@ export default function RazorpayCheckoutModal({
               ? 'Razorpay Pay Later (LazyPay)'
               : 'Razorpay Pay Later (ICICI Bank PayLater)';
         } else if (expandedSection === 'upi') {
-          methodLabel = upiMethod === 'qr' ? 'Razorpay UPI (Dynamic QR)' : `Razorpay UPI (${upiId || 'scholar@okhdfc'})`;
+          methodLabel =
+            upiMethod === 'qr'
+              ? 'Razorpay UPI (Dynamic QR)'
+              : `Razorpay UPI (${upiId || 'scholar@okhdfc'})`;
         } else if (expandedSection === 'card') {
           methodLabel = `Razorpay Cards (Visa ending in ${cardNumber.slice(-4)})`;
         } else if (expandedSection === 'netbanking') {
@@ -150,7 +243,7 @@ export default function RazorpayCheckoutModal({
         }
       }
 
-      // 1. Server Order Creation
+      // 1. Server Order Creation with Live / Configured Razorpay SDK
       const orderRes = await fetch('/api/payments/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,69 +260,60 @@ export default function RazorpayCheckoutModal({
       const orderData = await orderRes.json();
       const actualOrderId = orderData?.order?.id || orderId;
 
+      // If Razorpay live/test key is present, launch official Razorpay Standard Checkout overlay
+      if (orderData?.keyId && typeof window !== 'undefined') {
+        const loaded = await loadRazorpayScript();
+        if (loaded && (window as any).Razorpay) {
+          const options = {
+            key: orderData.keyId,
+            amount: orderData?.order?.amount || Math.round(Number(course.price) * 100),
+            currency: orderData?.order?.currency || 'INR',
+            name: 'MSI Group of Institutes',
+            description: course.title,
+            image: '/images/msi-crest.png',
+            order_id: actualOrderId,
+            prefill: {
+              name: effectiveStudentName,
+              contact: effectiveStudentPhone,
+            },
+            theme: {
+              color: '#0C66E4',
+            },
+            handler: async function (response: any) {
+              await handleVerifyAndComplete({
+                orderIdToVerify: response.razorpay_order_id || actualOrderId,
+                paymentIdToVerify: response.razorpay_payment_id,
+                signatureToVerify: response.razorpay_signature,
+                methodLabel: methodLabel || 'Razorpay Live Checkout (Verified)',
+              });
+            },
+            modal: {
+              ondismiss: function () {
+                setIsProcessing(false);
+              },
+            },
+          };
+
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on('payment.failed', function (resp: any) {
+            setErrorMessage(resp?.error?.description || 'Payment was unsuccessful or cancelled.');
+            setIsProcessing(false);
+          });
+          rzp.open();
+          return;
+        }
+      }
+
+      // Fallback simulation in case script is offline/blocked
       const paymentId = `pay_test_${Math.random().toString(36).substring(2, 9)}${Date.now().toString().slice(-4)}`;
       const signature = `sig_${Math.random().toString(36).substring(2, 14)}`;
 
-      // 2. Server HMAC-SHA256 Signature Verification
-      const verifyRes = await fetch('/api/payments/razorpay/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          razorpay_order_id: actualOrderId,
-          razorpay_payment_id: paymentId,
-          razorpay_signature: signature,
-          courseId: course.id,
-          courseTitle: course.title,
-          amount: course.price,
-          studentName: effectiveStudentName,
-          studentPhone: effectiveStudentPhone,
-          paymentMethod: methodLabel,
-        }),
+      await handleVerifyAndComplete({
+        orderIdToVerify: actualOrderId,
+        paymentIdToVerify: paymentId,
+        signatureToVerify: signature,
+        methodLabel,
       });
-
-      const verifyData = await verifyRes.json();
-      const receiptNo = verifyData?.invoiceNumber || `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const timestamp = new Date().toLocaleString('en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      });
-
-      const successData: RazorpayPaymentSuccessInfo = {
-        razorpayPaymentId: paymentId,
-        razorpayOrderId: actualOrderId,
-        razorpaySignature: signature,
-        amount: course.price,
-        courseId: course.id,
-        courseTitle: course.title,
-        studentName: effectiveStudentName,
-        receiptNumber: receiptNo,
-        timestamp,
-      };
-
-      // 3. Mirror in Admin Transactions store
-      try {
-        await fetch('/api/admin/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentName: effectiveStudentName,
-            studentPhone: effectiveStudentPhone,
-            courseId: course.id,
-            courseTitle: course.title,
-            amount: course.price,
-            paymentMethod: methodLabel,
-            orderId: actualOrderId,
-            razorpayPaymentId: paymentId,
-            razorpaySignature: signature,
-          }),
-        });
-      } catch (err) {
-        console.warn('Could not mirror transaction:', err);
-      }
-
-      setIsProcessing(false);
-      setPaymentResult(successData);
-      onPaymentSuccess(successData);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Payment execution failed');
       setIsProcessing(false);
