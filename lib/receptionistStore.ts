@@ -21,7 +21,7 @@ const DELETED_RECEPTIONISTS_FILE = path.join(DATA_DIR, 'deleted_receptionists.js
 const SEED_RECEPTIONISTS: ReceptionistRecord[] = [
   {
     id: 'rec-harshit-01',
-    name: 'Harshit',
+    name: 'Harshit (Senior Desk)',
     phone: '9792303434',
     email: 'harshit.reception@msi-institutes.edu.in',
     password: 'Harshit@reception',
@@ -428,7 +428,13 @@ export async function getReceptionistsAsync(): Promise<ReceptionistRecord[]> {
 /**
  * Cloud-synchronized add/update of receptionist supporting MongoDB Atlas with disk fallback.
  */
-export async function addReceptionistAsync(record: { name: string; phone: string; email?: string; password?: string }) {
+export async function addReceptionistAsync(record: {
+  id?: string;
+  name: string;
+  phone: string;
+  email?: string;
+  password?: string;
+}) {
   const cleanPhone = record.phone.replace(/\D/g, '').slice(-10);
 
   if (isMongoConfigured()) {
@@ -441,14 +447,16 @@ export async function addReceptionistAsync(record: { name: string; phone: string
         // Unmark from deleted
         await deletedCol.deleteMany({
           $or: [
+            ...(record.id ? [{ id: record.id.toLowerCase().trim() }, { identifier: record.id.toLowerCase().trim() }] : []),
             { id: cleanPhone },
             { identifier: cleanPhone },
             ...(record.email ? [{ id: record.email.toLowerCase().trim() }, { identifier: record.email.toLowerCase().trim() }] : []),
           ],
         });
 
+        const recId = record.id || `rec-${cleanPhone.slice(-6)}`;
         const recData: ReceptionistRecord = {
-          id: `rec-${cleanPhone.slice(-6)}`,
+          id: recId,
           name: record.name.trim(),
           phone: cleanPhone,
           email: record.email?.trim() || `${record.name.toLowerCase().replace(/\s+/g, '')}.reception@msi-institutes.edu.in`,
@@ -461,7 +469,12 @@ export async function addReceptionistAsync(record: { name: string; phone: string
 
         const { _id, ...cleanData }: any = recData;
         await col.updateOne(
-          { phone: cleanPhone },
+          {
+            $or: [
+              ...(record.id ? [{ id: record.id }] : []),
+              { phone: cleanPhone },
+            ],
+          },
           { $set: cleanData },
           { upsert: true }
         );

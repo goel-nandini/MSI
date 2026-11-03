@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, phone, email, password } = body;
+    const { id, name, phone, email, password } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await addReceptionistAsync({
+      id: id?.trim(),
       name: name.trim(),
       phone: cleanPhone,
       email: email?.trim(),

@@ -195,6 +195,39 @@ export default function SuperAdminMasterDashboard() {
 
   // 4a. Receptionist Staff Management
   const [receptionists, setReceptionists] = useState<ReceptionistRecord[]>([]);
+  const [receptionistsLoaded, setReceptionistsLoaded] = useState(false);
+
+  const seniorDeskRecord = useMemo(() => {
+    const found = receptionists.find(
+      (r) =>
+        r.id === 'rec-harshit-01' ||
+        (r.phone && r.phone.replace(/\D/g, '').slice(-10) === '9792303434') ||
+        (r.email && r.email.toLowerCase().includes('harshit')) ||
+        (r.name && r.name.toLowerCase().includes('harshit'))
+    );
+    if (found) return found;
+    if (receptionistsLoaded) return null;
+    return {
+      id: 'rec-harshit-01',
+      name: 'Harshit (Senior Desk)',
+      phone: '9792303434',
+      email: 'harshit.reception@msi-institutes.edu.in',
+      password: 'Harshit@reception',
+      status: 'active' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      role: 'reception' as const,
+    };
+  }, [receptionists, receptionistsLoaded]);
+
+  const visibleReceptionists = useMemo(() => {
+    return receptionists.filter(
+      (rec) =>
+        rec.id !== seniorDeskRecord?.id &&
+        rec.phone.replace(/\D/g, '').slice(-10) !== (seniorDeskRecord?.phone || '').replace(/\D/g, '').slice(-10)
+    );
+  }, [receptionists, seniorDeskRecord]);
+
+  const totalReceptionistCount = (seniorDeskRecord ? 1 : 0) + visibleReceptionists.length;
   const [showAddReceptionistModal, setShowAddReceptionistModal] = useState(false);
   const [newReceptionistName, setNewReceptionistName] = useState('');
   const [newReceptionistPhone, setNewReceptionistPhone] = useState('');
@@ -569,6 +602,8 @@ export default function SuperAdminMasterDashboard() {
       }
     } catch (err) {
       console.warn('Could not fetch receptionists from disk:', err);
+    } finally {
+      setReceptionistsLoaded(true);
     }
   }, []);
 
@@ -3540,7 +3575,7 @@ export default function SuperAdminMasterDashboard() {
                       <span>Front Desk Staff Credentials</span>
                     </div>
                     <h3 className="font-serif text-xl font-bold text-[#071B37]">
-                      Receptionist Accounts ({receptionists.length + 1})
+                      Receptionist Accounts ({totalReceptionistCount})
                     </h3>
                     <p className="text-xs text-[#58413D] mt-0.5">
                       Front-desk team members authorized to log in at <code>/login</code> or <code>/reception/login</code> to receive inquiries and call leads.
@@ -3580,55 +3615,72 @@ export default function SuperAdminMasterDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E8EEFF]">
-                      {/* Built-in Senior Receptionist */}
-                      <tr className="hover:bg-[#F0F3FF]/40 transition-colors bg-[#FFFDF9]">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-[#89190E] text-white flex items-center justify-center font-bold text-[11px] shrink-0">
-                              H
+                      {/* Senior Receptionist / Permanent Desk Row */}
+                      {seniorDeskRecord && (
+                        <tr className="hover:bg-[#F0F3FF]/40 transition-colors bg-[#FFFDF9]">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-[#89190E] text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+                                {(seniorDeskRecord.name || 'H').slice(0, 1).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="font-bold text-[#071B37] block">{seniorDeskRecord.name}</span>
+                                <span className="text-[10px] text-gray-500">Fixed System Administrator</span>
+                              </div>
                             </div>
-                            <div>
-                              <span className="font-bold text-[#071B37] block">Harshit (Senior Desk)</span>
-                              <span className="text-[10px] text-gray-500">Fixed System Administrator</span>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-[#10233F]">
+                            {seniorDeskRecord.phone}
+                          </td>
+                          <td className="py-3 px-4 font-mono">
+                            <div className="flex items-center gap-1.5">
+                              <span className="bg-white border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
+                                {seniorDeskRecord.password}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(seniorDeskRecord.password);
+                                  showToast(`Password for ${seniorDeskRecord.name} copied!`);
+                                }}
+                                className="text-gray-400 hover:text-[#89190E] cursor-pointer"
+                                title="Copy Password"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-[#10233F]">
-                          9792303434
-                        </td>
-                        <td className="py-3 px-4 font-mono">
-                          <div className="flex items-center gap-1.5">
-                            <span className="bg-white border border-gray-200 px-2 py-0.5 rounded text-[11px] font-bold text-[#89190E]">
-                              Harshit@reception
+                          </td>
+                          <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
+                            {seniorDeskRecord.email || '—'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                              Active Senior Desk
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText('Harshit@reception');
-                                showToast('Password for Harshit copied!');
-                              }}
-                              className="text-gray-400 hover:text-[#89190E] cursor-pointer"
-                              title="Copy Password"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
-                          harshit.reception@msi-institutes.edu.in
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            Active Senior Desk
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="text-[10px] text-gray-400 italic">Permanent Desk</span>
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditReceptionist(seniorDeskRecord)}
+                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                title="Edit Receptionist Account"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setReceptionistToDelete(seniorDeskRecord)}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Delete Receptionist Account"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
 
                       {/* Dynamic Receptionists */}
-                      {receptionists.map((rec) => (
+                      {visibleReceptionists.map((rec) => (
                         <tr key={rec.id} className="hover:bg-[#F0F3FF]/40 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2.5">
