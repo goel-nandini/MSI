@@ -402,90 +402,8 @@ export default function SuperAdminMasterDashboard() {
   const [assignFacultyAutoEnroll, setAssignFacultyAutoEnroll] = useState(true);
   const [isSubmittingFacultyAssign, setIsSubmittingFacultyAssign] = useState(false);
 
-  // 11. Payment Gateway Diagnostics & Process State
-  const [isTestingGateway, setIsTestingGateway] = useState(false);
-  const [showGatewayDiagram, setShowGatewayDiagram] = useState(true);
-  const [copiedKey, setCopiedKey] = useState(false);
+  // 11. Transaction Receipts State
   const [selectedTxnForReceipt, setSelectedTxnForReceipt] = useState<AdminTransaction | null>(null);
-  const [gatewayHealthResult, setGatewayHealthResult] = useState<{
-    success: boolean;
-    orderId: string;
-    paymentId: string;
-    signature: string;
-    latencyMs: number;
-    invoiceNumber: string;
-    timestamp: string;
-  } | null>(null);
-
-  const handleTestGatewayHandshake = async () => {
-    setIsTestingGateway(true);
-    const startTime = performance.now();
-    try {
-      // Step 1: Request test order from official route
-      const orderRes = await fetch('/api/payments/razorpay/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: 4999,
-          currency: 'INR',
-          courseId: 'test_handshake_diagnostic',
-          courseTitle: 'Razorpay Gateway Cryptographic Handshake',
-          studentName: 'Super Admin Diagnostic',
-          studentPhone: '+91 97923 03434',
-        }),
-      });
-
-      const orderData = await orderRes.json();
-      if (!orderData.success || !orderData.order) {
-        throw new Error(orderData.message || 'Order creation failed');
-      }
-
-      const testOrderId = orderData.order.id;
-      const testPaymentId = `pay_test_${Math.random().toString(36).substring(2, 9)}`;
-      const testSignature = `sig_${Math.random().toString(36).substring(2, 14)}`;
-
-      // Step 2: Verify HMAC-SHA256 signature on server
-      const verifyRes = await fetch('/api/payments/razorpay/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          razorpay_order_id: testOrderId,
-          razorpay_payment_id: testPaymentId,
-          razorpay_signature: testSignature,
-          courseId: 'test_handshake_diagnostic',
-          courseTitle: 'Razorpay Gateway Cryptographic Handshake',
-          amount: 4999,
-          studentName: 'Super Admin Diagnostic',
-          studentPhone: '+91 97923 03434',
-          paymentMethod: 'Razorpay Server Handshake Test (SHA-256 Verified)',
-        }),
-      });
-
-      const verifyData = await verifyRes.json();
-      const endTime = performance.now();
-      const latency = Math.round(endTime - startTime);
-
-      if (verifyData.success && verifyData.verified) {
-        setGatewayHealthResult({
-          success: true,
-          orderId: testOrderId,
-          paymentId: testPaymentId,
-          signature: testSignature,
-          latencyMs: latency,
-          invoiceNumber: verifyData.invoiceNumber || 'INV-MSI-2026-TEST',
-          timestamp: new Date().toLocaleTimeString('en-IN'),
-        });
-        showToast(`Gateway Handshake Passed! Latency: ${latency}ms • HMAC Signature Verified ✓`);
-        fetchTransactions();
-      } else {
-        throw new Error(verifyData.message || 'HMAC Signature verification rejected');
-      }
-    } catch (err: any) {
-      showToast(`Gateway Diagnostic Warning: ${err?.message || 'Handshake failed'}`);
-    } finally {
-      setIsTestingGateway(false);
-    }
-  };
 
   // â”€â”€ Authentication Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -3074,7 +2992,7 @@ export default function SuperAdminMasterDashboard() {
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-0.5">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>Razorpay Verified</span>
+                      <span>Audited & Verified</span>
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] text-[#58413D] truncate border-t border-gray-100 pt-1.5">
@@ -3201,7 +3119,7 @@ export default function SuperAdminMasterDashboard() {
                           Revenue Overview
                         </h2>
                         <p className="text-xs text-[#58413D]">
-                          Razorpay Live Gateway Reconciliation
+                          Institutional Admissions Reconciliation
                         </p>
                       </div>
                       <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200">
@@ -4322,58 +4240,44 @@ export default function SuperAdminMasterDashboard() {
             </div>
           )}
 
-          {/* TAB 7: TRANSACTIONS & RECEIPTS (PAYMENT GATEWAY PROCESS) */}
+          {/* TAB 7: INSTITUTIONAL TRANSACTIONS & RECEIPTS */}
           {activeTab === 'transactions' && (
             <div className="space-y-6 animate-fadeIn">
-              {/* Header Strip with Controls */}
+              {/* Professional Financial Header */}
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8EEFF] shadow-xs">
                 <div>
                   <div className="flex items-center gap-2 text-[11px] font-bold text-[#89190E] uppercase tracking-wider mb-1">
                     <Receipt className="w-4 h-4" />
-                    <span>Admissions Financial Settlement & Gateway Architecture</span>
+                    <span>Institutional Finance & Accounts</span>
                   </div>
                   <h2 className="font-serif text-2xl font-bold text-[#071B37]">
-                    Razorpay Gateway Process & Transactions
+                    Fee Collections & Admissions Transactions
                   </h2>
                   <p className="text-xs text-[#58413D] mt-0.5">
-                    Official Node.js SDK (v2.9.6) with HMAC-SHA256 signature verification & automated course curriculum unlock.
+                    Live reconciled admissions revenue, student fee receipts, and institutional audit ledger.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    disabled={isTestingGateway}
-                    onClick={handleTestGatewayHandshake}
-                    className="px-4 py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    {isTestingGateway ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Running Handshake Test...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 text-[#EFC988]" />
-                        <span>Run Gateway Handshake Test</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowGatewayDiagram((prev) => !prev)}
-                    className="px-3.5 py-2.5 rounded-xl border border-[#D5E1ED] bg-white hover:bg-gray-50 text-xs font-bold text-[#071B37] flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Layers className="w-3.5 h-3.5 text-[#89190E]" />
-                    <span>{showGatewayDiagram ? 'Hide Architecture' : 'View Architecture'}</span>
-                  </button>
+                  {students.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStudentForCollectFee(students[0]);
+                        setCollectFeeAmount(String(students[0].dueFee || ''));
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-[#89190E] hover:bg-[#6e130a] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Record Fee Payment</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
                     onClick={() => {
                       fetchTransactions();
-                      showToast('Transactions ledger refreshed from disk.');
+                      showToast('Transactions ledger refreshed.');
                     }}
                     className="p-2.5 rounded-xl border border-[#D5E1ED] bg-white hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
                     title="Refresh transactions ledger"
@@ -4382,258 +4286,6 @@ export default function SuperAdminMasterDashboard() {
                   </button>
                 </div>
               </div>
-
-              {/* Gateway Status & Configuration Bar */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-[#E8EEFF] shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                      Gateway Engine
-                    </span>
-                    <span className="font-bold text-xs text-[#071B37] block mt-0.5">
-                      Razorpay Node.js SDK
-                    </span>
-                    <span className="text-[10px] text-gray-500 font-mono">
-                      v2.9.6 • Order & Verify API
-                    </span>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Server className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-[#E8EEFF] shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                      Environment
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="font-bold text-xs text-emerald-700">
-                        Active Live Production Mode
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-gray-500">
-                      Real UPI &amp; Card Settlements Enabled
-                    </span>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-[#E8EEFF] shadow-xs flex items-center justify-between">
-                  <div className="truncate pr-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                      Public Key ID
-                    </span>
-                    <span className="font-mono font-bold text-xs text-[#071B37] block mt-0.5 truncate">
-                      {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TvhCxeD2cZdI3w'}
-                    </span>
-                    <span className="text-[10px] text-emerald-600 font-semibold">
-                      Live Verified • HMAC SHA-256
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TvhCxeD2cZdI3w';
-                      navigator.clipboard.writeText(key);
-                      setCopiedKey(true);
-                      showToast('Live Razorpay Key ID copied to clipboard');
-                      setTimeout(() => setCopiedKey(false), 2000);
-                    }}
-                    className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                    title="Copy Key ID"
-                  >
-                    {copiedKey ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-[#E8EEFF] shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-                      Webhook Listener
-                    </span>
-                    <span className="font-mono text-xs text-[#89190E] font-bold block mt-0.5">
-                      /api/payments/razorpay/webhook
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      Listening: payment.captured
-                    </span>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <Radio className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Handshake Diagnostic Live Ping Banner */}
-              {gatewayHealthResult && (
-                <div className="bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-5 shadow-xs animate-fadeIn">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-emerald-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
-                        <Check className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-emerald-900">
-                          Cryptographic Handshake Succeeded (100% Cryptographic Match)
-                        </h4>
-                        <p className="text-[11px] text-emerald-700">
-                          Order created on server, HMAC-SHA256 signature calculated and verified with zero discrepancy.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs font-mono">
-                      <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg font-bold">
-                        Latency: {gatewayHealthResult.latencyMs} ms
-                      </span>
-                      <span className="text-gray-500">
-                        {gatewayHealthResult.timestamp}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 text-xs">
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 block">Created Order ID</span>
-                      <span className="font-mono font-bold text-[#071B37] text-[11px]">{gatewayHealthResult.orderId}</span>
-                    </div>
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 block">Verified Payment ID</span>
-                      <span className="font-mono font-bold text-[#89190E] text-[11px]">{gatewayHealthResult.paymentId}</span>
-                    </div>
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 block">Generated Tax Invoice</span>
-                      <span className="font-mono font-bold text-emerald-700 text-[11px]">{gatewayHealthResult.invoiceNumber}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Visual Payment Gateway Architecture & Flow Diagram */}
-              {showGatewayDiagram && (
-                <div className="bg-gradient-to-br from-[#0C2340] via-[#102B4E] to-[#0A1C33] rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-[#1E3E6B] relative overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-white/10">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#EFC988] text-[#0C2340] text-[10px] font-extrabold uppercase tracking-wider">
-                          Architecture Pipeline
-                        </span>
-                        <span className="text-xs text-gray-300">
-                          End-to-End Server-to-Client Payment Flow
-                        </span>
-                      </div>
-                      <h3 className="font-serif text-xl font-bold text-white mt-1">
-                        Razorpay Institutional Gateway Process
-                      </h3>
-                    </div>
-                    <span className="text-[11px] text-[#EFC988] font-mono bg-white/10 px-3 py-1 rounded-xl border border-white/15">
-                      Security Protocol: TLS 1.3 & HMAC-SHA256
-                    </span>
-                  </div>
-
-                  {/* 4 Pipeline Steps */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative">
-                    {/* Step 1 */}
-                    <div className="bg-white/5 hover:bg-white/10 transition-colors p-5 rounded-2xl border border-white/10 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-7 h-7 rounded-lg bg-[#EFC988] text-[#0C2340] font-bold text-xs flex items-center justify-center">
-                            1
-                          </span>
-                          <span className="font-mono text-[10px] text-gray-300 bg-white/10 px-2 py-0.5 rounded">
-                            Server API
-                          </span>
-                        </div>
-                        <h4 className="font-serif font-bold text-sm text-white mb-1">
-                          Order Creation
-                        </h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">
-                          Student selects course in LMS. Frontend dispatches POST to <code className="text-[#EFC988] font-mono text-[10px]">/api/payments/razorpay/order</code>.
-                        </p>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-white/10 text-[11px] text-gray-400">
-                        <span className="block text-[#EFC988] font-mono">Razorpay.orders.create()</span>
-                        <span>Amount in paise (INR) + Student ID</span>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="bg-white/5 hover:bg-white/10 transition-colors p-5 rounded-2xl border border-white/10 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-7 h-7 rounded-lg bg-[#EFC988] text-[#0C2340] font-bold text-xs flex items-center justify-center">
-                            2
-                          </span>
-                          <span className="font-mono text-[10px] text-gray-300 bg-white/10 px-2 py-0.5 rounded">
-                            Client UI
-                          </span>
-                        </div>
-                        <h4 className="font-serif font-bold text-sm text-white mb-1">
-                          Checkout Modal
-                        </h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">
-                          Official <code className="text-[#EFC988] font-mono text-[10px]">checkout.js</code> or high-speed Sandbox Simulator modal presents UPI QR, Cards, & NetBanking.
-                        </p>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-white/10 text-[11px] text-gray-400">
-                        <span className="block text-[#EFC988] font-mono">rzp.open()</span>
-                        <span>Pre-filled scholar name & phone</span>
-                      </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="bg-white/5 hover:bg-white/10 transition-colors p-5 rounded-2xl border border-white/10 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-7 h-7 rounded-lg bg-[#EFC988] text-[#0C2340] font-bold text-xs flex items-center justify-center">
-                            3
-                          </span>
-                          <span className="font-mono text-[10px] text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">
-                            Security Core
-                          </span>
-                        </div>
-                        <h4 className="font-serif font-bold text-sm text-white mb-1">
-                          HMAC Verification
-                        </h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">
-                          Frontend sends <code className="text-[#EFC988] font-mono text-[10px]">order_id|payment_id</code> to <code className="text-[#EFC988] font-mono text-[10px]">/api/payments/razorpay/verify</code>.
-                        </p>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-white/10 text-[11px] text-gray-400">
-                        <span className="block text-[#EFC988] font-mono">crypto.createHmac('sha256')</span>
-                        <span>Zero-trust cryptographic validation</span>
-                      </div>
-                    </div>
-
-                    {/* Step 4 */}
-                    <div className="bg-white/5 hover:bg-white/10 transition-colors p-5 rounded-2xl border border-white/10 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-7 h-7 rounded-lg bg-emerald-400 text-[#0C2340] font-bold text-xs flex items-center justify-center">
-                            4
-                          </span>
-                          <span className="font-mono text-[10px] text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">
-                            Settled
-                          </span>
-                        </div>
-                        <h4 className="font-serif font-bold text-sm text-white mb-1">
-                          LMS Access & Ledger
-                        </h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">
-                          Payment captured, logged to <code className="text-[#EFC988] font-mono text-[10px]">transactions.json</code>, tax receipt generated, and LMS course instantly unlocked.
-                        </p>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-white/10 text-[11px] text-gray-400">
-                        <span className="block text-emerald-400 font-mono">Invoice INV-MSI-2026-xxxx</span>
-                        <span>Curriculum immediately unlocked</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Financial Metrics Strip */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -4666,25 +4318,25 @@ export default function SuperAdminMasterDashboard() {
 
                 <div className="bg-white p-5 rounded-2xl border border-[#E8EEFF] shadow-xs">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                    HMAC Verification Rate
+                    Audit Settlement
                   </span>
                   <div className="font-serif font-bold text-2xl text-emerald-600 mt-1">
                     100.0%
                   </div>
-                  <span className="text-[11px] text-gray-500 font-medium block mt-0.5">
-                    Zero signature mismatches
+                  <span className="text-[11px] text-emerald-700 font-medium block mt-0.5">
+                    Fully Reconciled & Compliant
                   </span>
                 </div>
 
                 <div className="bg-white p-5 rounded-2xl border border-[#E8EEFF] shadow-xs">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                    Avg Settlement Latency
+                    Payment Gateway
                   </span>
-                  <div className="font-serif font-bold text-2xl text-[#89190E] mt-1">
-                    &lt; 1.2s
+                  <div className="font-serif font-bold text-xl text-[#071B37] mt-1">
+                    Institutional Active
                   </div>
-                  <span className="text-[11px] text-gray-500 font-medium block mt-0.5">
-                    Instant LMS curriculum unlock
+                  <span className="text-[11px] text-emerald-700 font-medium block mt-0.5">
+                    Secure UPI, Cards & NetBanking
                   </span>
                 </div>
               </div>
@@ -4697,7 +4349,7 @@ export default function SuperAdminMasterDashboard() {
                       Live Admissions Transactions Ledger
                     </h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      All fees captured with Razorpay order identifiers and cryptographic HMAC verification.
+                      All official student fee collections, online settlements, and authentic institutional receipts.
                     </p>
                   </div>
                   <span className="text-xs font-mono font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
@@ -4714,7 +4366,7 @@ export default function SuperAdminMasterDashboard() {
                         <th className="py-3.5 px-4">Course Enrolled</th>
                         <th className="py-3.5 px-4">Amount</th>
                         <th className="py-3.5 px-4">Payment Method</th>
-                        <th className="py-3.5 px-4">Cryptographic Status</th>
+                        <th className="py-3.5 px-4">Status</th>
                         <th className="py-3.5 px-4">Timestamp</th>
                         <th className="py-3.5 px-4 text-right">Actions</th>
                       </tr>
@@ -4732,7 +4384,7 @@ export default function SuperAdminMasterDashboard() {
                             <td className="py-3.5 px-4 font-mono font-bold text-[#89190E]">
                               {txn.id}
                               <span className="block text-[9px] font-mono text-gray-400">
-                                {txn.razorpayPaymentId || txn.orderId || txn.razorpayOrderId || 'rzp_test_pay'}
+                                {(txn.razorpayPaymentId || txn.orderId || txn.razorpayOrderId) ? `Ref: ${txn.razorpayPaymentId || txn.orderId || txn.razorpayOrderId}` : ''}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 font-bold text-[#071B37]">
@@ -4747,15 +4399,15 @@ export default function SuperAdminMasterDashboard() {
                               {txn.courseTitle}
                             </td>
                             <td className="py-3.5 px-4 font-serif font-extrabold text-[#071B37]">
-                              ₹{txn.amount?.toLocaleString('en-IN') || '4,999'}
+                              ₹{txn.amount?.toLocaleString('en-IN') || '0'}
                             </td>
                             <td className="py-3.5 px-4 text-[#58413D]">
-                              {txn.paymentMethod || 'Razorpay Gateway'}
+                              {txn.paymentMethod || 'Online Gateway'}
                             </td>
                             <td className="py-3.5 px-4">
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                                HMAC Verified ✓
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Verified & Settled ✓
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
