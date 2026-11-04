@@ -94,7 +94,7 @@ import { GalleryItem } from '../api/admin/gallery/route';
 import { AdminTransaction } from '../api/admin/transactions/route';
 import * as XLSX from 'xlsx';
 import ExcelLeadManagerModal from '@/components/super-admin/ExcelLeadManagerModal';
-import FeeReceiptModal from '@/components/student/FeeReceiptModal';
+import FeeReceiptModal, { numberToWords } from '@/components/student/FeeReceiptModal';
 
 
 type AdminTab =
@@ -404,6 +404,30 @@ export default function SuperAdminMasterDashboard() {
 
   // 11. Transaction Receipts State
   const [selectedTxnForReceipt, setSelectedTxnForReceipt] = useState<AdminTransaction | null>(null);
+
+  // ── Bulk Student Selection & Deletion State ──
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState<boolean>(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
+
+  // ── Manual Invoice Creation State ──
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState<boolean>(false);
+  const [invStudentMode, setInvStudentMode] = useState<'existing' | 'custom'>('existing');
+  const [invStudentId, setInvStudentId] = useState<string>('');
+  const [invStudentName, setInvStudentName] = useState<string>('');
+  const [invStudentPhone, setInvStudentPhone] = useState<string>('');
+  const [invStudentEmail, setInvStudentEmail] = useState<string>('');
+  const [invStudentAddress, setInvStudentAddress] = useState<string>('#3007 GTB NAGAR, Kharar, Punjab - 140301');
+  const [invStudentGuardian, setInvStudentGuardian] = useState<string>('');
+  const [invCourseTitle, setInvCourseTitle] = useState<string>('PCS-J Punjab Judicial Services');
+  const [invInvoiceNo, setInvInvoiceNo] = useState<string>('');
+  const [invDate, setInvDate] = useState<string>('');
+  const [invAmount, setInvAmount] = useState<string>('20000');
+  const [invPaymentMode, setInvPaymentMode] = useState<string>('ONLINE / UPI');
+  const [invDescription, setInvDescription] = useState<string>('Course Tuition & Academic Training Fee');
+  const [invRemarks, setInvRemarks] = useState<string>('');
+  const [invSyncStudentLedger, setInvSyncStudentLedger] = useState<boolean>(true);
+  const [isSubmittingManualInvoice, setIsSubmittingManualInvoice] = useState<boolean>(false);
 
   // â”€â”€ Authentication Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -1997,6 +2021,305 @@ export default function SuperAdminMasterDashboard() {
     }
   };
 
+  // ── Bulk Student Selection Handlers ──
+  const handleToggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAllStudents = () => {
+    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map((s) => s.id));
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedStudentIds.length === 0) return;
+    setIsBulkDeleting(true);
+
+    const targetStudents = students.filter(
+      (s) => selectedStudentIds.includes(s.id) || selectedStudentIds.includes(s.phone)
+    );
+    const countToDelete = targetStudents.length || selectedStudentIds.length;
+    const idsToDelete = targetStudents.map((s) => s.id).filter(Boolean);
+    const phonesToDelete = targetStudents.map((s) => (s.phone || '').replace(/\D/g, '').slice(-10)).filter(Boolean);
+
+    // Fallback if targetStudents had no match
+    const finalIds = idsToDelete.length > 0 ? idsToDelete : selectedStudentIds;
+
+    // Optimistic UI update immediately
+    setStudents((prev) =>
+      prev.filter(
+        (s) =>
+          !selectedStudentIds.includes(s.id) &&
+          !selectedStudentIds.includes(s.phone) &&
+          !phonesToDelete.includes((s.phone || '').replace(/\D/g, '').slice(-10))
+      )
+    );
+
+    try {
+      const res = await fetch('/api/admin/students/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: finalIds, phones: phonesToDelete }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(`${countToDelete} student account(s) permanently deleted.`);
+        if (data.students && Array.isArray(data.students)) {
+          setStudents(data.students);
+        }
+      } else {
+        showToast(data.message || 'Error during bulk deletion.');
+        fetchStudents();
+      }
+    } catch (err) {
+      showToast('Network error while performing bulk deletion.');
+      fetchStudents();
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteModal(false);
+      setSelectedStudentIds([]);
+    }
+  };
+
+  // ── Manual Invoice Creation Handlers ──
+  const handleOpenCreateInvoiceModal = (targetStudent?: RegisteredStudent) => {
+    const defaultInvNo = `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const formattedToday = `${day}/${month}/${year}`;
+
+    setInvInvoiceNo(defaultInvNo);
+    setInvDate(formattedToday);
+    setInvPaymentMode('ONLINE / UPI');
+    setInvRemarks('');
+    setInvSyncStudentLedger(true);
+
+    if (targetStudent) {
+      setInvStudentMode('existing');
+      setInvStudentId(targetStudent.id);
+      setInvStudentName(targetStudent.name || '');
+      setInvStudentPhone(targetStudent.phone || '');
+      setInvStudentEmail(targetStudent.email || '');
+      setInvCourseTitle(targetStudent.stream || 'PCS-J Punjab Judicial Services');
+      setInvStudentAddress(targetStudent.profile?.address || '#3007 GTB NAGAR, Kharar, Punjab - 140301');
+      setInvStudentGuardian(targetStudent.profile?.guardianName || '');
+      setInvAmount(String(targetStudent.dueFee && targetStudent.dueFee > 0 ? targetStudent.dueFee : (targetStudent.totalFee || 20000)));
+      setInvDescription(`${targetStudent.stream || 'Judicial Services'} Course Fee`);
+    } else if (students.length > 0) {
+      setInvStudentMode('existing');
+      const firstStu = students[0];
+      setInvStudentId(firstStu.id);
+      setInvStudentName(firstStu.name || '');
+      setInvStudentPhone(firstStu.phone || '');
+      setInvStudentEmail(firstStu.email || '');
+      setInvCourseTitle(firstStu.stream || 'PCS-J Punjab Judicial Services');
+      setInvStudentAddress(firstStu.profile?.address || '#3007 GTB NAGAR, Kharar, Punjab - 140301');
+      setInvStudentGuardian(firstStu.profile?.guardianName || '');
+      setInvAmount(String(firstStu.dueFee && firstStu.dueFee > 0 ? firstStu.dueFee : (firstStu.totalFee || 20000)));
+      setInvDescription(`${firstStu.stream || 'Judicial Services'} Course Fee`);
+    } else {
+      setInvStudentMode('custom');
+      setInvStudentId('');
+      setInvStudentName('');
+      setInvStudentPhone('');
+      setInvStudentEmail('');
+      setInvCourseTitle('PCS-J Punjab Judicial Services');
+      setInvStudentAddress('#3007 GTB NAGAR, Kharar, Punjab - 140301');
+      setInvStudentGuardian('');
+      setInvAmount('20000');
+      setInvDescription('Course Tuition & Academic Training Fee');
+    }
+
+    setShowCreateInvoiceModal(true);
+  };
+
+  const handleSelectInvoiceStudent = (stuId: string) => {
+    setInvStudentId(stuId);
+    const found = students.find((s) => s.id === stuId);
+    if (found) {
+      setInvStudentName(found.name || '');
+      setInvStudentPhone(found.phone || '');
+      setInvStudentEmail(found.email || '');
+      setInvCourseTitle(found.stream || 'PCS-J Punjab Judicial Services');
+      setInvStudentAddress(found.profile?.address || '#3007 GTB NAGAR, Kharar, Punjab - 140301');
+      setInvStudentGuardian(found.profile?.guardianName || '');
+      setInvAmount(String(found.dueFee && found.dueFee > 0 ? found.dueFee : (found.totalFee || 20000)));
+      setInvDescription(`${found.stream || 'Judicial Services'} Course Fee`);
+    }
+  };
+
+  const handleCreateManualInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invStudentName.trim() || !invAmount || Number(invAmount) <= 0) {
+      showToast('Student name and a valid amount are required.');
+      return;
+    }
+
+    setIsSubmittingManualInvoice(true);
+    try {
+      const netAmountNum = Number(invAmount);
+      const taxableNum = Number((netAmountNum / 1.18).toFixed(2));
+      const gstTotal = Number((netAmountNum - taxableNum).toFixed(2));
+      const halfGst = Number((gstTotal / 2).toFixed(2));
+      const cleanPhone = (invStudentPhone || '').replace(/\D/g, '').slice(-10);
+
+      let buyerDisplay = invStudentName.toUpperCase();
+      if (invStudentGuardian) {
+        buyerDisplay += ` D/O ${invStudentGuardian.toUpperCase()}`;
+      }
+      if (invCourseTitle) {
+        buyerDisplay += ` ${invCourseTitle.toUpperCase()}`;
+      }
+
+      const invNumberResolved = invInvoiceNo.trim() || `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const invoiceDataPayload = {
+        gstin: '03AEQPE9376K2ZY',
+        pan: 'AEQPE9376K',
+        instituteName: 'MSI GROUP OF INSTITUTE',
+        instituteAddress: 'MONGA CITY CENTRE, KHARAR LANDRAN ROAD, SEC-115, MOHALI, PUNJAB, 140301',
+        contact: '7508420013,',
+        invoiceNo: invNumberResolved,
+        invoiceDate: invDate || new Date().toLocaleDateString('en-IN'),
+        placeOfSupply: '03-PUNJAB',
+        modeOfSupply: invPaymentMode,
+        soldToName: buyerDisplay,
+        addressLine1: invStudentAddress || '#3007 GTB NAGAR',
+        addressLine2: 'Khrar , PUNJAB- 140301',
+        buyerGst: '',
+        buyerPhone: cleanPhone || '9463113195',
+        remarks: invRemarks,
+        items: [
+          {
+            id: '1',
+            description: invDescription || invCourseTitle || 'Course Tuition Fee',
+            hsn: '999293',
+            qty: '1PCS',
+            mrp: '0.00',
+            ntRate: netAmountNum.toFixed(2),
+            txRate: taxableNum.toFixed(2),
+            disc: '',
+            gstRate: '18%',
+            amount: taxableNum.toFixed(2),
+          },
+        ],
+        totalTaxable: taxableNum.toFixed(2),
+        totalPcs: '1',
+        totalAmount: taxableNum.toFixed(2),
+        taxGstRate: '18',
+        taxTaxable: taxableNum.toFixed(2),
+        taxSgst: halfGst.toFixed(2),
+        taxCgst: halfGst.toFixed(2),
+        taxIgst: '0',
+        taxCess: '0',
+        tcs: '0.00',
+        labour: '0.00',
+        freight: '0.00',
+        rndOff: '0.00',
+        discount: '0.00',
+        inWords: numberToWords(netAmountNum),
+        netAmount: netAmountNum.toFixed(2),
+        terms: [
+          'ALL DISPUTES ARE SUBJECT TO CHANDIGARH JURISDICTION ONLY',
+          'GOODS ONCE SOLD ARE NOT RETURNABLE .',
+          'OUR RESPONSIBILTY CEASES THE MOMENT GOODS LEAVES OUR PREMISES.',
+          '18% P.A. INTEREST WILL BE CHARGED IF BILL IS NOT PAID WITHIN 15 DAYS/DUE DATE.',
+        ],
+        bankName: 'AXIS BANK',
+        bankAccount: '925020020559054',
+        bankIfsc: 'UTIB00004866',
+      };
+
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      // 1. Post to Transactions API
+      const txnRes = await fetch('/api/admin/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: `#INV-${invNumberResolved.replace(/\D/g, '').slice(-5) || Math.floor(10000 + Math.random() * 90000)}`,
+          receiptNumber: invNumberResolved,
+          studentName: invStudentName.trim(),
+          studentPhone: cleanPhone ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}` : '',
+          courseId: 'manual-invoice',
+          courseTitle: invCourseTitle,
+          amount: netAmountNum,
+          paymentMethod: invPaymentMode,
+          status: 'Success',
+          timestamp: timeStr,
+          remarks: invRemarks,
+          invoiceData: invoiceDataPayload,
+        }),
+      });
+
+      const txnData = await txnRes.json();
+
+      // 2. If Ledger Sync is enabled, update student fee balance
+      if (invSyncStudentLedger) {
+        const targetStudent = students.find(
+          (s) => s.id === invStudentId || (cleanPhone && s.phone.replace(/\D/g, '').slice(-10) === cleanPhone)
+        );
+        if (targetStudent) {
+          const newPaid = (targetStudent.paidFee || 0) + netAmountNum;
+          const currentTotal = targetStudent.totalFee || (targetStudent.paidFee || 0) + netAmountNum;
+          const newDue = Math.max(0, currentTotal - newPaid);
+
+          await fetch('/api/admin/students', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: targetStudent.id,
+              phone: targetStudent.phone,
+              updates: {
+                paidFee: newPaid,
+                dueFee: newDue,
+              },
+            }),
+          }).catch(() => {});
+        }
+      }
+
+      showToast(`Tax Invoice #${invNumberResolved} successfully created!`);
+      setShowCreateInvoiceModal(false);
+      fetchTransactions();
+      fetchStudents();
+
+      // Open receipt view with allowEdit=true
+      const createdTxn = txnData.transaction || {
+        id: `#INV-${invNumberResolved}`,
+        receiptNumber: invNumberResolved,
+        studentName: invStudentName.trim(),
+        studentPhone: cleanPhone,
+        courseTitle: invCourseTitle,
+        amount: netAmountNum,
+        paymentMethod: invPaymentMode,
+        timestamp: timeStr,
+        invoiceData: invoiceDataPayload,
+      };
+      setSelectedTxnForReceipt(createdTxn as any);
+    } catch (err) {
+      showToast('Network error while generating invoice.');
+    } finally {
+      setIsSubmittingManualInvoice(false);
+    }
+  };
+
   // 7j. Submit Collected Fee Payment
   const handleRecordFeePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3344,12 +3667,57 @@ export default function SuperAdminMasterDashboard() {
                 </div>
               </div>
 
+              {/* Bulk Selection Notification Bar */}
+              {selectedStudentIds.length > 0 && (
+                <div className="bg-[#FFF4F2] border border-[#FCDAD7] p-3.5 px-5 rounded-2xl flex items-center justify-between animate-fadeIn shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-[#89190E] text-white flex items-center justify-center text-xs font-bold">
+                      {selectedStudentIds.length}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-[#89190E] block">
+                        {selectedStudentIds.length} student account{selectedStudentIds.length > 1 ? 's' : ''} selected
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        Use bulk delete to remove all selected student records simultaneously.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStudentIds([])}
+                      className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      Deselect All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      className="px-4 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Selected ({selectedStudentIds.length})</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Students Table */}
               <div className="bg-white rounded-2xl border border-[#E8EEFF] shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-[#F0F3FF] uppercase font-bold text-[10px] text-[#8C716C] tracking-wider border-b border-[#E8EEFF]">
+                        <th className="py-3.5 px-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length}
+                            onChange={handleToggleSelectAllStudents}
+                            className="w-4 h-4 rounded text-[#89190E] accent-[#89190E] focus:ring-[#89190E] border-gray-300 cursor-pointer"
+                            title={selectedStudentIds.length === filteredStudents.length ? 'Deselect All' : 'Select All'}
+                          />
+                        </th>
                         <th className="py-3.5 px-4">Student Name</th>
                         <th className="py-3.5 px-4">Mobile Number</th>
                         <th className="py-3.5 px-4">Enrolled Stream / Batch</th>
@@ -3363,13 +3731,24 @@ export default function SuperAdminMasterDashboard() {
                     <tbody className="divide-y divide-[#E8EEFF]">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="text-center py-12 text-gray-500 font-sans">
+                          <td colSpan={9} className="text-center py-12 text-gray-500 font-sans">
                             No registered students found. Click "+ Add New Student" to enroll the first student.
                           </td>
                         </tr>
                       ) : (
-                        filteredStudents.map((stu) => (
-                          <tr key={stu.id || stu.phone} className="hover:bg-[#F0F3FF]/50 transition-colors">
+                        filteredStudents.map((stu) => {
+                          const stuKey = stu.id || stu.phone;
+                          const isSelected = selectedStudentIds.includes(stu.id) || selectedStudentIds.includes(stu.phone);
+                          return (
+                          <tr key={stuKey} className={`hover:bg-[#F0F3FF]/50 transition-colors ${isSelected ? 'bg-[#FFF8F7]' : ''}`}>
+                            <td className="py-3.5 px-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectStudent(stuKey)}
+                                className="w-4 h-4 rounded text-[#89190E] accent-[#89190E] focus:ring-[#89190E] border-gray-300 cursor-pointer"
+                              />
+                            </td>
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full bg-[#89190E]/10 text-[#89190E] flex items-center justify-center font-bold text-xs shrink-0">
@@ -3483,7 +3862,8 @@ export default function SuperAdminMasterDashboard() {
                               </div>
                             </td>
                           </tr>
-                        ))
+                        );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -4259,6 +4639,15 @@ export default function SuperAdminMasterDashboard() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateInvoiceModal()}
+                    className="px-4 py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#EFC988]" />
+                    <span>+ Create Invoice</span>
+                  </button>
+
                   {students.length > 0 && (
                     <button
                       type="button"
@@ -4296,7 +4685,7 @@ export default function SuperAdminMasterDashboard() {
                   <div className="font-serif font-bold text-2xl text-[#071B37] mt-1">
                     ₹
                     {(
-                      transactions.reduce((acc, t) => acc + (t.amount || 0), 0) || 4999
+                      transactions.reduce((acc, t) => acc + (t.amount || 0), 0)
                     ).toLocaleString('en-IN')}
                   </div>
                   <span className="text-[11px] text-emerald-600 font-bold block mt-0.5">
@@ -4309,7 +4698,7 @@ export default function SuperAdminMasterDashboard() {
                     Completed Transactions
                   </span>
                   <div className="font-serif font-bold text-2xl text-[#071B37] mt-1">
-                    {transactions.length || 1}
+                    {transactions.length}
                   </div>
                   <span className="text-[11px] text-gray-500 font-medium block mt-0.5">
                     Admission fee settlements
@@ -4353,7 +4742,7 @@ export default function SuperAdminMasterDashboard() {
                     </p>
                   </div>
                   <span className="text-xs font-mono font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
-                    {transactions.length || 1} Records Found
+                    {transactions.length} Record{transactions.length === 1 ? '' : 's'} Found
                   </span>
                 </div>
 
@@ -4552,20 +4941,380 @@ export default function SuperAdminMasterDashboard() {
         </div>
       )}
 
-      {/* Official GST Tax Invoice & Fee Receipt Modal */}
-              {selectedTxnForReceipt && (
-                <FeeReceiptModal
-                  transaction={selectedTxnForReceipt}
-                  allowEdit={false}
-                  onClose={() => setSelectedTxnForReceipt(null)}
-                />
-              )}
+
             </div>
           )}
         </main>
       </div>
 
       {/* â”€â”€ MODALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── MODAL: BULK DELETE STUDENTS CONFIRMATION ── */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-red-100 relative">
+            <button
+              onClick={() => setShowBulkDeleteModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-serif text-lg font-bold text-[#10233F] mb-1">
+              Delete {selectedStudentIds.length} Student Account{selectedStudentIds.length > 1 ? 's' : ''}?
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Are you sure you want to permanently delete these <strong>{selectedStudentIds.length}</strong> selected student accounts? This will remove their records from MongoDB cloud database and disk, revoke their credentials, and cancel portal access.
+            </p>
+
+            <div className="max-h-36 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 mb-5 space-y-1.5 text-xs">
+              {students
+                .filter((s) => selectedStudentIds.includes(s.id) || selectedStudentIds.includes(s.phone))
+                .map((s) => (
+                  <div key={s.id || s.phone} className="flex justify-between items-center text-gray-700">
+                    <span className="font-bold text-[#10233F] truncate">{s.name}</span>
+                    <span className="font-mono text-gray-500 text-[11px] shrink-0">+{s.phone}</span>
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkDelete}
+                disabled={isBulkDeleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Confirm Bulk Delete ({selectedStudentIds.length})</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: CREATE MANUAL TAX INVOICE & RECEIPT ── */}
+      {showCreateInvoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[#E8DCCB] relative my-auto">
+            <button
+              onClick={() => setShowCreateInvoiceModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+              <div className="w-11 h-11 rounded-2xl bg-[#0C2340] text-[#EFC988] flex items-center justify-center shadow-xs">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#89190E]">
+                  Official Billing & Accounting
+                </span>
+                <h3 className="font-serif text-xl font-bold text-[#10233F]">
+                  Create Manual Tax Invoice / Fee Receipt
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Generate an official GST invoice using the institute's single-sheet format with auto-calculations.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateManualInvoice} className="space-y-4 text-xs">
+              {/* Student Mode Selector */}
+              <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setInvStudentMode('existing')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-xs transition-colors ${
+                    invStudentMode === 'existing'
+                      ? 'bg-white text-[#89190E] shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Select Enrolled Student ({students.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvStudentMode('custom');
+                    setInvStudentId('');
+                  }}
+                  className={`flex-1 py-2 rounded-lg font-bold text-xs transition-colors ${
+                    invStudentMode === 'custom'
+                      ? 'bg-white text-[#89190E] shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  New / Walk-in Scholar
+                </button>
+              </div>
+
+              {/* Student Dropdown or Custom Fields */}
+              {invStudentMode === 'existing' && students.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Choose Registered Student *
+                  </label>
+                  <select
+                    value={invStudentId}
+                    onChange={(e) => handleSelectInvoiceStudent(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E] bg-white font-medium"
+                  >
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.phone}) — {s.stream} (Due: ₹{(s.dueFee ?? 0).toLocaleString('en-IN')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Billed To Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Student Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={invStudentName}
+                    onChange={(e) => setInvStudentName(e.target.value)}
+                    placeholder="e.g. SUKHMAN"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-bold text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Parent / Guardian Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={invStudentGuardian}
+                    onChange={(e) => setInvStudentGuardian(e.target.value)}
+                    placeholder="e.g. GURPREET SINGH"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Mobile Number (Login Key)
+                  </label>
+                  <input
+                    type="text"
+                    value={invStudentPhone}
+                    onChange={(e) => setInvStudentPhone(e.target.value)}
+                    placeholder="10-digit mobile number"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Course Program / Stream *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={invCourseTitle}
+                    onChange={(e) => setInvCourseTitle(e.target.value)}
+                    placeholder="e.g. PCS-J Punjab Judicial Services"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Student Postal Address
+                </label>
+                <input
+                  type="text"
+                  value={invStudentAddress}
+                  onChange={(e) => setInvStudentAddress(e.target.value)}
+                  placeholder="e.g. #3007 GTB NAGAR, Kharar, Punjab"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              {/* Invoice Meta Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Invoice / Receipt No. *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={invInvoiceNo}
+                    onChange={(e) => setInvInvoiceNo(e.target.value)}
+                    placeholder="e.g. 65 or INV-MSI-2026-0065"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Invoice Date *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={invDate}
+                    onChange={(e) => setInvDate(e.target.value)}
+                    placeholder="DD/MM/YYYY"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs font-mono text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Mode of Payment *
+                  </label>
+                  <select
+                    value={invPaymentMode}
+                    onChange={(e) => setInvPaymentMode(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E] bg-white font-semibold"
+                  >
+                    <option value="ONLINE / UPI">ONLINE / UPI</option>
+                    <option value="CASH">CASH</option>
+                    <option value="BANK TRANSFER / NEFT">BANK TRANSFER / NEFT</option>
+                    <option value="CHEQUE">CHEQUE</option>
+                    <option value="CREDIT / DEBIT CARD">CREDIT / DEBIT CARD</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Amount & Particulars */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Total Amount Received (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={invAmount}
+                    onChange={(e) => setInvAmount(e.target.value)}
+                    placeholder="e.g. 20000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-sm font-mono font-bold text-[#89190E] focus:outline-none focus:border-[#89190E]"
+                  />
+                  {Number(invAmount) > 0 && (
+                    <div className="text-[10px] text-gray-500 mt-1 flex justify-between">
+                      <span>Taxable: ₹{(Number(invAmount) / 1.18).toFixed(2)}</span>
+                      <span>GST (18% incl): ₹{(Number(invAmount) - Number(invAmount) / 1.18).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                    Item Description / Particulars
+                  </label>
+                  <input
+                    type="text"
+                    value={invDescription}
+                    onChange={(e) => setInvDescription(e.target.value)}
+                    placeholder="e.g. CLAT (LLB) Course Tuition Fee"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                  />
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#10233F] mb-1">
+                  Remarks / Special Settlement Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={invRemarks}
+                  onChange={(e) => setInvRemarks(e.target.value)}
+                  placeholder="e.g. Full Semester Settlement / Installment 1 of 2"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8DCCB] text-xs text-[#10233F] focus:outline-none focus:border-[#89190E]"
+                />
+              </div>
+
+              {/* Sync Student Ledger Checkbox */}
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="sync-student-fee-check"
+                  checked={invSyncStudentLedger}
+                  onChange={(e) => setInvSyncStudentLedger(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#89190E] accent-[#89190E] cursor-pointer"
+                />
+                <label htmlFor="sync-student-fee-check" className="text-xs text-gray-700 cursor-pointer">
+                  Sync with Student Ledger (add ₹{Number(invAmount) || 0} to student's <strong>Paid Fees</strong> & reduce <strong>Due Balance</strong>)
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateInvoiceModal(false)}
+                  disabled={isSubmittingManualInvoice}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingManualInvoice}
+                  className="px-5 py-2.5 rounded-xl bg-[#0C2340] hover:bg-[#07172B] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingManualInvoice ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Generating Invoice...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-3.5 h-3.5 text-[#EFC988]" />
+                      <span>Generate & Issue Invoice</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Official GST Tax Invoice & Fee Receipt Modal */}
+      {selectedTxnForReceipt && (
+        <FeeReceiptModal
+          transaction={selectedTxnForReceipt}
+          allowEdit={true}
+          onClose={() => setSelectedTxnForReceipt(null)}
+        />
+      )}
+
       {/* 1. Add Student Modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">

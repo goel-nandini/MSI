@@ -1,9 +1,37 @@
 [
   {
-    "id": "msi-stu-9811223344",
-    "phone": "9811223344",
-    "email": "tester@msi-institutes.edu.in",
-    "name": "Lifecycle Tester (Edited)",
-    "deletedAt": "2026-11-03T17:48:01.673Z"
+    "id": "msi-stu-8899664477",
+    "phone": "8899664477",
+    "email": "student.4477@msi-institutes.edu.in",
+    "name": "harshit",
+    "deletedAt": "2026-11-04T09:38:29.580Z"
+  },
+  {
+    "id": "msi-stu-5566332211",
+    "phone": "5566332211",
+    "email": "student.2211@msi-institutes.edu.in",
+    "name": "Nandini",
+    "deletedAt": "2026-11-04T09:38:29.594Z"
+  },
+  {
+    "id": "msi-stu-6655441122",
+    "phone": "6655441122",
+    "email": "student.1122@msi-institutes.edu.in",
+    "name": "kanika",
+    "deletedAt": "2026-11-04T09:46:10.258Z"
+  },
+  {
+    "id": "msi-stu-6633221144",
+    "phone": "6633221144",
+    "email": "student.1144@msi-institutes.edu.in",
+    "name": "jiya",
+    "deletedAt": "2026-11-04T09:46:10.265Z"
+  },
+  {
+    "id": "msi-stu-5566998844",
+    "phone": "5566998844",
+    "email": "student.8844@msi-institutes.edu.in",
+    "name": "riya",
+    "deletedAt": "2026-11-04T09:46:10.273Z"
   }
 ]

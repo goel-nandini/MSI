@@ -144,6 +144,70 @@ export default function FeeReceiptModal({
   };
 
   const calculateDefaults = (): GSTInvoiceData => {
+    if (transaction?.invoiceData) {
+      const net = Number(transaction.invoiceData.netAmount || transaction.amount) || 0;
+      return {
+        gstin: '03AEQPE9376K2ZY',
+        pan: 'AEQPE9376K',
+        instituteName: 'MSI GROUP OF INSTITUTE',
+        instituteAddress: 'MONGA CITY CENTRE, KHARAR LANDRAN ROAD, SEC-115, MOHALI, PUNJAB, 140301',
+        contact: '7508420013,',
+        invoiceNo: transaction.receiptNumber || transaction.invoiceData.invoiceNo || '65',
+        invoiceDate: transaction.invoiceData.invoiceDate || getFormattedDate(),
+        placeOfSupply: transaction.invoiceData.placeOfSupply || '03-PUNJAB',
+        modeOfSupply: transaction.paymentMethod || transaction.invoiceData.modeOfSupply || 'ONLINE / UPI',
+        soldToName: transaction.studentName?.toUpperCase() || transaction.invoiceData.soldToName || 'MSI STUDENT',
+        addressLine1: transaction.invoiceData.addressLine1 || student?.address || '#3007 GTB NAGAR',
+        addressLine2: transaction.invoiceData.addressLine2 || 'Khrar , PUNJAB- 140301',
+        buyerGst: transaction.invoiceData.buyerGst || '',
+        buyerPhone: transaction.studentPhone || transaction.invoiceData.buyerPhone || student?.phone || '',
+        grMarka: '',
+        poNo: transaction.orderId || '',
+        poDate: '',
+        remarks: transaction.remarks || transaction.invoiceData.remarks || '',
+        items: transaction.invoiceData.items || [
+          {
+            id: '1',
+            description: transaction.courseTitle || 'CLAT (LLB)',
+            hsn: '999293',
+            qty: '1PCS',
+            mrp: '0.00',
+            ntRate: net.toFixed(2),
+            txRate: (net / 1.18).toFixed(2),
+            disc: '',
+            gstRate: '18%',
+            amount: (net / 1.18).toFixed(2),
+          },
+        ],
+        totalTaxable: transaction.invoiceData.totalTaxable || (net / 1.18).toFixed(2),
+        totalPcs: transaction.invoiceData.totalPcs || '1',
+        totalAmount: transaction.invoiceData.totalAmount || (net / 1.18).toFixed(2),
+        taxGstRate: '18',
+        taxTaxable: transaction.invoiceData.taxTaxable || (net / 1.18).toFixed(2),
+        taxSgst: transaction.invoiceData.taxSgst || ((net - net / 1.18) / 2).toFixed(2),
+        taxCgst: transaction.invoiceData.taxCgst || ((net - net / 1.18) / 2).toFixed(2),
+        taxIgst: '0',
+        taxCess: '0',
+        tcs: '0.00',
+        labour: '0.00',
+        freight: '0.00',
+        rndOff: '0.00',
+        discount: '0.00',
+        inWords: transaction.invoiceData.inWords || numberToWords(net),
+        netAmount: net.toFixed(2),
+        terms: [
+          'ALL DISPUTES ARE SUBJECT TO CHANDIGARH JURISDICTION ONLY',
+          'GOODS ONCE SOLD ARE NOT RETURNABLE .',
+          'OUR RESPONSIBILTY CEASES THE MOMENT GOODS LEAVES OUR PREMISES.',
+          '18% P.A. INTEREST WILL BE CHARGED IF BILL IS NOT PAID WITHIN 15 DAYS/DUE DATE.',
+        ],
+        bankName: 'AXIS BANK',
+        bankAccount: '925020020559054',
+        bankIfsc: 'UTIB00004866',
+        ...transaction.invoiceData,
+      };
+    }
+
     const rawAmt = Number(transaction.amount) || 20000;
     // Reverse calculation for 18% inclusive GST
     const taxableNum = Number((rawAmt / 1.18).toFixed(2));
@@ -246,7 +310,7 @@ export default function FeeReceiptModal({
   const [invoice, setInvoice] = useState<GSTInvoiceData>(calculateDefaults());
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
-  const canEdit = false;
+  const canEdit = Boolean(allowEdit && isEditMode);
 
   useEffect(() => {
     setInvoice(calculateDefaults());
@@ -689,6 +753,22 @@ export default function FeeReceiptModal({
           </div>
 
           <div className="flex items-center space-x-2">
+            {allowEdit && (
+              <button
+                type="button"
+                onClick={() => setIsEditMode((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer ${
+                  isEditMode
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-white/10 hover:bg-white/20 text-[#EFC988] border border-[#EFC988]/30'
+                }`}
+                title="Toggle inline editing for invoice values"
+              >
+                {isEditMode ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
+                <span>{isEditMode ? 'Done Editing' : 'Edit Values'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handlePrintSingleSheet}

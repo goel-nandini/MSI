@@ -20,6 +20,8 @@ export interface AdminTransaction {
   razorpaySignature?: string;
   receiptNumber: string;
   razorpayOrderId?: string;
+  invoiceData?: any;
+  remarks?: string;
 }
 
 const INITIAL_TRANSACTIONS: AdminTransaction[] = [];
@@ -98,6 +100,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
+      id: customId,
       studentName,
       studentPhone,
       courseId,
@@ -107,23 +110,39 @@ export async function POST(req: NextRequest) {
       orderId,
       razorpayPaymentId,
       razorpaySignature,
+      receiptNumber,
+      status,
+      timestamp,
+      invoiceData,
+      remarks,
     } = body;
 
     const txns = readTransactionsFromDisk();
+    const formattedDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
     const newTxn: AdminTransaction = {
-      id: `#TXN-${Math.floor(10000 + Math.random() * 90000)}`,
+      id: customId || `#TXN-${Math.floor(10000 + Math.random() * 90000)}`,
       orderId: orderId || `order_msi_${Date.now().toString().slice(-8)}`,
       studentName: studentName || 'Registered Student',
-      studentPhone: studentPhone || '+91 98000 00000',
-      courseId: courseId || 'course-default',
+      studentPhone: studentPhone || '',
+      courseId: courseId || 'fee-settlement',
       courseTitle: courseTitle || 'Judicial Studies Program',
       amount: Number(amount) || 0,
-      paymentMethod: paymentMethod || 'Razorpay Test Simulation',
-      status: 'Captured (Test Mode)',
-      timestamp: 'Just now (Instant)',
-      razorpayPaymentId: razorpayPaymentId || `pay_test_${Date.now().toString().slice(-8)}`,
-      razorpaySignature: razorpaySignature || `sig_${Math.random().toString(36).substring(2, 12)}`,
-      receiptNumber: `INV-MSI-2026-${Math.floor(100 + Math.random() * 900)}`,
+      paymentMethod: paymentMethod || 'Official Fee Receipt',
+      status: status || 'Success',
+      timestamp: timestamp || formattedDate,
+      razorpayPaymentId: razorpayPaymentId || `REC-${Date.now().toString().slice(-8)}`,
+      razorpaySignature: razorpaySignature || '',
+      receiptNumber: receiptNumber || (invoiceData?.invoiceNo ? invoiceData.invoiceNo : `INV-MSI-2026-${Math.floor(1000 + Math.random() * 9000)}`),
+      invoiceData: invoiceData || undefined,
+      remarks: remarks || invoiceData?.remarks || '',
     };
 
     const updated = [newTxn, ...txns];

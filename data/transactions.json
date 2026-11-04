@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": "#INV-69593",
+    "orderId": "order_msi_85134293",
+    "studentName": "Nandini k",
+    "studentPhone": "+91 93684 10715",
+    "courseId": "manual-invoice",
+    "courseTitle": "PCS-J Punjab Judicial Services",
+    "amount": 20000,
+    "paymentMethod": "BANK TRANSFER / NEFT",
+    "status": "Success",
+    "timestamp": "04 Nov 2026, 03:08 pm",
+    "razorpayPaymentId": "REC-85134293",
+    "razorpaySignature": "",
+    "receiptNumber": "INV-MSI-2026-9593",
+    "invoiceData": {
+      "gstin": "03AEQPE9376K2ZY",
+      "pan": "AEQPE9376K",
+      "instituteName": "MSI GROUP OF INSTITUTE",
+      "instituteAddress": "MONGA CITY CENTRE, KHARAR LANDRAN ROAD, SEC-115, MOHALI, PUNJAB, 140301",
+      "contact": "7508420013,",
+      "invoiceNo": "INV-MSI-2026-9593",
+      "invoiceDate": "04/11/2026",
+      "placeOfSupply": "03-PUNJAB",
+      "modeOfSupply": "BANK TRANSFER / NEFT",
+      "soldToName": "NANDINI K PCS-J PUNJAB JUDICIAL SERVICES",
+      "addressLine1": "#3007 GTB NAGAR, Kharar, Punjab - 140301",
+      "addressLine2": "Khrar , PUNJAB- 140301",
+      "buyerGst": "",
+      "buyerPhone": "9368410715",
+      "remarks": "",
+      "items": [
+        {
+          "id": "1",
+          "description": "Course Tuition & Academic Training Fee",
+          "hsn": "999293",
+          "qty": "1PCS",
+          "mrp": "0.00",
+          "ntRate": "20000.00",
+          "txRate": "16949.15",
+          "disc": "",
+          "gstRate": "18%",
+          "amount": "16949.15"
+        }
+      ],
+      "totalTaxable": "16949.15",
+      "totalPcs": "1",
+      "totalAmount": "16949.15",
+      "taxGstRate": "18",
+      "taxTaxable": "16949.15",
+      "taxSgst": "1525.42",
+      "taxCgst": "1525.42",
+      "taxIgst": "0",
+      "taxCess": "0",
+      "tcs": "0.00",
+      "labour": "0.00",
+      "freight": "0.00",
+      "rndOff": "0.00",
+      "discount": "0.00",
+      "inWords": "RS- TWENTY THOUSAND ONLY",
+      "netAmount": "20000.00",
+      "terms": [
+        "ALL DISPUTES ARE SUBJECT TO CHANDIGARH JURISDICTION ONLY",
+        "GOODS ONCE SOLD ARE NOT RETURNABLE .",
+        "OUR RESPONSIBILTY CEASES THE MOMENT GOODS LEAVES OUR PREMISES.",
+        "18% P.A. INTEREST WILL BE CHARGED IF BILL IS NOT PAID WITHIN 15 DAYS/DUE DATE."
+      ],
+      "bankName": "AXIS BANK",
+      "bankAccount": "925020020559054",
+      "bankIfsc": "UTIB00004866"
+    },
+    "remarks": ""
+  }
+]
